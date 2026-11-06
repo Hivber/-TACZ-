@@ -15,9 +15,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Resolve Helix generator module checksums
-        run: go mod download -json github.com/helix-bedrock/worldgen@v0.0.0-20261028023607-6359abdbcc3c
-
       - name: Lint
         run: make lint
 

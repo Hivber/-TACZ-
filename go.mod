@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/helix-bedrock/worldgen v0.0.0-20261028023607-6359abdbcc3c
+	github.com/helix-bedrock/helix-data v0.0.0-20261028013504-24c4e8453ee3 // indirect
 	github.com/brentp/intintmap v0.0.0-20251106190759-56907b1f8479
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/df-mc/go-nethernet v1.0.26
