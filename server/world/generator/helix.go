@@ -91,6 +91,9 @@ func NewHelix(seed int64) (*Helix, error) {
 		return nil, fmt.Errorf("helix: load biome IDs: %w", err)
 	}
 
+	// The server finalises the default registry when Config.New is called.
+	// Helix is constructed while parsing config, so finalise it here first.
+	world.DefaultBlockRegistry.Finalize()
 	h := &Helix{
 		registry:        reg,
 		airRuntimeID:    world.DefaultBlockRegistry.AirRuntimeID(),
