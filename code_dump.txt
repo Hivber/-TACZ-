@@ -1,0 +1,2509 @@
+
+========== go.mod ==========
+module github.com/df-mc/dragonfly
+
+go 1.26.0
+
+require (
+	github.com/brentp/intintmap v0.0.0-20251106190759-56907b1f8479
+	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/df-mc/go-nethernet v1.0.26
+	github.com/df-mc/goleveldb v1.1.9
+	github.com/df-mc/worldupgrader v1.0.22
+	github.com/go-gl/mathgl v1.2.0
+	github.com/google/uuid v1.6.0
+	github.com/pelletier/go-toml v1.9.5
+	github.com/pion/ice/v4 v4.4.4
+	github.com/pion/webrtc/v4 v4.2.21-0.20260920133716-91bfc6c2039f
+	github.com/sandertv/gophertunnel v1.63.0
+	github.com/segmentio/fasthash v1.0.3
+	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329
+	golang.org/x/mod v0.32.0
+	golang.org/x/text v0.34.0
+	golang.org/x/tools v0.41.0
+)
+
+require (
+	github.com/coder/websocket v1.8.14 // indirect
+	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
+	github.com/df-mc/go-playfab/v2 v2.0.2 // indirect
+	github.com/df-mc/go-xsapi/v2 v2.0.3 // indirect
+	github.com/df-mc/jsonc v1.0.5 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
+	github.com/nxadm/tail v1.4.11 // indirect
+	github.com/pion/datachannel v1.6.3 // indirect
+	github.com/pion/dtls/v3 v3.1.9 // indirect
+	github.com/pion/interceptor v0.1.49 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/mdns/v2 v2.2.1 // indirect
+	github.com/pion/randutil v0.1.0 // indirect
+	github.com/pion/rtcp v1.2.17 // indirect
+	github.com/pion/rtp v1.10.5 // indirect
+	github.com/pion/sctp v1.11.3 // indirect
+	github.com/pion/sdp/v3 v3.0.20 // indirect
+	github.com/pion/srtp/v3 v3.1.0 // indirect
+	github.com/pion/stun/v4 v4.0.1 // indirect
+	github.com/pion/transport/v5 v5.0.1 // indirect
+	github.com/pion/turn/v5 v5.1.2 // indirect
+	github.com/sandertv/go-raknet v1.15.2-0.20260705184311-0d1fd09e2cf6 // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
+)
+
+========== main.go ==========
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log/slog"
+	"os"
+	"strings"
+
+	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/cmd"
+	"github.com/df-mc/dragonfly/server/player/chat"
+	"github.com/go-gl/mathgl/mgl64"
+	"github.com/pelletier/go-toml"
+)
+
+func main() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+	chat.Global.Subscribe(chat.StdoutSubscriber{})
+	conf, err := readConfig(slog.Default())
+	if err != nil {
+		panic(err)
+	}
+
+	srv := conf.New()
+	srv.CloseOnProgramEnd()
+
+	operators, err := loadOperatorStore("operators.json", conf.OwnerXUID)
+	if err != nil {
+		panic(err)
+	}
+	registerOperatorCommands(srv, operators)
+
+	srv.Listen()
+	go runConsoleCommands()
+	for p := range srv.Accept() {
+		if (conf.OwnerXUID != "" && p.XUID() == conf.OwnerXUID) || operators.isOperator(p.UUID()) {
+			p.SetOperator(true)
+		}
+	}
+}
+
+// readConfig reads the configuration from the config.toml file, or creates the
+// file if it does not yet exist.
+func readConfig(log *slog.Logger) (server.Config, error) {
+	c := server.DefaultConfig()
+	var zero server.Config
+	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
+		data, err := toml.Marshal(c)
+		if err != nil {
+			return zero, fmt.Errorf("encode default config: %v", err)
+		}
+		if err := os.WriteFile("config.toml", data, 0644); err != nil {
+			return zero, fmt.Errorf("create default config: %v", err)
+		}
+		return c.Config(log)
+	}
+	data, err := os.ReadFile("config.toml")
+	if err != nil {
+		return zero, fmt.Errorf("read config: %v", err)
+	}
+	if err := toml.Unmarshal(data, &c); err != nil {
+		return zero, fmt.Errorf("decode config: %v", err)
+	}
+	return c.Config(log)
+}
+
+// consoleCommandSource adapts the server's standard input to Dragonfly's
+// native cmd.Source interface. A console source is not attached to a world,
+// so commands are executed with a nil *world.Tx.
+type consoleCommandSource struct{}
+
+func (*consoleCommandSource) Position() mgl64.Vec3 { return mgl64.Vec3{} }
+
+func (*consoleCommandSource) SendCommandOutput(output *cmd.Output) {
+	for _, message := range output.Messages() {
+		fmt.Printf("[Console] %s\n", message)
+	}
+	for _, err := range output.Errors() {
+		fmt.Fprintf(os.Stderr, "[Console] ERROR: %v\n", err)
+	}
+}
+
+// runConsoleCommands dispatches console input through the same command
+// registry and parser used by in-game commands. It accepts both "op name"
+// and "/op name" forms, matching the usual dedicated-server console syntax.
+func runConsoleCommands() {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 4096), 1024*1024)
+	source := &consoleCommandSource{}
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "/"))
+		if line == "" {
+			continue
+		}
+
+		name := line
+		args := ""
+		if i := strings.IndexAny(line, " \t"); i >= 0 {
+			name = line[:i]
+			args = strings.TrimSpace(line[i+1:])
+		}
+		name = strings.ToLower(name)
+
+		command, ok := cmd.ByAlias(name)
+		if !ok {
+			output := &cmd.Output{}
+			output.Errort(cmd.MessageUnknown, name)
+			source.SendCommandOutput(output)
+			continue
+		}
+		command.Execute(args, source, nil)
+	}
+	if err := scanner.Err(); err != nil {
+		slog.Error("read console input", "error", err)
+	}
+}
+
+========== admin.go ==========
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/cmd"
+	"github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/world"
+	"github.com/google/uuid"
+)
+
+type operatorStore struct {
+	mu        sync.RWMutex
+	path      string
+	ownerXUID string
+	operators map[uuid.UUID]struct{}
+}
+
+type operatorFile struct {
+	Operators []string `json:"operators"`
+}
+
+func loadOperatorStore(path, ownerXUID string) (*operatorStore, error) {
+	s := &operatorStore{path: path, ownerXUID: strings.TrimSpace(ownerXUID), operators: map[uuid.UUID]struct{}{}}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return s, nil
+		}
+		return nil, fmt.Errorf("read operator list: %w", err)
+	}
+	var f operatorFile
+	if err := json.Unmarshal(data, &f); err != nil {
+		return nil, fmt.Errorf("decode operator list: %w", err)
+	}
+	for _, raw := range f.Operators {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID %q in operator list: %w", raw, err)
+		}
+		s.operators[id] = struct{}{}
+	}
+	return s, nil
+}
+
+func (s *operatorStore) isAllowed(src cmd.Source) bool {
+	// The local server console is a trusted command source, like the server
+	// console in dedicated Bedrock servers. Player sources still need to be
+	// the configured owner or an existing operator.
+	if _, ok := src.(*consoleCommandSource); ok {
+		return true
+	}
+	if p, ok := src.(*player.Player); ok {
+		if s.ownerXUID != "" && p.XUID() == s.ownerXUID {
+			return true
+		}
+		return p.Operator() || s.isOperator(p.UUID())
+	}
+	return false
+}
+
+func (s *operatorStore) isOperator(id uuid.UUID) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.operators[id]
+	return ok
+}
+
+func (s *operatorStore) add(id uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.operators[id] = struct{}{}
+	return s.saveLocked()
+}
+
+func (s *operatorStore) remove(id uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.operators, id)
+	return s.saveLocked()
+}
+
+func (s *operatorStore) list() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]string, 0, len(s.operators))
+	for id := range s.operators {
+		out = append(out, id.String())
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *operatorStore) saveLocked() error {
+	f := operatorFile{Operators: make([]string, 0, len(s.operators))}
+	for id := range s.operators {
+		f.Operators = append(f.Operators, id.String())
+	}
+	sort.Strings(f.Operators)
+	data, err := json.MarshalIndent(f, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode operator list: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0755); err != nil {
+		return fmt.Errorf("create operator-list directory: %w", err)
+	}
+	tmp := s.path + ".tmp"
+	if err := os.WriteFile(tmp, append(data, '\n'), 0600); err != nil {
+		return fmt.Errorf("write operator list: %w", err)
+	}
+	if err := os.Rename(tmp, s.path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("replace operator list: %w", err)
+	}
+	return nil
+}
+
+type xuidCommand struct{}
+
+func (xuidCommand) Run(src cmd.Source, out *cmd.Output, _ *world.Tx) {
+	p, ok := src.(*player.Player)
+	if !ok {
+		out.Error("This command can only be used by a player.")
+		return
+	}
+	if p.XUID() == "" {
+		out.Error("No Xbox Live XUID is available. Sign in with an authenticated Xbox Live account.")
+		return
+	}
+	out.Printf("Your XUID: %s", p.XUID())
+}
+
+type opCommand struct {
+	Target string
+	store  *operatorStore
+	srv    *server.Server
+}
+
+func (c opCommand) Allow(src cmd.Source) bool { return c.store.isAllowed(src) }
+
+func (c opCommand) Run(src cmd.Source, out *cmd.Output, _ *world.Tx) {
+	h, ok := c.srv.PlayerByName(c.Target)
+	if !ok {
+		out.Errorf("Player %q is not online. This command currently supports online players only.", c.Target)
+		return
+	}
+	id := h.UUID()
+	if err := c.store.add(id); err != nil {
+		out.Error(err)
+		return
+	}
+	player.Do(h, func(_ *world.Tx, target *player.Player) { target.SetOperator(true) })
+	out.Printf("Operator permissions granted to %s (%s).", c.Target, id)
+}
+
+type deopCommand struct {
+	Target string
+	store  *operatorStore
+	srv    *server.Server
+}
+
+func (c deopCommand) Allow(src cmd.Source) bool { return c.store.isAllowed(src) }
+
+func (c deopCommand) Run(src cmd.Source, out *cmd.Output, _ *world.Tx) {
+	h, ok := c.srv.PlayerByName(c.Target)
+	if !ok {
+		out.Errorf("Player %q is not online. This command currently supports online players only.", c.Target)
+		return
+	}
+	id := h.UUID()
+	if err := c.store.remove(id); err != nil {
+		out.Error(err)
+		return
+	}
+	ownerXUID := c.store.ownerXUID
+	player.Do(h, func(_ *world.Tx, target *player.Player) {
+		if ownerXUID != "" && target.XUID() == ownerXUID {
+			return
+		}
+		target.SetOperator(false)
+	})
+	out.Printf("Operator permissions revoked from %s (%s), unless this account is the configured owner.", c.Target, id)
+}
+
+type oplistCommand struct {
+	store *operatorStore
+}
+
+func (c oplistCommand) Allow(src cmd.Source) bool { return c.store.isAllowed(src) }
+
+func (c oplistCommand) Run(_ cmd.Source, out *cmd.Output, _ *world.Tx) {
+	list := c.store.list()
+	if len(list) == 0 {
+		out.Print("No additional operators are configured.")
+		return
+	}
+	out.Printf("Saved operator UUIDs: %s", strings.Join(list, ", "))
+}
+
+func registerOperatorCommands(srv *server.Server, store *operatorStore) {
+	cmd.Register(cmd.New("xuid", "Show your authenticated Xbox Live XUID", nil, xuidCommand{}))
+	cmd.Register(cmd.New("op", "Grant operator permissions to an online player", nil, opCommand{store: store, srv: srv}))
+	cmd.Register(cmd.New("deop", "Revoke operator permissions from an online player", nil, deopCommand{store: store, srv: srv}))
+	cmd.Register(cmd.New("oplist", "List saved operator UUIDs", nil, oplistCommand{store: store}))
+}
+
+========== server/session/handler.go ==========
+package session
+
+import (
+	"github.com/df-mc/dragonfly/server/world"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
+
+// packetHandler represents a type that is able to handle a specific type of incoming packets from the client.
+type packetHandler interface {
+	// Handle handles an incoming packet from the client. The session of the client is passed to the packetHandler.
+	// Handle returns an error if the packet was in any way invalid.
+	Handle(p packet.Packet, s *Session, tx *world.Tx, c Controllable) error
+}
+
+========== server/session/handler_command_request.go ==========
+package session
+
+import (
+	"fmt"
+	"github.com/df-mc/dragonfly/server/world"
+	"github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
+
+// CommandRequestHandler handles the CommandRequest packet.
+type CommandRequestHandler struct {
+	origin protocol.CommandOrigin
+}
+
+// Handle ...
+func (h *CommandRequestHandler) Handle(p packet.Packet, _ *Session, _ *world.Tx, c Controllable) error {
+	pk := p.(*packet.CommandRequest)
+	if pk.Internal {
+		return fmt.Errorf("command request packet must never have the internal field set to true")
+	}
+
+	h.origin = pk.CommandOrigin
+	c.ExecuteCommand(pk.CommandLine)
+	return nil
+}
+
+========== server/session/command.go ==========
+package session
+
+import (
+	"math"
+
+	"github.com/df-mc/dragonfly/server/cmd"
+	"github.com/go-gl/mathgl/mgl64"
+	"github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"golang.org/x/text/language"
+)
+
+// SendCommandOutput sends the output of a command to the player. It will be shown to the caller of the
+// command, which might be the player or a websocket server.
+func (s *Session) SendCommandOutput(output *cmd.Output, l language.Tag) {
+	if s == Nop {
+		return
+	}
+	messages := make([]protocol.CommandOutputMessage, 0, output.MessageCount()+output.ErrorCount())
+	for _, message := range output.Messages() {
+		om := protocol.CommandOutputMessage{Success: true, Message: message.String()}
+		if t, ok := message.(translation); ok {
+			om.Message, om.Parameters = t.Resolve(l), t.Params(l)
+		}
+		messages = append(messages, om)
+	}
+	for _, err := range output.Errors() {
+		om := protocol.CommandOutputMessage{Message: err.Error()}
+		if t, ok := err.(translation); ok {
+			om.Message, om.Parameters = t.Resolve(l), t.Params(l)
+		}
+		messages = append(messages, om)
+	}
+
+	s.writePacket(&packet.CommandOutput{
+		CommandOrigin:  s.handlers[packet.IDCommandRequest].(*CommandRequestHandler).origin,
+		OutputType:     packet.CommandOutputTypeAllOutput,
+		SuccessCount:   uint32(output.MessageCount()),
+		OutputMessages: messages,
+	})
+}
+
+type translation interface {
+	Resolve(l language.Tag) string
+	Params(l language.Tag) []string
+}
+
+// BuildAvailableCommands builds an AvailableCommands packet and the runnable command map for the Source
+// passed. The input map may contain aliases. It returns the AvailableCommands packet and the runnable command map
+// for the commands that the Source can execute.
+func BuildAvailableCommands(
+	commands map[string]cmd.Command,
+	src cmd.Source,
+	softEnums map[string]struct{},
+) (*packet.AvailableCommands, map[string]map[int]cmd.Runnable) {
+	m := make(map[string]map[int]cmd.Runnable, len(commands))
+
+	pk := &packet.AvailableCommands{}
+
+	var enums []commandEnum
+	enumIndices := map[string]uint32{}
+
+	var dynamicEnums []commandEnum
+	dynamicEnumIndices := map[string]uint32{}
+
+	suffixIndices := map[string]uint32{}
+
+	for alias, c := range commands {
+		if c.Name() != alias {
+			// Don't add duplicate entries for aliases.
+			continue
+		}
+
+		if run := c.Runnables(src); len(run) > 0 {
+			m[alias] = run
+		} else {
+			continue
+		}
+
+		params := c.Params(src)
+		overloads := make([]protocol.CommandOverload, len(params))
+
+		aliasesIndex := uint32(math.MaxUint32)
+		if len(c.Aliases()) > 0 {
+			aliasesIndex = uint32(len(enumIndices))
+			enumIndices[c.Name()+"Aliases"] = aliasesIndex
+			enums = append(enums, commandEnum{Type: c.Name() + "Aliases", Options: c.Aliases()})
+		}
+
+		for i, params := range params {
+			for _, paramInfo := range params {
+				t, enum := valueToParamType(paramInfo, src)
+				suffix := paramInfo.Suffix
+
+				opt := byte(0)
+				if suffix != "" {
+					index, ok := suffixIndices[suffix]
+					if !ok {
+						index = uint32(len(pk.Suffixes))
+						suffixIndices[suffix] = index
+						pk.Suffixes = append(pk.Suffixes, suffix)
+					}
+					t = protocol.CommandArgSuffixed | index
+				} else {
+					t |= protocol.CommandArgValid
+					if len(enum.Options) > 0 || enum.Type != "" {
+						_, dynamic := softEnums[enum.Type]
+						if !dynamic {
+							index, ok := enumIndices[enum.Type]
+							if !ok {
+								index = uint32(len(enums))
+								enumIndices[enum.Type] = index
+								enums = append(enums, enum)
+							}
+							t |= protocol.CommandArgEnum | index
+						} else {
+							index, ok := dynamicEnumIndices[enum.Type]
+							if !ok {
+								index = uint32(len(dynamicEnums))
+								dynamicEnumIndices[enum.Type] = index
+								dynamicEnums = append(dynamicEnums, enum)
+							}
+							t |= protocol.CommandArgSoftEnum | index
+						}
+					}
+				}
+				overloads[i].Parameters = append(overloads[i].Parameters, protocol.CommandParameter{
+					Name:     paramInfo.Name,
+					Type:     t,
+					Optional: paramInfo.Optional,
+					Options:  opt,
+				})
+			}
+		}
+		pk.Commands = append(pk.Commands, protocol.Command{
+			Name:            c.Name(),
+			Description:     c.Description(),
+			AliasesOffset:   aliasesIndex,
+			PermissionLevel: protocol.CommandPermissionLevelAny,
+			Overloads:       overloads,
+		})
+	}
+
+	pk.DynamicEnums = make([]protocol.DynamicEnum, 0, len(dynamicEnums))
+	for _, e := range dynamicEnums {
+		pk.DynamicEnums = append(pk.DynamicEnums, protocol.DynamicEnum{Type: e.Type, Values: e.Options})
+	}
+
+	enumValueIndices := make(map[string]uint32, len(enums)*3)
+	pk.EnumValues = make([]string, 0, len(enumValueIndices))
+
+	pk.Enums = make([]protocol.CommandEnum, 0, len(enums))
+	for _, enum := range enums {
+		protoEnum := protocol.CommandEnum{Type: enum.Type}
+		for _, opt := range enum.Options {
+			index, ok := enumValueIndices[opt]
+			if !ok {
+				index = uint32(len(pk.EnumValues))
+				enumValueIndices[opt] = index
+				pk.EnumValues = append(pk.EnumValues, opt)
+			}
+			protoEnum.ValueIndices = append(protoEnum.ValueIndices, index)
+		}
+		pk.Enums = append(pk.Enums, protoEnum)
+	}
+	return pk, m
+}
+
+// sendAvailableCommands sends all available commands of the server. Once sent, they will be visible in the
+// /help list and will be auto-completed.
+func (s *Session) sendAvailableCommands(co Controllable, softEnums map[string]struct{}) map[string]map[int]cmd.Runnable {
+	commands := cmd.Commands()
+	pk, m := BuildAvailableCommands(commands, co, softEnums)
+	s.writePacket(pk)
+	return m
+}
+
+type commandEnum struct {
+	Type    string
+	Options []string
+}
+
+// valueToParamType finds the command argument type of the value passed and returns it, in addition to creating
+// an enum if applicable.
+func valueToParamType(i cmd.ParamInfo, source cmd.Source) (t uint32, enum commandEnum) {
+	switch i.Value.(type) {
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return protocol.CommandArgTypeInt, enum
+	case float32, float64:
+		return protocol.CommandArgTypeFloat, enum
+	case string:
+		return protocol.CommandArgTypeString, enum
+	case cmd.Varargs:
+		return protocol.CommandArgTypeRawText, enum
+	case cmd.Target, []cmd.Target:
+		return protocol.CommandArgTypeTarget, enum
+	case bool:
+		return 0, commandEnum{
+			Type:    "Boolean",
+			Options: []string{"true", "false"},
+		}
+	case mgl64.Vec3:
+		return protocol.CommandArgTypePosition, enum
+	case cmd.SubCommand:
+		return 0, commandEnum{
+			Type:    "SubCommand" + i.Name,
+			Options: []string{i.Name},
+		}
+	}
+	if enum, ok := i.Value.(cmd.Enum); ok {
+		return 0, commandEnum{
+			Type:    enum.Type(),
+			Options: enum.Options(source),
+		}
+	}
+	return protocol.CommandArgTypeRValue, enum
+}
+
+// resendCommands resends all commands that a Session has access to if the map of runnable commands passed does not
+// match with the commands that the Session is currently allowed to execute.
+// True is returned if the commands were resent.
+func (s *Session) resendCommands(
+	before map[string]map[int]cmd.Runnable,
+	co Controllable,
+	softEnums map[string]struct{},
+) (map[string]map[int]cmd.Runnable, bool) {
+	commands := cmd.Commands()
+	m := make(map[string]map[int]cmd.Runnable, len(commands))
+
+	for alias, c := range commands {
+		if c.Name() == alias {
+			if run := c.Runnables(co); len(run) > 0 {
+				m[alias] = run
+			}
+		}
+	}
+	if len(before) != len(m) {
+		return s.sendAvailableCommands(co, softEnums), true
+	}
+	// First check for commands that were newly added.
+	for name, r := range m {
+		for k := range r {
+			if _, ok := before[name][k]; !ok {
+				return s.sendAvailableCommands(co, softEnums), true
+			}
+		}
+	}
+	// Then check for commands that a player could execute before, but no longer can.
+	for name, r := range before {
+		for k := range r {
+			if _, ok := m[name][k]; !ok {
+				return s.sendAvailableCommands(co, softEnums), true
+			}
+		}
+	}
+	return m, false
+}
+
+// enums returns a map of all enums exposed to the Session and records the values those enums currently hold.
+func (s *Session) enums(co Controllable) (map[string]cmd.Enum, map[string][]string) {
+	enums, enumValues := make(map[string]cmd.Enum), make(map[string][]string)
+	for alias, c := range cmd.Commands() {
+		if c.Name() == alias {
+			for _, params := range c.Params(co) {
+				for _, paramInfo := range params {
+					if enum, ok := paramInfo.Value.(cmd.Enum); ok {
+						enums[enum.Type()] = enum
+						enumValues[enum.Type()] = enum.Options(co)
+					}
+				}
+			}
+		}
+	}
+	return enums, enumValues
+}
+
+// resendEnums checks the options of the enums passed against the values that were previously recorded. If they do not
+// match, and the enum is in softEnums, the enum is resent via UpdateSoftEnum. If the enum is not yet in softEnums,
+// it is added and the full AvailableCommands packet is resent.
+func (s *Session) resendEnums(
+	enums map[string]cmd.Enum,
+	before map[string][]string,
+	softEnums map[string]struct{},
+	r map[string]map[int]cmd.Runnable,
+	c Controllable,
+) map[string]map[int]cmd.Runnable {
+	for name, enum := range enums {
+		valuesBefore := before[name]
+		values := enum.Options(c)
+		before[name] = values
+
+		changed := false
+		if len(valuesBefore) != len(values) {
+			changed = true
+		} else {
+			for k, v := range values {
+				if valuesBefore[k] != v {
+					changed = true
+					break
+				}
+			}
+		}
+		if !changed {
+			continue
+		}
+
+		if _, dynamic := softEnums[name]; dynamic {
+			s.writePacket(&packet.UpdateSoftEnum{EnumType: name, Options: values, ActionType: packet.SoftEnumActionSet})
+		} else {
+			softEnums[name] = struct{}{}
+			r = s.sendAvailableCommands(c, softEnums)
+		}
+	}
+	return r
+}
+
+========== server/session/player.go ==========
+package session
+
+import (
+	"encoding/json"
+	"fmt"
+	"image/color"
+	"maps"
+	"math"
+	"net"
+	"slices"
+	"time"
+	_ "unsafe" // Imported for compiler directives.
+
+	"github.com/df-mc/dragonfly/server/block"
+	"github.com/df-mc/dragonfly/server/entity"
+	"github.com/df-mc/dragonfly/server/entity/effect"
+	"github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/creative"
+	"github.com/df-mc/dragonfly/server/item/inventory"
+	"github.com/df-mc/dragonfly/server/item/recipe"
+	"github.com/df-mc/dragonfly/server/player/debug"
+	"github.com/df-mc/dragonfly/server/player/dialogue"
+	"github.com/df-mc/dragonfly/server/player/form"
+	"github.com/df-mc/dragonfly/server/player/hud"
+	"github.com/df-mc/dragonfly/server/player/input"
+	"github.com/df-mc/dragonfly/server/player/skin"
+	"github.com/df-mc/dragonfly/server/world"
+	"github.com/df-mc/dragonfly/server/world/sound"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/go-gl/mathgl/mgl64"
+	"github.com/google/uuid"
+	"github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
+
+// StopShowingEntity stops showing a world.Entity to the Session. It will be completely invisible until a call to
+// StartShowingEntity is made.
+func (s *Session) StopShowingEntity(e world.Entity) {
+	s.entityMutex.Lock()
+	_, ok := s.hiddenEntities[e.H().UUID()]
+	if !ok {
+		s.hiddenEntities[e.H().UUID()] = struct{}{}
+	}
+	s.entityMutex.Unlock()
+
+	if !ok {
+		s.HideEntity(e)
+	}
+}
+
+// StartShowingEntity starts showing a world.Entity to the Session that was previously hidden using StopShowingEntity.
+func (s *Session) StartShowingEntity(e world.Entity) {
+	s.entityMutex.Lock()
+	_, ok := s.hiddenEntities[e.H().UUID()]
+	if ok {
+		delete(s.hiddenEntities, e.H().UUID())
+	}
+	s.entityMutex.Unlock()
+
+	if ok {
+		s.ViewEntity(e)
+		s.ViewEntityState(e)
+		s.ViewEntityItems(e)
+		s.ViewEntityArmour(e)
+	}
+}
+
+// closeCurrentContainer closes the container the player might currently have open.
+func (s *Session) closeCurrentContainer(tx *world.Tx, clientRequested bool) {
+	if !s.closeWindow(clientRequested) {
+		return
+	}
+
+	pos := *s.openedPos.Load()
+	b := tx.Block(pos)
+	if container, ok := b.(block.Container); ok {
+		container.RemoveViewer(s, tx, pos)
+	} else if enderChest, ok := b.(block.EnderChest); ok {
+		enderChest.RemoveViewer(tx, pos)
+	}
+}
+
+// SendRespawn spawns the Controllable entity of the session client-side in the world, provided it has died.
+func (s *Session) SendRespawn(pos mgl64.Vec3, c Controllable) {
+	s.writePacket(&packet.Respawn{
+		Position:        vec64To32(pos.Add(entityOffset(c))),
+		State:           packet.RespawnStateReadyToSpawn,
+		EntityRuntimeID: selfEntityRuntimeID,
+	})
+}
+
+// SendPlayerSpawn updates the player's spawn point on the client-side. There is currently little reason
+// to do so other than to prevent the client-side "Respawn point set" message when sleeping in a bed.
+func (s *Session) SendPlayerSpawn(pos mgl64.Vec3) {
+	blockPos := protocol.BlockPos{int32(pos[0]), int32(pos[1]), int32(pos[2])}
+	s.writePacket(&packet.SetSpawnPosition{
+		SpawnType:     packet.SpawnTypePlayer,
+		Position:      blockPos,
+		Dimension:     packet.DimensionOverworld,
+		SpawnPosition: blockPos,
+	})
+}
+
+// sendBiomes sends all the vanilla biomes to the session.
+func (s *Session) sendBiomes() {
+	definitions, stringList := world.BiomeDefinitions()
+	s.writePacket(&packet.BiomeDefinitionList{
+		BiomeDefinitions: definitions,
+		StringList:       stringList,
+	})
+}
+
+// sendRecipes sends the current crafting recipes to the session.
+func (s *Session) sendRecipes() {
+	var (
+		shapedRecipes            []protocol.ShapedRecipe
+		shapelessRecipes         []protocol.ShapelessRecipe
+		userDataShapelessRecipes []protocol.UserDataShapelessRecipe
+		multiRecipes             []protocol.MultiRecipe
+		smithingTransformRecipes []protocol.SmithingTransformRecipe
+		smithingTrimRecipes      []protocol.SmithingTrimRecipe
+		potionRecipes            []protocol.PotionRecipe
+		potionContainerChange    []protocol.PotionContainerChangeRecipe
+	)
+
+	for index, i := range recipe.Recipes() {
+		networkID := uint32(index) + 1
+		s.recipes[networkID] = i
+
+		switch i := i.(type) {
+		case recipe.Shapeless:
+			shapelessRecipes = append(shapelessRecipes, protocol.ShapelessRecipe{
+				RecipeID:        uuid.New().String(),
+				Priority:        int32(i.Priority()),
+				Input:           stacksToIngredientItems(s.br, i.Input()),
+				Output:          stacksToRecipeStacks(s.br, i.Output()),
+				Block:           i.Block(),
+				RecipeNetworkID: networkID,
+			})
+		case recipe.UserDataShapeless:
+			userDataShapelessRecipes = append(userDataShapelessRecipes, protocol.UserDataShapelessRecipe{ShapelessRecipe: protocol.ShapelessRecipe{
+				RecipeID:        uuid.New().String(),
+				Priority:        int32(i.Priority()),
+				Input:           stacksToIngredientItems(s.br, i.Input()),
+				Output:          stacksToRecipeStacks(s.br, i.Output()),
+				Block:           i.Block(),
+				RecipeNetworkID: networkID,
+			}})
+		case recipe.Multi:
+			multiRecipes = append(multiRecipes, protocol.MultiRecipe{
+				UUID:            i.UUID(),
+				RecipeNetworkID: networkID,
+			})
+		case recipe.Shaped:
+			shapedRecipes = append(shapedRecipes, protocol.ShapedRecipe{
+				RecipeID:        uuid.New().String(),
+				Priority:        int32(i.Priority()),
+				Width:           int32(i.Shape().Width()),
+				Height:          int32(i.Shape().Height()),
+				Input:           stacksToIngredientItems(s.br, i.Input()),
+				Output:          stacksToRecipeStacks(s.br, i.Output()),
+				Block:           i.Block(),
+				AssumeSymmetry:  true,
+				RecipeNetworkID: networkID,
+			})
+		case recipe.SmithingTransform:
+			input, output := stacksToIngredientItems(s.br, i.Input()), stacksToRecipeStacks(s.br, i.Output())
+			smithingTransformRecipes = append(smithingTransformRecipes, protocol.SmithingTransformRecipe{
+				RecipeID:        uuid.New().String(),
+				Base:            input[0],
+				Addition:        input[1],
+				Template:        input[2],
+				Result:          output[0],
+				Block:           i.Block(),
+				RecipeNetworkID: networkID,
+			})
+		case recipe.SmithingTrim:
+			input := stacksToIngredientItems(s.br, i.Input())
+			smithingTrimRecipes = append(smithingTrimRecipes, protocol.SmithingTrimRecipe{
+				RecipeID:        uuid.New().String(),
+				Base:            input[0],
+				Addition:        input[1],
+				Template:        input[2],
+				Block:           i.Block(),
+				RecipeNetworkID: networkID,
+			})
+		case recipe.Potion:
+			inputRuntimeID, inputMeta, _ := world.ItemRuntimeID(i.Input()[0].(item.Stack).Item())
+			reagentRuntimeID, reagentMeta, _ := world.ItemRuntimeID(i.Input()[1].(item.Stack).Item())
+			outputRuntimeID, outputMeta, _ := world.ItemRuntimeID(i.Output()[0].Item())
+
+			potionRecipes = append(potionRecipes, protocol.PotionRecipe{
+				InputPotionID:        inputRuntimeID,
+				InputPotionMetadata:  int32(inputMeta),
+				ReagentItemID:        reagentRuntimeID,
+				ReagentItemMetadata:  int32(reagentMeta),
+				OutputPotionID:       outputRuntimeID,
+				OutputPotionMetadata: int32(outputMeta),
+			})
+
+		case recipe.PotionContainerChange:
+			inputRuntimeID, _, _ := world.ItemRuntimeID(i.Input()[0].(item.Stack).Item())
+			reagentRuntimeID, _, _ := world.ItemRuntimeID(i.Input()[1].(item.Stack).Item())
+			outputRuntimeID, _, _ := world.ItemRuntimeID(i.Output()[0].Item())
+
+			potionContainerChange = append(potionContainerChange, protocol.PotionContainerChangeRecipe{
+				InputItemID:   inputRuntimeID,
+				ReagentItemID: reagentRuntimeID,
+				OutputItemID:  outputRuntimeID,
+			})
+		}
+	}
+	s.writePacket(&packet.CraftingData{
+		ShapedRecipes:                shapedRecipes,
+		ShapelessRecipes:             shapelessRecipes,
+		MultiRecipes:                 multiRecipes,
+		UserDataShapelessRecipes:     userDataShapelessRecipes,
+		SmithingTransformRecipes:     smithingTransformRecipes,
+		SmithingTrimRecipes:          smithingTrimRecipes,
+		PotionRecipes:                potionRecipes,
+		PotionContainerChangeRecipes: potionContainerChange,
+		ClearRecipes:                 true,
+	})
+}
+
+// sendArmourTrimData sends the armour trim data.
+func (s *Session) sendArmourTrimData() {
+	var trimPatterns []protocol.TrimPattern
+	var trimMaterials []protocol.TrimMaterial
+
+	for _, t := range item.SmithingTemplates() {
+		if t == item.TemplateNetheriteUpgrade() {
+			continue
+		}
+		name, _ := item.SmithingTemplate{Template: t}.EncodeItem()
+		trimPatterns = append(trimPatterns, protocol.TrimPattern{
+			ItemName:  name,
+			PatternID: t.String(),
+		})
+	}
+
+	for _, i := range item.ArmourTrimMaterials() {
+		if material, ok := i.(item.ArmourTrimMaterial); ok {
+			name, _ := i.EncodeItem()
+
+			trimMaterials = append(trimMaterials, protocol.TrimMaterial{
+				MaterialID: material.TrimMaterial(),
+				Colour:     material.MaterialColour(),
+				ItemName:   name,
+			})
+		}
+	}
+
+	s.writePacket(&packet.TrimData{Patterns: trimPatterns, Materials: trimMaterials})
+}
+
+// sendInv sends the inventory passed to the client with the window ID.
+func (s *Session) sendInv(inv *inventory.Inventory, windowID uint32) {
+	pk := &packet.InventoryContent{
+		WindowID: windowID,
+		Content:  make([]protocol.ItemInstance, 0, inv.Size()),
+	}
+	for _, i := range inv.Slots() {
+		pk.Content = append(pk.Content, instanceFromItem(s.br, i))
+	}
+	s.writePacket(pk)
+}
+
+// sendItem sends the item stack passed to the client with the window ID and slot passed.
+func (s *Session) sendItem(item item.Stack, slot int, windowID uint32) {
+	s.writePacket(&packet.InventorySlot{
+		WindowID: windowID,
+		Slot:     uint32(slot),
+		NewItem:  instanceFromItem(s.br, item),
+	})
+}
+
+const (
+	craftingGridSizeSmall   = 4
+	craftingGridSizeLarge   = 9
+	craftingGridSmallOffset = 28
+	craftingGridLargeOffset = 32
+	craftingResult          = 50
+)
+
+// smelter is an interface representing a block used to smelt items.
+type smelter interface {
+	// ResetExperience resets the collected experience of the smelter, and returns the amount of experience that was reset.
+	ResetExperience() int
+}
+
+// invByID attempts to return an inventory by the ID passed. If found, the inventory is returned and the bool
+// returned is true.
+func (s *Session) invByID(id int32, tx *world.Tx) (*inventory.Inventory, bool) {
+	switch id {
+	case protocol.ContainerCraftingInput, protocol.ContainerCreatedOutput, protocol.ContainerCursor:
+		// UI inventory.
+		return s.ui, true
+	case protocol.ContainerHotBar, protocol.ContainerInventory, protocol.ContainerCombinedHotBarAndInventory:
+		// Hotbar 'inventory', rest of inventory, inventory when container is opened.
+		return s.inv, true
+	case protocol.ContainerOffhand:
+		return s.offHand, true
+	case protocol.ContainerArmor:
+		// Armour inventory.
+		return s.armour.Inventory(), true
+	default:
+		if !s.containerOpened.Load() {
+			return nil, false
+		}
+		switch id {
+		case protocol.ContainerLevelEntity:
+			return s.openedWindow.Load(), true
+		case protocol.ContainerShulkerBox:
+			if _, shulkerbox := tx.Block(*s.openedPos.Load()).(block.ShulkerBox); shulkerbox {
+				return s.openedWindow.Load(), true
+			}
+		case protocol.ContainerBarrel:
+			if _, barrel := tx.Block(*s.openedPos.Load()).(block.Barrel); barrel {
+				return s.openedWindow.Load(), true
+			}
+		case protocol.ContainerBeaconPayment:
+			if _, beacon := tx.Block(*s.openedPos.Load()).(block.Beacon); beacon {
+				return s.ui, true
+			}
+		case protocol.ContainerBrewingStandInput, protocol.ContainerBrewingStandResult, protocol.ContainerBrewingStandFuel:
+			if _, brewingStand := tx.Block(*s.openedPos.Load()).(block.BrewingStand); brewingStand {
+				return s.openedWindow.Load(), true
+			}
+		case protocol.ContainerAnvilInput, protocol.ContainerAnvilMaterial:
+			if _, anvil := tx.Block(*s.openedPos.Load()).(block.Anvil); anvil {
+				return s.ui, true
+			}
+		case protocol.ContainerSmithingTableTemplate, protocol.ContainerSmithingTableInput, protocol.ContainerSmithingTableMaterial:
+			if _, smithing := tx.Block(*s.openedPos.Load()).(block.SmithingTable); smithing {
+				return s.ui, true
+			}
+		case protocol.ContainerLoomInput, protocol.ContainerLoomDye, protocol.ContainerLoomMaterial:
+			if _, loom := tx.Block(*s.openedPos.Load()).(block.Loom); loom {
+				return s.ui, true
+			}
+		case protocol.ContainerStonecutterInput:
+			if _, ok := tx.Block(*s.openedPos.Load()).(block.Stonecutter); ok {
+				return s.ui, true
+			}
+		case protocol.ContainerGrindstoneInput, protocol.ContainerGrindstoneAdditional:
+			if _, ok := tx.Block(*s.openedPos.Load()).(block.Grindstone); ok {
+				return s.ui, true
+			}
+		case protocol.ContainerEnchantingInput, protocol.ContainerEnchantingMaterial:
+			if _, enchanting := tx.Block(*s.openedPos.Load()).(block.EnchantingTable); enchanting {
+				return s.ui, true
+			}
+		case protocol.ContainerFurnaceIngredient, protocol.ContainerFurnaceFuel, protocol.ContainerFurnaceResult,
+			protocol.ContainerBlastFurnaceIngredient, protocol.ContainerSmokerIngredient:
+			if _, ok := tx.Block(*s.openedPos.Load()).(smelter); ok {
+				return s.openedWindow.Load(), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// Disconnect disconnects the client and ultimately closes the session. If the message passed is non-empty,
+// it will be shown to the client.
+func (s *Session) Disconnect(message string) {
+	if s != Nop {
+		_ = s.conn.WritePacket(&packet.Disconnect{
+			HideDisconnectionScreen: message == "",
+			Message:                 message,
+		})
+		_ = s.conn.Flush()
+	}
+}
+
+// SendSpeed sends the speed of the player in an UpdateAttributes packet, so that it is updated client-side.
+func (s *Session) SendSpeed(speed float64) {
+	s.writePacket(&packet.UpdateAttributes{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Attributes: []protocol.Attribute{{
+			AttributeValue: protocol.AttributeValue{
+				Name:  "minecraft:movement",
+				Value: float32(speed),
+				Max:   math.MaxFloat32,
+			},
+			DefaultMax: math.MaxFloat32,
+			Default:    0.1,
+		}},
+	})
+}
+
+// SendFood ...
+func (s *Session) SendFood(food int, saturation, exhaustion float64) {
+	s.writePacket(&packet.UpdateAttributes{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Attributes: []protocol.Attribute{
+			{
+				AttributeValue: protocol.AttributeValue{
+					Name:  "minecraft:player.hunger",
+					Value: float32(food),
+					Max:   20,
+				},
+				DefaultMax: 20,
+				Default:    20,
+			},
+			{
+				AttributeValue: protocol.AttributeValue{
+					Name:  "minecraft:player.saturation",
+					Value: float32(saturation),
+					Max:   20,
+				},
+				DefaultMax: 20,
+				Default:    20,
+			},
+			{
+				AttributeValue: protocol.AttributeValue{
+					Name:  "minecraft:player.exhaustion",
+					Value: float32(exhaustion),
+					Max:   5,
+				},
+				DefaultMax: 5,
+			},
+		},
+	})
+}
+
+// SendDialogue sends an NPC dialogue to the client of the connection. The Submit method of the dialogue is
+// called when the client interacts with a button in the dialogue.
+func (s *Session) SendDialogue(d dialogue.Dialogue, e world.Entity) {
+	b, _ := json.Marshal(d)
+
+	h := s.handlers[packet.IDNPCRequest].(*NPCRequestHandler)
+	h.dialogue = d
+	h.entityRuntimeID = s.entityRuntimeID(e)
+
+	metadata := s.parseEntityMetadata(e)
+	metadata[protocol.EntityDataKeyHasNPC] = uint8(1)
+
+	disp := d.Display()
+	disp.EntityOffset = disp.EntityOffset.Add(entityOffset(e))
+	display, _ := json.Marshal(map[string]any{"portrait_offsets": disp})
+	metadata[protocol.EntityDataKeyNPCData] = string(display)
+
+	s.writePacket(&packet.SetActorData{
+		EntityRuntimeID: h.entityRuntimeID,
+		EntityMetadata:  metadata,
+	})
+	s.writePacket(&packet.NPCDialogue{
+		EntityUniqueID: h.entityRuntimeID,
+		ActionType:     packet.NPCDialogueActionOpen,
+		Dialogue:       d.Body(),
+		SceneName:      "default",
+		NPCName:        d.Title(),
+		ActionJSON:     string(b),
+	})
+}
+
+func (s *Session) CloseDialogue() {
+	h := s.handlers[packet.IDNPCRequest].(*NPCRequestHandler)
+	if h.entityRuntimeID == 0 {
+		return
+	}
+
+	s.writePacket(&packet.NPCDialogue{
+		EntityUniqueID: h.entityRuntimeID,
+		ActionType:     packet.NPCDialogueActionClose,
+	})
+	h.entityRuntimeID = 0
+}
+
+// SendForm sends a form to the client of the connection. The Submit method of the form is called when the
+// client submits the form.
+func (s *Session) SendForm(f form.Form) {
+	b, _ := json.Marshal(f)
+
+	h := s.handlers[packet.IDModalFormResponse].(*ModalFormResponseHandler)
+	id := h.currentID.Add(1)
+
+	h.mu.Lock()
+	if len(h.forms) > 10 {
+		s.conf.Log.Debug("SendForm: more than 10 active forms: dropping an existing one")
+		for k := range h.forms {
+			delete(h.forms, k)
+			break
+		}
+	}
+	h.forms[id] = f
+	h.mu.Unlock()
+
+	s.writePacket(&packet.ModalFormRequest{
+		FormID:   id,
+		FormData: b,
+	})
+}
+
+// CloseForm closes any forms that the player currently has open. If the player has no forms open, nothing
+// happens.
+func (s *Session) CloseForm() {
+	s.writePacket(&packet.ClientBoundCloseForm{})
+}
+
+// Transfer transfers the player to a server with the IP and port passed.
+func (s *Session) Transfer(ip net.IP, port int) {
+	s.writePacket(&packet.Transfer{
+		Address: ip.String(),
+		Port:    uint16(port),
+	})
+}
+
+// SendGameMode sends the game mode of the Controllable entity of the session to the client. It makes sure the right
+// flags are set to create the full game mode.
+func (s *Session) SendGameMode(c Controllable) {
+	if s == Nop {
+		return
+	}
+	s.writePacket(&packet.SetPlayerGameType{GameType: gameTypeFromMode(c.GameMode())})
+	s.SendAbilities(c)
+}
+
+// SendAbilities sends the abilities of the Controllable entity of the session to the client.
+func (s *Session) SendAbilities(c Controllable) {
+	operator := false
+	if p, ok := c.(interface{ Operator() bool }); ok {
+		operator = p.Operator()
+	}
+	s.SendAbilitiesWithPermissions(c, operator)
+}
+
+// SendAbilitiesWithPermissions sends the current game-mode abilities and the
+// command/player permission levels. Operator permissions are independent of
+// game mode and therefore survive switching between survival and creative.
+func (s *Session) SendAbilitiesWithPermissions(c Controllable, operator bool) {
+	mode, abilities := c.GameMode(), uint32(0)
+	if mode.AllowsFlying() {
+		abilities |= protocol.AbilityMayFly
+		if c.Flying() {
+			abilities |= protocol.AbilityFlying
+		}
+	}
+	if !mode.HasCollision() {
+		abilities |= protocol.AbilityNoClip
+		defer c.StartFlying()
+		// If the client is currently on the ground and turned to spectator mode, it will be unable to sprint during
+		// flight. In order to allow this, we force the client to be flying through a MovePlayer packet.
+		s.ViewEntityTeleport(c, c.Position())
+	}
+	if !mode.AllowsTakingDamage() {
+		abilities |= protocol.AbilityInvulnerable
+	}
+	if mode.CreativeInventory() {
+		abilities |= protocol.AbilityInstantBuild
+	}
+	if mode.AllowsEditing() {
+		abilities |= protocol.AbilityBuild | protocol.AbilityMine
+	}
+	if mode.AllowsInteraction() {
+		abilities |= protocol.AbilityDoorsAndSwitches | protocol.AbilityOpenContainers | protocol.AbilityAttackPlayers | protocol.AbilityAttackMobs
+	}
+	if mode == world.GameModeSpectator {
+		abilities = protocol.AbilityBuild | protocol.AbilityMine | protocol.AbilityDoorsAndSwitches | protocol.AbilityOpenContainers |
+			protocol.AbilityAttackPlayers | protocol.AbilityAttackMobs
+	}
+	playerPermissions := byte(packet.PermissionLevelMember)
+	commandPermissions := byte(protocol.CommandPermissionLevelAny)
+	if operator {
+		playerPermissions = packet.PermissionLevelOperator
+		commandPermissions = protocol.CommandPermissionLevelAdmin
+		abilities |= protocol.AbilityOperatorCommands
+	}
+	pk := &packet.UpdateAbilities{AbilityData: protocol.AbilityData{
+		EntityUniqueID:     selfEntityRuntimeID,
+		PlayerPermissions:  playerPermissions,
+		CommandPermissions: commandPermissions,
+		Layers: []protocol.AbilityLayer{
+			{
+				Type:             protocol.AbilityLayerTypeBase,
+				Abilities:        protocol.AbilityCount - 1,
+				Values:           abilities,
+				FlySpeed:         float32(c.FlightSpeed()),
+				VerticalFlySpeed: float32(c.VerticalFlightSpeed()),
+				WalkSpeed:        protocol.AbilityBaseWalkSpeed,
+			},
+		},
+	}}
+	if mode == world.GameModeSpectator {
+		pk.AbilityData.Layers = append([]protocol.AbilityLayer{spectatorAbilityLayer}, pk.AbilityData.Layers...)
+	}
+	s.writePacket(pk)
+}
+
+// spectatorAbilityLayer is the ability layer sent on top of the base layer of a player in spectator mode. It keeps
+// the player flying and passing through blocks, while preventing it from stopping flight or interacting with the world.
+var spectatorAbilityLayer = protocol.AbilityLayer{
+	Type: protocol.AbilityLayerTypeSpectator,
+	Abilities: protocol.AbilityBuild | protocol.AbilityMine | protocol.AbilityDoorsAndSwitches | protocol.AbilityOpenContainers |
+		protocol.AbilityAttackPlayers | protocol.AbilityAttackMobs | protocol.AbilityInvulnerable | protocol.AbilityFlying |
+		protocol.AbilityMayFly | protocol.AbilityInstantBuild | protocol.AbilityNoClip,
+	Values: protocol.AbilityInvulnerable | protocol.AbilityFlying | protocol.AbilityNoClip,
+}
+
+// SendHealth sends the health and max health to the player.
+func (s *Session) SendHealth(health, max, absorption float64) {
+	s.writePacket(&packet.UpdateAttributes{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Attributes: []protocol.Attribute{{
+			AttributeValue: protocol.AttributeValue{
+				Name:  "minecraft:health",
+				Value: float32(math.Ceil(health)),
+				Max:   float32(math.Ceil(max)),
+			},
+			DefaultMax: 20,
+			Default:    20,
+		}, {
+			AttributeValue: protocol.AttributeValue{
+				Name:  "minecraft:absorption",
+				Value: float32(math.Ceil(absorption)),
+				Max:   float32(math.MaxFloat32),
+			},
+			DefaultMax: float32(math.MaxFloat32),
+		}},
+	})
+}
+
+// SendEffect sends an effects passed to the player.
+func (s *Session) SendEffect(e effect.Effect) {
+	s.SendEffectRemoval(e.Type())
+	id, _ := effect.ID(e.Type())
+	dur := e.Duration() / (time.Second / 20)
+	if e.Infinite() {
+		dur = -1
+	}
+	s.writePacket(&packet.MobEffect{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Operation:       packet.MobEffectAdd,
+		EffectType:      int32(id),
+		Amplifier:       int32(e.Level() - 1),
+		Particles:       !e.ParticlesHidden(),
+		Duration:        int32(dur),
+		Ambient:         e.Ambient(),
+	})
+}
+
+// SendEffectRemoval sends the removal of an effect passed.
+func (s *Session) SendEffectRemoval(e effect.Type) {
+	id, ok := effect.ID(e)
+	if !ok {
+		panic(fmt.Sprintf("unregistered effect type %T", e))
+	}
+	s.writePacket(&packet.MobEffect{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Operation:       packet.MobEffectRemove,
+		EffectType:      int32(id),
+	})
+}
+
+// SendGameRules sends all the provided game rules to the player. Once sent, they will be immediately updated
+// on the client if they are valid.
+func (s *Session) sendGameRules(gameRules []protocol.GameRule) {
+	s.writePacket(&packet.GameRulesChanged{GameRules: gameRules})
+}
+
+// EnableCoordinates will either enable or disable coordinates for the player depending on the value given.
+func (s *Session) EnableCoordinates(enable bool) {
+	//noinspection SpellCheckingInspection
+	s.sendGameRules([]protocol.GameRule{{Name: "showcoordinates", Value: enable}})
+}
+
+// EnableInstantRespawn will either enable or disable instant respawn for the player depending on the value given.
+func (s *Session) EnableInstantRespawn(enable bool) {
+	//noinspection SpellCheckingInspection
+	s.sendGameRules([]protocol.GameRule{{Name: "doimmediaterespawn", Value: enable}})
+}
+
+// HandleInventories starts handling the inventories of the Controllable entity of the session. It sends packets when
+// slots in the inventory are changed.
+func (s *Session) HandleInventories(tx *world.Tx, c Controllable, inv, offHand, enderChest, ui *inventory.Inventory, armour *inventory.Armour, heldSlot *uint32) {
+	s.inv = inv
+	s.inv.SlotFunc(s.broadcastInvFunc(tx, c))
+	s.offHand = offHand
+	s.offHand.SlotFunc(s.broadcastOffHandFunc(tx, c))
+	s.enderChest = enderChest
+	s.enderChest.SlotFunc(s.broadcastEnderChestFunc(tx, c))
+	s.armour = armour
+	s.armour.Inventory().SlotFunc(s.broadcastArmourFunc(tx, c))
+	s.ui = ui
+	s.ui.SlotFunc(s.uiInventoryFunc(tx, c))
+	s.heldSlot = heldSlot
+}
+
+func (s *Session) broadcastInvFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
+	return func(slot int, _, after item.Stack) {
+		if slot == int(*s.heldSlot) {
+			for _, viewer := range tx.Viewers(c.Position()) {
+				viewer.ViewEntityItems(c)
+			}
+		}
+		if !s.inTransaction.Load() {
+			s.sendItem(after, slot, protocol.WindowIDInventory)
+		}
+	}
+}
+
+func (s *Session) broadcastEnderChestFunc(tx *world.Tx, _ Controllable) inventory.SlotFunc {
+	return func(slot int, _, after item.Stack) {
+		if !s.inTransaction.Load() {
+			if _, ok := tx.Block(*s.openedPos.Load()).(block.EnderChest); ok {
+				s.ViewSlotChange(slot, after)
+			}
+		}
+	}
+}
+
+func (s *Session) broadcastOffHandFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
+	return func(slot int, _, after item.Stack) {
+		for _, viewer := range tx.Viewers(c.Position()) {
+			viewer.ViewEntityItems(c)
+		}
+		if !s.inTransaction.Load() {
+			i, _ := s.offHand.Item(0)
+			s.writePacket(&packet.InventoryContent{
+				WindowID: protocol.WindowIDOffHand,
+				Content:  []protocol.ItemInstance{instanceFromItem(s.br, i)},
+			})
+		}
+	}
+}
+
+func (s *Session) broadcastArmourFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
+	return func(slot int, before, after item.Stack) {
+		inTransaction := s.inTransaction.Load()
+		if !inTransaction {
+			s.sendItem(after, slot, protocol.WindowIDArmour)
+		}
+		if before.Comparable(after) && before.Empty() == after.Empty() {
+			// Only send armour if the item type actually changed.
+			return
+		}
+		for _, viewer := range tx.Viewers(c.Position()) {
+			viewer.ViewEntityArmour(c)
+		}
+
+		if !after.Empty() && inTransaction {
+			tx.PlaySound(entity.EyePosition(c), sound.EquipItem{Item: after.Item()})
+		}
+	}
+}
+
+// uiInventoryFunc handles an update to the UI inventory, used for updating enchantment options and possibly more
+// in the future.
+func (s *Session) uiInventoryFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
+	return func(slot int, _, after item.Stack) {
+		if slot == enchantingInputSlot && s.containerOpened.Load() {
+			pos := *s.openedPos.Load()
+			if _, enchanting := tx.Block(pos).(block.EnchantingTable); enchanting {
+				s.sendEnchantmentOptions(tx, c, pos, after)
+			}
+		}
+		s.sendInv(s.ui, protocol.WindowIDUI)
+	}
+}
+
+// SendHeldSlot sends the currently held hotbar slot.
+func (s *Session) SendHeldSlot(slot int, c Controllable, force bool) {
+	if s.changingSlot.Load() && !force {
+		return
+	}
+	mainHand, _ := c.HeldItems()
+	s.writePacket(&packet.MobEquipment{
+		EntityRuntimeID: selfEntityRuntimeID,
+		NewItem:         instanceFromItem(s.br, mainHand),
+		InventorySlot:   byte(slot),
+		HotBarSlot:      byte(slot),
+	})
+}
+
+// VerifyAndSetHeldSlot verifies if the slot passed is a valid hotbar slot and
+// if the expected item.Stack is in it. Afterwards, it changes the held slot
+// of the player.
+func (s *Session) VerifyAndSetHeldSlot(slot int, expected item.Stack, c Controllable) error {
+	if err := s.VerifySlot(slot, expected); err != nil {
+		return err
+	}
+	s.changingSlot.Store(true)
+	defer s.changingSlot.Store(false)
+	return c.SetHeldSlot(slot)
+}
+
+// VerifySlot verifies if the slot passed is a valid hotbar slot and if the
+// expected item.Stack is in it.
+func (s *Session) VerifySlot(slot int, expected item.Stack) error {
+	// The slot that the player might have selected must be within the hotbar:
+	// The held item cannot be in a different place in the inventory.
+	if slot < 0 || slot > 8 {
+		return fmt.Errorf("slot exceeds hotbar range 0-8: slot is %v", slot)
+	}
+	clientSideItem := expected
+	actual, _ := s.inv.Item(slot)
+
+	// The item the client claims to have must be identical to the one we have
+	// registered server-side.
+	if !clientSideItem.Equal(actual) {
+		s.sendItem(actual, slot, protocol.WindowIDInventory)
+		// Only ever debug these as they are frequent and expected to happen
+		// whenever client and server get out of sync.
+		s.conf.Log.Debug("verify slot: client-side item was not equal to server-side item", "client-held", clientSideItem.String(), "server-held", actual.String())
+	}
+	return nil
+}
+
+// SendExperience sends the experience level and progress from the given experience manager to the player.
+func (s *Session) SendExperience(level int, progress float64) {
+	s.writePacket(&packet.UpdateAttributes{
+		EntityRuntimeID: selfEntityRuntimeID,
+		Attributes: []protocol.Attribute{
+			{
+				AttributeValue: protocol.AttributeValue{
+					Name:  "minecraft:player.level",
+					Value: float32(level),
+					Max:   float32(math.MaxInt32),
+				},
+				DefaultMax: float32(math.MaxInt32),
+			},
+			{
+				AttributeValue: protocol.AttributeValue{
+					Name:  "minecraft:player.experience",
+					Value: float32(progress),
+					Max:   1,
+				},
+				DefaultMax: 1,
+			},
+		},
+	})
+}
+
+// SendChargeItemComplete sends a packet to indicate that the item charging process has been completed.
+func (s *Session) SendChargeItemComplete() {
+	s.writePacket(&packet.ActorEvent{
+		EntityRuntimeID: selfEntityRuntimeID,
+		EventType:       packet.ActorEventFinishedChargingItem,
+	})
+}
+
+// ShowHudElement shows a HUD element to the player if it is not already shown. If the element is waiting to
+// be hidden, it will be removed from the updates and remain visible to the player.
+func (s *Session) ShowHudElement(e hud.Element) {
+	s.hudMu.Lock()
+	defer s.hudMu.Unlock()
+
+	if _, ok := s.hiddenHud[e]; ok {
+		s.hudUpdates[e] = true
+	} else if _, ok = s.hudUpdates[e]; ok {
+		delete(s.hudUpdates, e)
+	}
+}
+
+// HideHudElement hides a HUD element from the player if it is not already hidden. If the element is waiting
+// to be shown, it will be removed from the updates and remain hidden from the player.
+func (s *Session) HideHudElement(e hud.Element) {
+	s.hudMu.Lock()
+	defer s.hudMu.Unlock()
+
+	if _, ok := s.hiddenHud[e]; !ok {
+		s.hudUpdates[e] = false
+	} else if _, ok = s.hudUpdates[e]; ok {
+		delete(s.hudUpdates, e)
+	}
+}
+
+// HudElementHidden checks if a HUD element is currently hidden from the player.
+func (s *Session) HudElementHidden(e hud.Element) bool {
+	s.hudMu.RLock()
+	defer s.hudMu.RUnlock()
+
+	if _, ok := s.hiddenHud[e]; ok {
+		return true
+	}
+	vis, ok := s.hudUpdates[e]
+	return ok && !vis
+}
+
+// SendHudUpdates sends any pending HUD updates to the player. The updates are batched to reduce the number
+// of packets being sent. Up to 2 packets will be sent, one for showing elements and one for hiding elements.
+func (s *Session) SendHudUpdates() {
+	s.hudMu.Lock()
+	if len(s.hudUpdates) == 0 {
+		s.hudMu.Unlock()
+		return
+	}
+	var show, hide []int32
+	for e, vis := range s.hudUpdates {
+		if vis {
+			show = append(show, int32(e.Uint8()))
+			delete(s.hiddenHud, e)
+		} else {
+			hide = append(hide, int32(e.Uint8()))
+			s.hiddenHud[e] = struct{}{}
+		}
+	}
+	s.hudUpdates = make(map[hud.Element]bool)
+	s.hudMu.Unlock()
+
+	if len(show) > 0 {
+		s.writePacket(&packet.SetHud{Elements: show, Visibility: packet.HudVisibilityReset})
+	}
+	if len(hide) > 0 {
+		s.writePacket(&packet.SetHud{Elements: hide, Visibility: packet.HudVisibilityHide})
+	}
+}
+
+// AddDebugShape adds a debug shape to be rendered to the player. If the shape already exists, it will be
+// updated with the new information.
+func (s *Session) AddDebugShape(shape debug.Shape) {
+	if s == Nop {
+		return
+	}
+	s.queueDebugShapeUpdate(debugShapeUpdate{id: shape.ShapeID(), shape: shape})
+}
+
+// RemoveDebugShape removes a debug shape from the player by its unique identifier.
+func (s *Session) RemoveDebugShape(shape debug.Shape) {
+	if s == Nop {
+		return
+	}
+	s.queueDebugShapeUpdate(debugShapeUpdate{id: shape.ShapeID()})
+}
+
+// VisibleDebugShapes returns a slice of all debug shapes that are currently being shown to the player.
+func (s *Session) VisibleDebugShapes() []debug.Shape {
+	s.debugShapesMu.RLock()
+	defer s.debugShapesMu.RUnlock()
+
+	return slices.Collect(maps.Values(s.debugShapes))
+}
+
+// RemoveAllDebugShapes removes all rendered debug shapes from the player, as well as any shapes that have
+// not yet been rendered.
+func (s *Session) RemoveAllDebugShapes() {
+	if s == Nop {
+		return
+	}
+	s.debugShapesMu.Lock()
+	defer s.debugShapesMu.Unlock()
+
+	s.debugShapeUpdates = s.debugShapeUpdates[:0]
+	for id := range s.debugShapes {
+		s.debugShapeUpdates = append(s.debugShapeUpdates, debugShapeUpdate{id: id})
+	}
+}
+
+// SendDebugShapes sends any pending additions/removals of debug shapes to the player. Shapes should be sent
+// every tick to allow for batching and time-efficient updates.
+func (s *Session) SendDebugShapes(dim world.Dimension) {
+	s.debugShapesMu.Lock()
+	updates := s.debugShapeUpdates
+	if len(updates) == 0 {
+		s.debugShapesMu.Unlock()
+		return
+	}
+
+	shapes := make([]protocol.PrimitiveShape, 0, len(updates))
+	for _, update := range updates {
+		if update.shape == nil {
+			delete(s.debugShapes, update.id)
+			shapes = append(shapes, protocol.PrimitiveShape{
+				NetworkID:      uint64(update.id),
+				DimensionID:    protocol.Option(s.dimensionID(dim)),
+				ExtraShapeData: &protocol.LastShape{},
+			})
+			continue
+		}
+		s.debugShapes[update.id] = update.shape
+		shapes = append(shapes, debugShapeToProtocol(update.shape, dim, s.shapeAttachedEntityRuntimeID(update.shape)))
+	}
+	s.debugShapeUpdates = s.debugShapeUpdates[:0]
+	s.debugShapesMu.Unlock()
+
+	s.writePacket(&packet.PrimitiveShapes{Shapes: shapes})
+}
+
+// LockInput applies an input lock to the player, disabling the specified input. If the lock is already
+// applied, this is a no-op.
+func (s *Session) LockInput(l input.Lock) {
+	s.inputLocksMu.Lock()
+	defer s.inputLocksMu.Unlock()
+	s.inputLocks |= l.Uint32()
+}
+
+// UnlockInput removes an input lock from the player, re-enabling the specified input. If the lock is not
+// currently applied, this is a no-op.
+func (s *Session) UnlockInput(l input.Lock) {
+	s.inputLocksMu.Lock()
+	defer s.inputLocksMu.Unlock()
+	s.inputLocks &^= l.Uint32()
+}
+
+// ClearInputLocks removes all input locks from the player, re-enabling all inputs.
+func (s *Session) ClearInputLocks() {
+	s.inputLocksMu.Lock()
+	defer s.inputLocksMu.Unlock()
+	s.inputLocks = 0
+}
+
+// InputLocked checks if a specific input lock is currently applied to the player.
+func (s *Session) InputLocked(l input.Lock) bool {
+	s.inputLocksMu.RLock()
+	defer s.inputLocksMu.RUnlock()
+	return s.inputLocks&l.Uint32() != 0
+}
+
+// SendInputLocks sends the current input lock state to the client.
+func (s *Session) SendInputLocks() {
+	s.inputLocksMu.RLock()
+	defer s.inputLocksMu.RUnlock()
+	s.writePacket(&packet.UpdateClientInputLocks{
+		Locks: s.inputLocks,
+	})
+}
+
+// queueDebugShapeUpdate queues a debug shape mutation to be applied the next time debug shapes are sent.
+func (s *Session) queueDebugShapeUpdate(update debugShapeUpdate) {
+	s.debugShapesMu.Lock()
+	defer s.debugShapesMu.Unlock()
+	s.debugShapeUpdates = append(s.debugShapeUpdates, update)
+}
+
+// valueOrDefault returns the value passed if it is not the zero value of the type T, otherwise it returns
+// the default value provided.
+func valueOrDefault[T comparable](v, def T) T {
+	var zero T
+	if v == zero {
+		return def
+	}
+	return v
+}
+
+// stackFromItem converts an item.Stack to its network ItemStack representation.
+func stackFromItem(br world.BlockRegistry, it item.Stack) protocol.ItemStack {
+	if it.Empty() {
+		return protocol.ItemStack{}
+	}
+
+	var blockRuntimeID uint32
+	if b, ok := it.Item().(world.Block); ok {
+		blockRuntimeID = br.BlockRuntimeID(b)
+	}
+
+	rid, meta, _ := world.ItemRuntimeID(it.Item())
+
+	return protocol.ItemStack{
+		ItemType: protocol.ItemType{
+			NetworkID:     rid,
+			MetadataValue: uint32(meta),
+		},
+		Count:          uint16(it.Count()),
+		BlockRuntimeID: int32(blockRuntimeID),
+		NBTData:        item.WriteNBT(it, false),
+	}
+}
+
+// stackToItem converts a network ItemStack representation back to an item.Stack.
+func stackToItem(br world.BlockRegistry, it protocol.ItemStack) item.Stack {
+	t, ok := world.ItemByRuntimeID(it.NetworkID, int16(it.MetadataValue))
+	if !ok {
+		t = block.Air{}
+	}
+	if it.BlockRuntimeID > 0 {
+		// It shouldn't matter if it (for whatever reason) wasn't able to get the block runtime ID,
+		// since on the next line, we assert that the block is an item. If it didn't succeed, it'll
+		// return air anyway.
+		b, _ := br.BlockByRuntimeID(uint32(it.BlockRuntimeID))
+		if t, ok = b.(world.Item); !ok {
+			t = block.Air{}
+		}
+	}
+	//noinspection SpellCheckingInspection
+	if nbter, ok := t.(world.NBTer); ok && len(it.NBTData) != 0 {
+		t = nbter.DecodeNBT(it.NBTData).(world.Item)
+	}
+	s := item.NewStack(t, int(it.Count))
+	return item.ReadNBT(it.NBTData, &s)
+}
+
+// instanceFromItem converts an item.Stack to its network ItemInstance representation.
+func instanceFromItem(br world.BlockRegistry, it item.Stack) protocol.ItemInstance {
+	return protocol.ItemInstance{
+		StackNetworkID: item_id(it),
+		Stack:          stackFromItem(br, it),
+	}
+}
+
+// stacksToRecipeStacks converts a list of item.Stacks to their protocol representation with damage stripped for recipes.
+func stacksToRecipeStacks(br world.BlockRegistry, inputs []item.Stack) []protocol.ItemStack {
+	items := make([]protocol.ItemStack, 0, len(inputs))
+	for _, i := range inputs {
+		items = append(items, deleteDamage(stackFromItem(br, i)))
+	}
+	return items
+}
+
+// stacksToIngredientItems converts a list of item.Stacks to recipe ingredient items used over the network.
+func stacksToIngredientItems(_ world.BlockRegistry, inputs []recipe.Item) []protocol.ItemDescriptorCount {
+	items := make([]protocol.ItemDescriptorCount, 0, len(inputs))
+	for _, i := range inputs {
+		var d protocol.ItemDescriptor = &protocol.InvalidItemDescriptor{}
+		switch i := i.(type) {
+		case item.Stack:
+			if i.Empty() {
+				items = append(items, protocol.ItemDescriptorCount{Descriptor: &protocol.InvalidItemDescriptor{}})
+				continue
+			}
+			name, meta := i.Item().EncodeItem()
+			if _, ok := i.Value("variants"); ok {
+				meta = math.MaxInt16 // Used to indicate that the item has multiple selectable variants.
+			}
+			d = &protocol.DefaultItemDescriptor{
+				Name:          name,
+				MetadataValue: int32(meta),
+			}
+		case recipe.ItemTag:
+			d = &protocol.ItemTagItemDescriptor{Tag: i.Tag()}
+		}
+		items = append(items, protocol.ItemDescriptorCount{
+			Descriptor: d,
+			Count:      int32(i.Count()),
+		})
+	}
+	return items
+}
+
+// creativeContent returns all creative groups, and creative inventory items as protocol item stacks.
+func creativeContent(br world.BlockRegistry) ([]protocol.CreativeGroup, []protocol.CreativeItem) {
+	groups := make([]protocol.CreativeGroup, 0, len(creative.Groups()))
+	for _, group := range creative.Groups() {
+		groups = append(groups, protocol.CreativeGroup{
+			Category: group.Category.Uint8(),
+			Name:     group.Name,
+			Icon:     deleteDamage(stackFromItem(br, group.Icon)),
+		})
+	}
+
+	it := make([]protocol.CreativeItem, 0, len(creative.Items()))
+	for index, i := range creative.Items() {
+		group := slices.IndexFunc(creative.Groups(), func(group creative.Group) bool {
+			return group.Name == i.Group
+		})
+		if group < 0 {
+			continue
+		}
+		it = append(it, protocol.CreativeItem{
+			CreativeItemNetworkID: uint32(index) + 1,
+			Item:                  deleteDamage(stackFromItem(br, i.Stack)),
+			GroupIndex:            uint32(group),
+		})
+	}
+	return groups, it
+}
+
+// deleteDamage strips the damage from a protocol item.
+func deleteDamage(st protocol.ItemStack) protocol.ItemStack {
+	delete(st.NBTData, "Damage")
+	return st
+}
+
+// protocolToSkin converts protocol.Skin to skin.Skin.
+func protocolToSkin(sk protocol.Skin) (s skin.Skin, err error) {
+	if sk.SkinID == "" {
+		return skin.Skin{}, fmt.Errorf("SkinID must not be an empty string")
+	}
+
+	s = skin.New(int(sk.SkinImageWidth), int(sk.SkinImageHeight))
+	s.Persona = sk.PersonaSkin
+	s.Pix = sk.SkinData
+	s.Model = sk.SkinGeometry
+	s.FullID = sk.FullID
+
+	s.Cape = skin.NewCape(int(sk.CapeImageWidth), int(sk.CapeImageHeight))
+	s.Cape.Pix = sk.CapeData
+
+	m := make(map[string]any)
+	if err = json.Unmarshal(sk.SkinGeometry, &m); err != nil {
+		return skin.Skin{}, fmt.Errorf("SkinGeometry was not a valid JSON string: %v", err)
+	}
+
+	if s.ModelConfig, err = skin.DecodeModelConfig(sk.SkinResourcePatch); err != nil {
+		return skin.Skin{}, fmt.Errorf("SkinResourcePatch was not a valid JSON string: %v", err)
+	}
+
+	for _, anim := range sk.Animations {
+		var t skin.AnimationType
+		switch anim.AnimationType {
+		case protocol.SkinAnimationHead:
+			t = skin.AnimationHead
+		case protocol.SkinAnimationBody32x32:
+			t = skin.AnimationBody32x32
+		case protocol.SkinAnimationBody128x128:
+			t = skin.AnimationBody128x128
+		default:
+			return skin.Skin{}, fmt.Errorf("invalid animation type: %v", anim.AnimationType)
+		}
+
+		animation := skin.NewAnimation(int(anim.ImageWidth), int(anim.ImageHeight), int(anim.ExpressionType), t)
+		animation.FrameCount = int(anim.FrameCount)
+		animation.Pix = anim.ImageData
+
+		s.Animations = append(s.Animations, animation)
+	}
+	return
+}
+
+// shapeAttachedEntityRuntimeID returns the runtime ID of the entity attached to a debug shape.
+func (s *Session) shapeAttachedEntityRuntimeID(shape debug.Shape) uint64 {
+	var handle *world.EntityHandle
+	switch shape := shape.(type) {
+	case *debug.Arrow:
+		handle = shape.Entity
+	case *debug.Box:
+		handle = shape.Entity
+	case *debug.Circle:
+		handle = shape.Entity
+	case *debug.Line:
+		handle = shape.Entity
+	case *debug.Sphere:
+		handle = shape.Entity
+	case *debug.Text:
+		handle = shape.Entity
+	case *debug.Cylinder:
+		handle = shape.Entity
+	case *debug.Pyramid:
+		handle = shape.Entity
+	case *debug.Ellipsoid:
+		handle = shape.Entity
+	case *debug.Cone:
+		handle = shape.Entity
+	}
+	if handle == nil {
+		return 0
+	}
+	return s.handleRuntimeID(handle)
+}
+
+// debugShapeToProtocol converts a debug shape to its protocol representation. It also provides defaults
+// for some fields such as colour, scale and other per-shape properties.
+func debugShapeToProtocol(shape debug.Shape, dim world.Dimension, attachedEntityID uint64) protocol.PrimitiveShape {
+	dimID, _ := world.DimensionID(dim)
+	ps := protocol.PrimitiveShape{
+		NetworkID:   uint64(shape.ShapeID()),
+		DimensionID: protocol.Option(int32(dimID)),
+	}
+	if attachedEntityID > 0 {
+		ps.AttachedToEntityID = protocol.Option(int64(attachedEntityID))
+	}
+	white := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	switch shape := shape.(type) {
+	case *debug.Arrow:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeArrow)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.ExtraShapeData = &protocol.ArrowShape{
+			ArrowEndLocation: protocol.Option(vec64To32(shape.EndPosition)),
+			ArrowHeadLength:  protocol.Option(valueOrDefault(float32(shape.HeadLength), 1)),
+			ArrowHeadRadius:  protocol.Option(valueOrDefault(float32(shape.HeadRadius), 0.5)),
+			Segments:         protocol.Option(valueOrDefault(uint8(shape.HeadSegments), 4)),
+		}
+	case *debug.Box:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeBox)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		ps.ExtraShapeData = &protocol.BoxShape{BoxBound: valueOrDefault(vec64To32(shape.Bounds), mgl32.Vec3{1, 1, 1})}
+	case *debug.Circle:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeCircle)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		ps.ExtraShapeData = &protocol.SphereShape{Segments: valueOrDefault(uint8(shape.Segments), 20)}
+	case *debug.Line:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeLine)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.ExtraShapeData = &protocol.LineShape{LineEndLocation: vec64To32(shape.EndPosition)}
+	case *debug.Sphere:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeSphere)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		ps.ExtraShapeData = &protocol.SphereShape{Segments: valueOrDefault(uint8(shape.Segments), 20)}
+	case *debug.Text:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeText)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		if shape.LockRotation {
+			ps.Rotation = protocol.Option(vec64To32(shape.Rotation))
+		}
+		textData := &protocol.TextShape{
+			Text:             shape.Text,
+			UseRotation:      shape.LockRotation,
+			DepthTest:        !shape.DisableDepthTest,
+			ShowBackface:     !shape.HideBackface,
+			ShowBackfaceText: !shape.HideBackfaceText,
+		}
+		switch {
+		case shape.HideBackground:
+			textData.BackgroundColour = protocol.Option(color.RGBA{})
+		case shape.BackgroundColour != (color.RGBA{}):
+			textData.BackgroundColour = protocol.Option(shape.BackgroundColour)
+		}
+		ps.ExtraShapeData = textData
+	case *debug.Cylinder:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeCylinder)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		base := valueOrDefault(shape.BaseRadius, mgl64.Vec2{1, 1})
+		top := valueOrDefault(shape.TopRadius, base)
+		ps.ExtraShapeData = &protocol.CylinderShape{
+			RadiusX:     mgl32.Vec2{float32(base[0]), float32(top[0])},
+			RadiusZ:     mgl32.Vec2{float32(base[1]), float32(top[1])},
+			Height:      valueOrDefault(float32(shape.Height), 1),
+			NumSegments: valueOrDefault(uint8(shape.Segments), 20),
+		}
+	case *debug.Pyramid:
+		ps.Type = protocol.Option(protocol.PrimitiveShapePyramid)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		pyramid := &protocol.PyramidShape{
+			Width:  valueOrDefault(float32(shape.Width), 1),
+			Height: valueOrDefault(float32(shape.Height), 1),
+		}
+		if shape.Depth != 0 {
+			pyramid.Depth = protocol.Option(float32(shape.Depth))
+		}
+		ps.ExtraShapeData = pyramid
+	case *debug.Ellipsoid:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeEllipsoid)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		ps.ExtraShapeData = &protocol.EllipsoidShape{
+			Radii:           valueOrDefault(vec64To32(shape.Radii), mgl32.Vec3{1, 1, 1}),
+			SegmentsPerAxis: valueOrDefault(uint8(shape.SegmentsPerAxis), 20),
+		}
+	case *debug.Cone:
+		ps.Type = protocol.Option(protocol.PrimitiveShapeCone)
+		ps.Colour = protocol.Option(valueOrDefault(shape.Colour, white))
+		ps.Location = protocol.Option(vec64To32(shape.Position))
+		ps.Scale = protocol.Option(valueOrDefault(float32(shape.Scale), 1))
+		ps.ExtraShapeData = &protocol.ConeShape{
+			Radii:       valueOrDefault(vec2To32(shape.Radii), mgl32.Vec2{1, 1}),
+			Height:      valueOrDefault(float32(shape.Height), 1),
+			NumSegments: valueOrDefault(uint8(shape.Segments), 20),
+		}
+	default:
+		panic(fmt.Sprintf("unknown debug shape type %T", shape))
+	}
+	return ps
+}
+
+// gameTypeFromMode returns the game type ID from the game mode passed.
+func gameTypeFromMode(mode world.GameMode) int32 {
+	if mode == world.GameModeSpectator {
+		return packet.GameTypeSpectator
+	}
+	if mode.AllowsFlying() && mode.CreativeInventory() {
+		return packet.GameTypeCreative
+	}
+	return packet.GameTypeSurvival
+}
+
+// The following functions use the go:linkname directive in order to make sure the item.byID and item.toID
+// functions do not need to be exported.
+
+// noinspection ALL
+//
+//go:linkname item_id github.com/df-mc/dragonfly/server/item.id
+func item_id(s item.Stack) int32
+
+========== server/cmd/source.go ==========
+package cmd
+
+// Source represents a source of a command execution. Commands may limit the sources that can run them by
+// implementing the Allower interface.
+// Source implements Target. A Source must always be able to target itself.
+type Source interface {
+	Target
+	// SendCommandOutput sends a command output to the source. The way the output is applied, depends on what
+	// kind of source it is.
+	// SendCommandOutput is called by a Command automatically after being run.
+	SendCommandOutput(o *Output)
+}
+
+========== server/cmd/command.go ==========
+package cmd
+
+import (
+	"encoding/csv"
+	"fmt"
+	"go/ast"
+	"reflect"
+	"slices"
+	"strings"
+
+	"github.com/df-mc/dragonfly/server/world"
+)
+
+// Runnable represents a Command that may be run by a Command source. The Command must be a struct type and
+// its fields represent the parameters of the Command. When the Run method is called, these fields are set
+// and may be used for behaviour in the Command. Fields unexported or ignored using the `cmd:"-"` struct tag (see
+// below) have their values copied but retained.
+// A Runnable may have exported fields only of the following types:
+// int8, int16, int32, int64, int, uint8, uint16, uint32, uint64, uint,
+// float32, float64, string, bool, mgl64.Vec3, Varargs, []Target, cmd.SubCommand, Optional[T] (to make a parameter
+// optional), or a type that implements the cmd.Parameter or cmd.Enum interface. cmd.Enum implementations must be of the
+// type string.
+// Fields in the Runnable struct may have `cmd:` struct tag to specify the name and suffix of a parameter as such:
+//
+//	type T struct {
+//	    Param int `cmd:"name,suffix"`
+//	}
+//
+// If no name is set, the field name is used. Additionally, the name as specified in the struct tag may be '-' to make
+// the parser ignore the field. In this case, the field does not have to be of one of the types above.
+type Runnable interface {
+	// Run runs the Command, using the arguments passed to the Command. The source is passed to the method,
+	// which is the source of the Command execution, and the output is passed, to which messages may be
+	// added which get sent to the source. tx is nil for sources not attached to
+	// a world, such as a console source. Runnables that use tx must nil-check it.
+	Run(src Source, o *Output, tx *world.Tx)
+}
+
+// Allower may be implemented by a type also implementing Runnable to limit the sources that may run the
+// command.
+type Allower interface {
+	// Allow checks if the Source passed is allowed to execute the command. True is returned if the Source is
+	// allowed to execute the command.
+	Allow(src Source) bool
+}
+
+// Command is a wrapper around a Runnable. It provides additional identity and utility methods for the actual
+// runnable command so that it may be identified more easily.
+type Command struct {
+	v           []reflect.Value
+	name        string
+	description string
+	usage       string
+	aliases     []string
+}
+
+// New returns a new Command using the name and description passed. Command
+// names and aliases are all converted to lowercase. The Runnable passed must
+// be a (pointer to a) struct, with its fields representing the parameters of
+// the command. When the command is run, the Run method of the Runnable will be
+// called after all fields have their values from the parsed command set. If r
+// is not a struct or a pointer to a struct, New panics.
+func New(name, description string, aliases []string, r ...Runnable) Command {
+	name = strings.ToLower(name)
+	for i, alias := range aliases {
+		aliases[i] = strings.ToLower(alias)
+	}
+
+	usages := make([]string, len(r))
+	runnableValues := make([]reflect.Value, len(r))
+
+	if len(aliases) > 0 && slices.Index(aliases, name) == -1 {
+		aliases = append(aliases, name)
+	}
+
+	for i, runnable := range r {
+		t := reflect.TypeOf(runnable)
+		if t.Kind() != reflect.Struct && (t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct) {
+			panic(fmt.Sprintf("Runnable r must be struct or pointer to struct, but got %v", t.Kind()))
+		}
+		original := reflect.ValueOf(runnable)
+		if t.Kind() == reflect.Ptr {
+			original = original.Elem()
+		}
+
+		cp := reflect.New(original.Type()).Elem()
+		if err := verifySignature(cp); err != nil {
+			panic(err.Error())
+		}
+		runnableValues[i], usages[i] = original, parseUsage(name, cp)
+	}
+
+	return Command{name: name, description: description, aliases: aliases, v: runnableValues, usage: strings.Join(usages, "\n")}
+}
+
+// Name returns the name of the command. The name is guaranteed to be lowercase and will never have spaces in
+// it. This name is used to call the command, and is shown in the /help list.
+func (cmd Command) Name() string {
+	return cmd.name
+}
+
+// Description returns the description of the command. The description is shown in the /help list, and
+// provides information on the functionality of a command.
+func (cmd Command) Description() string {
+	return cmd.description
+}
+
+// Usage returns the usage of the command. The usage will be roughly equal to the one showed by the client
+// in-game.
+func (cmd Command) Usage() string {
+	return cmd.usage
+}
+
+// Aliases returns a list of aliases for the command. In addition to the name of the command, the command may
+// be called using one of these aliases.
+func (cmd Command) Aliases() []string {
+	return cmd.aliases
+}
+
+// Execute executes the Command as a source with the args passed. The args are parsed assuming they do not
+// start with the command name. Execute will attempt to parse and execute one Runnable at a time. If one of
+// the Runnable was able to parse args correctly, it will be executed and no more Runnables will be attempted
+// to be run.
+// If parsing of all Runnables was unsuccessful, a command output with an error message is sent to the Source
+// passed, and the Run method of the Runnables are not called.
+// The Source passed must not be nil. The method will panic if a nil Source is passed.
+// tx may be nil for sources that are not attached to a world. Selector parsing
+// reports an error when it requires a transaction; Runnable bodies must
+// independently nil-check tx before using it.
+func (cmd Command) Execute(args string, source Source, tx *world.Tx) {
+	if source == nil {
+		panic("execute: invalid command source: source must not be nil")
+	}
+	output := &Output{}
+	defer source.SendCommandOutput(output)
+
+	var leastErroneous error
+	var leastArgsLeft *Line
+
+	for _, v := range cmd.v {
+		cp := reflect.New(v.Type())
+		cp.Elem().Set(v)
+		line, err := cmd.executeRunnable(cp, args, source, output, tx)
+		if err == nil {
+			// Command was executed successfully: We won't execute any of the other Runnable values passed, as
+			// we've already found an overload that works.
+			return
+		}
+		if line == nil {
+			// This Runnable was not runnable by the source passed. Only if no error was yet set, we set an
+			// error for the wrong source.
+			if leastErroneous == nil {
+				leastErroneous = err
+			}
+			continue
+		}
+		if leastArgsLeft == nil || line.Len() <= leastArgsLeft.Len() {
+			// If the line had less (or equal) arguments left than the previous lowest, we update the error,
+			// so that we can return an error that applies for the most successful Runnable.
+			leastErroneous = err
+			leastArgsLeft = line
+		}
+	}
+	// No working Runnable found for the arguments passed. We add the most
+	// applicable error to the output and stop there.
+	if leastArgsLeft != nil {
+		output.Error(leastArgsLeft.SyntaxError())
+	}
+	output.Error(leastErroneous)
+}
+
+// ParamInfo holds the information of a parameter in a Runnable. Information of a parameter may be obtained
+// by calling Command.Params().
+type ParamInfo struct {
+	Name     string
+	Value    any
+	Optional bool
+	Suffix   string
+}
+
+// Params returns a list of all parameters of the runnables. No assumptions should be done on the values that
+// they hold: Only the types are guaranteed to be consistent.
+func (cmd Command) Params(src Source) [][]ParamInfo {
+	params := make([][]ParamInfo, 0, len(cmd.v))
+	for _, runnable := range cmd.v {
+		if allower, ok := runnable.Interface().(Allower); ok && !allower.Allow(src) {
+			// This source cannot execute this runnable.
+			continue
+		}
+
+		// If the runnable can describe its own parameters, prefer that over reflection.
+		if d, ok := runnable.Interface().(ParamDescriber); ok {
+			params = append(params, d.DescribeParams(src))
+			continue
+		}
+
+		elem := reflect.New(runnable.Type()).Elem()
+		elem.Set(runnable)
+
+		var fields []ParamInfo
+		for _, t := range exportedFields(elem) {
+			field := elem.FieldByName(t.Name)
+			fields = append(fields, ParamInfo{
+				Name:     name(t),
+				Value:    unwrap(field).Interface(),
+				Optional: optional(field),
+				Suffix:   suffix(t),
+			})
+		}
+		params = append(params, fields)
+	}
+	return params
+}
+
+// Runnables returns a map of all Runnable implementations of the Command that a Source can execute.
+func (cmd Command) Runnables(src Source) map[int]Runnable {
+	m := make(map[int]Runnable, len(cmd.v))
+	for i, runnable := range cmd.v {
+		v := runnable.Interface().(Runnable)
+		if allower, ok := v.(Allower); !ok || allower.Allow(src) {
+			m[i] = v
+		}
+	}
+	return m
+}
+
+// String returns the usage of the command. The usage will be roughly equal to the one showed by the client
+// in-game.
+func (cmd Command) String() string {
+	return cmd.usage
+}
+
+// executeRunnable executes a Runnable v, by parsing the args passed using the source and output obtained. If
+// parsing was not successful or the Runnable could not be run by this source, an error is returned, and the
+// leftover command line.
+func (cmd Command) executeRunnable(v reflect.Value, args string, source Source, output *Output, tx *world.Tx) (*Line, error) {
+	if a, ok := v.Interface().(Allower); ok && !a.Allow(source) {
+		return nil, MessageUnknown.F(cmd.name)
+	}
+
+	var argFrags []string
+	if args != "" {
+		r := csv.NewReader(strings.NewReader(args))
+		r.Comma, r.LazyQuotes = ' ', true
+		record, err := r.Read()
+		if err != nil {
+			// When LazyQuotes is enabled, this really never appears to return
+			// an error when we read only one line. Just in case it does though,
+			// we return the command usage.
+			return nil, MessageUsage.F(cmd.Usage())
+		}
+		argFrags = record
+	}
+	parser := parser{}
+	arguments := &Line{args: argFrags, src: source, seen: []string{"/" + cmd.name}, cmd: cmd}
+
+	// We iterate over all the fields of the struct: Each of the fields will have an argument parsed to
+	// produce its value.
+	signature := v.Elem()
+	for _, t := range exportedFields(signature) {
+		field := signature.FieldByName(t.Name)
+		parser.currentField = t.Name
+		opt := optional(field)
+
+		val := field
+		if opt {
+			val = reflect.New(field.Field(0).Type()).Elem()
+		}
+
+		err, success := parser.parseArgument(arguments, val, opt, name(t), source, tx)
+		if err != nil {
+			// Parsing was not successful, we return immediately as we don't
+			// need to call the Runnable.
+			return arguments, err
+		}
+		if success && opt {
+			field.Set(reflect.ValueOf(field.Interface().(optionalT).with(val.Interface())))
+		}
+	}
+	if arguments.Len() != 0 {
+		return arguments, arguments.UsageError()
+	}
+
+	v.Interface().(Runnable).Run(source, output, tx)
+	return arguments, nil
+}
+
+// parseUsage parses the usage of a command found in value v using the name passed. It accounts for optional
+// parameters and converts types to a more friendly representation.
+func parseUsage(commandName string, command reflect.Value) string {
+	parts := make([]string, 0, command.NumField()+1)
+	parts = append(parts, "/"+commandName)
+
+	for _, t := range exportedFields(command) {
+		field := command.FieldByName(t.Name)
+
+		typeName := typeNameOf(field.Interface(), name(t))
+		if _, ok := field.Interface().(optionalT); ok {
+			typeName = typeNameOf(reflect.New(field.Field(0).Type()).Elem().Interface(), name(t))
+		}
+		if _, ok := field.Interface().(SubCommand); ok {
+			parts = append(parts, typeName)
+			continue
+		}
+		if optional(field) {
+			parts = append(parts, "["+name(t)+": "+typeName+"]"+suffix(t))
+			continue
+		}
+		parts = append(parts, "<"+name(t)+": "+typeName+">"+suffix(t))
+	}
+	return strings.Join(parts, " ")
+}
+
+// verifySignature verifies the passed struct pointer value signature to ensure it is a valid command,
+// checking things such as the validity of the optional struct tags.
+// If not valid, an error is returned.
+func verifySignature(command reflect.Value) error {
+	optionalField := false
+	for _, t := range exportedFields(command) {
+		field := command.FieldByName(t.Name)
+
+		// If the field is not optional, while the last field WAS optional, we return an error, as this is
+		// not parsable in an expected way.
+		opt := optional(field)
+		if !opt && optionalField {
+			return fmt.Errorf("command must only have optional parameters at the end")
+		}
+		val := field
+		if opt {
+			val = reflect.New(field.Field(0).Type()).Elem()
+		}
+		if _, ok := val.Interface().(Enum); ok && val.Kind() != reflect.String {
+			return fmt.Errorf("parameters implementing Enum must be of the type string")
+		}
+		optionalField = opt
+	}
+	return nil
+}
+
+// exportedFields returns all exported struct fields of the reflect.Value passed. It returns the fields as returned by
+// reflect.VisibleFields, but filters out unexported fields, anonymous fields and fields that have a name value in the
+// 'cmd' tag of '-'.
+func exportedFields(command reflect.Value) []reflect.StructField {
+	visible := reflect.VisibleFields(command.Type())
+	fields := make([]reflect.StructField, 0, len(visible))
+
+	for _, t := range visible {
+		if !ast.IsExported(t.Name) || name(t) == "-" || t.Anonymous {
+			continue
+		}
+		field := command.FieldByName(t.Name)
+		if !field.CanSet() {
+			continue
+		}
+		fields = append(fields, t)
+	}
+	return fields
+}
