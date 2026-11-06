@@ -99,6 +99,22 @@ Dragonfly currently exposes one active boss bar per player, so this command disp
 
 Hides the current boss bar for the selected players.
 
+### /summon
+`/summon <entity> [x y z]`
+
+The command spawns entities that this Dragonfly build actually implements:
+- `tnt` (primed TNT with a four-second fuse)
+- `lightning_bolt`
+- `ender_crystal`
+- `xp_orb` / `experience_orb` (one experience point)
+
+If coordinates are omitted, the entity spawns at the command source's position. Ordinary mobs such as zombies, skeletons, cows and villagers are not currently implemented by this server, so they cannot be summoned yet.
+
+Examples:
+- `/summon lightning_bolt`
+- `/summon tnt 120 64 -30`
+- `/summon minecraft:ender_crystal`
+
 ## Permissions and limitations
 
 All commands in this compatibility list are operator-only. The executable grants operator status to the configured `OwnerXUID` or UUIDs in `operators.json`; the local server console can also use the operator management commands. If `/give` or another admin command is missing from the in-game command list, verify that the account has operator status and reconnect after granting it.

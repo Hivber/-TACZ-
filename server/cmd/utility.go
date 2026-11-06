@@ -4,10 +4,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/enchantment"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/go-gl/mathgl/mgl64"
 )
 
 func init() {
@@ -15,6 +17,7 @@ func init() {
 	Register(New("effect", "Gives or clears status effects on players.", nil, effectGiveCommand{}, effectClearCommand{}))
 	Register(New("xp", "Adds, removes or queries player experience.", []string{"experience"}, xpAddCommand{}, xpRemoveCommand{}, xpQueryCommand{}))
 	Register(New("enchant", "Adds an enchantment to the item held by a player.", nil, enchantCommand{}))
+	Register(New("summon", "Summons an entity implemented by this server.", nil, summonCommand{}))
 }
 
 // clearSelfCommand implements the Java-style /clear form without arguments.
@@ -489,4 +492,51 @@ func (c enchantCommand) Run(_ Source, out *Output, _ *world.Tx) {
 		return
 	}
 	out.Printf("Applied %s %d to %d player(s).", c.Enchantment, level, updated)
+}
+
+
+type summonEntityName string
+
+func (summonEntityName) Type() string { return "SummonableEntity" }
+func (summonEntityName) Options(Source) []string {
+	return []string{
+		"tnt", "lightning_bolt", "ender_crystal", "xp_orb", "experience_orb",
+		"minecraft:tnt", "minecraft:lightning_bolt", "minecraft:ender_crystal", "minecraft:xp_orb", "minecraft:experience_orb",
+	}
+}
+
+type summonCommand struct {
+	Entity   summonEntityName
+	Position Optional[mgl64.Vec3]
+}
+
+func (summonCommand) Allow(src Source) bool { return commandOperator(src) }
+
+func (c summonCommand) Run(src Source, out *Output, tx *world.Tx) {
+	if tx == nil {
+		out.Error("/summon must be executed from a player or a world-bound command source.")
+		return
+	}
+	position := src.Position()
+	if explicit, ok := c.Position.Load(); ok {
+		position = explicit
+	}
+	name := strings.TrimPrefix(strings.ToLower(string(c.Entity)), "minecraft:")
+	opts := world.EntitySpawnOpts{Position: position}
+	var handle *world.EntityHandle
+	switch name {
+	case "tnt":
+		handle = entity.NewTNT(opts, 4*time.Second)
+	case "lightning_bolt":
+		handle = entity.NewLightning(opts)
+	case "ender_crystal":
+		handle = entity.NewEndCrystal(opts)
+	case "xp_orb", "experience_orb":
+		handle = entity.NewExperienceOrb(opts, 1)
+	default:
+		out.Errorf("The entity %s is not implemented by this Dragonfly build.", c.Entity)
+		return
+	}
+	tx.AddEntity(handle)
+	out.Printf("Summoned %s at %.2f %.2f %.2f.", c.Entity, position[0], position[1], position[2])
 }
