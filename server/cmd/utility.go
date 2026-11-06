@@ -428,7 +428,7 @@ var commandEnchantmentTypes = map[string]item.EnchantmentType{
 	"piercing":              enchantment.Piercing,
 	"quick_charge":          enchantment.QuickCharge,
 	"soul_speed":            enchantment.SoulSpeed,
-	"swift_sneak":            enchantment.SwiftSneak,
+	"swift_sneak":           enchantment.SwiftSneak,
 }
 
 func commandEnchantmentType(name enchantmentName) (item.EnchantmentType, bool) {
