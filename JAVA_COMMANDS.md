@@ -131,7 +131,7 @@ Named random sequences and `/random reset` are not implemented yet; those requir
 
 ## Permissions and limitations
 
-All commands in this compatibility list are operator-only. The executable grants operator status to the configured `OwnerXUID` or UUIDs in `operators.json`; the local server console can also use the operator management commands. If `/give` or another admin command is missing from the in-game command list, verify that the account has operator status and reconnect after granting it.
+All commands in this compatibility list require operator permissions except `/random value <range>` and `/random roll <range>` without a named sequence, which are available to all players as in Java Edition. The executable grants operator status to the configured `OwnerXUID` or UUIDs in `operators.json`; the local server console can also use the operator management commands. If `/give` or another admin command is missing from the in-game command list, verify that the account has operator status and reconnect after granting it.
 
 Selectors such as `@a`, `@p`, `@e`, `@s`, and `@r` require a world-bound execution context. The console command source is trusted for permission checks, but commands that need a player target or an entity transaction cannot be run from a world-less console source.
 
