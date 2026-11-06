@@ -49,6 +49,9 @@ type Session struct {
 
 	emoteChatMuted bool
 
+	// suppressCommandOutput is set while executing a SettingsCommand whose client requested no output.
+	suppressCommandOutput atomic.Bool
+
 	teleportPos atomic.Pointer[mgl64.Vec3]
 
 	entityMutex sync.RWMutex
@@ -593,6 +596,8 @@ func (s *Session) registerHandlers() {
 		packet.IDBossEvent:                 nil,
 		packet.IDClientCacheBlobStatus:     &ClientCacheBlobStatusHandler{},
 		packet.IDCommandRequest:            &CommandRequestHandler{},
+		packet.IDSettingsCommand:           &SettingsCommandHandler{},
+		packet.IDServerSettingsRequest:     nil, // No server-specific settings form is configured.
 		packet.IDSettingsCommand:           &SettingsCommandHandler{},
 		packet.IDServerSettingsRequest:     nil,
 		packet.IDContainerClose:            &ContainerCloseHandler{},
