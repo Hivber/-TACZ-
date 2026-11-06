@@ -271,7 +271,7 @@ type UserConfig struct {
 		OwnerXUID string
 	}
 	World struct {
-		// Generator selects the default terrain generator. Supported values are "pnx" and "flat".
+		// Generator selects the default terrain generator. Supported values are "pnx", "flat" and "helix".
 		Generator string
 		// Seed is the deterministic seed used by the terrain generator. A value of 0 is valid.
 		Seed int64
@@ -336,10 +336,27 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 	if generatorName == "" {
 		generatorName = "pnx"
 	}
-	if generatorName != "pnx" && generatorName != "flat" {
-		return conf, fmt.Errorf("unknown world generator %q (supported: pnx, flat)", generatorName)
+	if generatorName != "pnx" && generatorName != "flat" && generatorName != "helix" {
+		return conf, fmt.Errorf("unknown world generator %q (supported: pnx, flat, helix)", generatorName)
+	}
+	var helix *generator.Helix
+	if generatorName == "helix" {
+		helix, err = generator.NewHelix(uc.World.Seed)
+		if err != nil {
+			return conf, fmt.Errorf("create Helix generator: %w", err)
+		}
+		stats := helix.BlockMappingStats()
+		if log != nil {
+			log.Info("Helix Bedrock 1.26.60 generator loaded", "block_states", stats.Exact+stats.Defaulted+stats.Missing, "exact", stats.Exact, "defaulted", stats.Defaulted, "missing", stats.Missing)
+			if stats.Missing > 0 {
+				log.Warn("Helix palette contains block states that Dragonfly maps to air", "missing", stats.Missing)
+			}
+		}
 	}
 	conf.Generator = func(dim world.Dimension) world.Generator {
+		if helix != nil {
+			return helix.ForDimension(dim)
+		}
 		return loadGenerator(dim, generatorName, uc.World.Seed)
 	}
 	listeners, err := uc.transportListeners()

@@ -17,6 +17,12 @@ type Generator interface {
 	DefaultSpawn(dim Dimension) cube.Pos
 }
 
+// ChunkDataGenerator is an optional extension to Generator for generators
+// that also produce block entity NBT alongside a chunk's block and biome data.
+type ChunkDataGenerator interface {
+	GenerateChunkWithData(pos ChunkPos, chunk *chunk.Chunk) []chunk.BlockEntity
+}
+
 // NopGenerator is the default generator a world. It places no blocks in the world which results in a void
 // world.
 type NopGenerator struct{}
@@ -38,6 +44,16 @@ func (l *lockedGenerator) GenerateChunk(pos ChunkPos, c *chunk.Chunk) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.g.GenerateChunk(pos, c)
+}
+
+func (l *lockedGenerator) GenerateChunkWithData(pos ChunkPos, c *chunk.Chunk) []chunk.BlockEntity {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if g, ok := l.g.(ChunkDataGenerator); ok {
+		return g.GenerateChunkWithData(pos, c)
+	}
+	l.g.GenerateChunk(pos, c)
+	return nil
 }
 
 func (l *lockedGenerator) DefaultSpawn(dim Dimension) cube.Pos {
