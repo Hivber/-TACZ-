@@ -155,14 +155,16 @@ A single operation is limited to 256 chunks and a world is limited to 2,048
 forced chunks. Forced chunks are currently runtime-only and are released when
 the server stops; they are not persisted into level.dat.
 
-### /data (read-only block subset)
+### /data (read-only subset)
 `/data get block <x> <y> <z> [path] [scale]`
+`/data get entity <targets> [path] [scale]`
 
-Reads NBT from a block that implements Dragonfly's NBT interface, such as a
-chest or supported sign. Optional paths support compound keys and list indices,
+Reads NBT from blocks that implement Dragonfly's NBT interface (such as chests
+and supported signs), or from selected entities through their registered
+entity-type encoder. Optional paths support compound keys and list indices,
 for example `Items[0].id`. An optional numeric scale is applied to a numeric
-result. Entity NBT, NBT mutation (`merge`, `modify`, `remove`) and Java SNBT
-parsing are not implemented.
+result. NBT mutation (`merge`, `modify`, `remove`) and Java SNBT parsing are
+not implemented.
 
 ### /random
 

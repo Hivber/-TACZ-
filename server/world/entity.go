@@ -134,6 +134,19 @@ func entityFromData(t EntityType, id int64, data map[string]any) *EntityHandle {
 	return handle
 }
 
+// EncodeNBT returns the entity's NBT data while the handle is active in the
+// transaction passed. The caller must use the returned data before the
+// transaction ends.
+func (e *EntityHandle) EncodeNBT(tx *Tx) (map[string]any, bool) {
+	if e == nil || tx == nil {
+		return nil, false
+	}
+	if _, ok := e.Entity(tx); !ok {
+		return nil, false
+	}
+	return e.t.EncodeNBT(&e.data), true
+}
+
 // Type returns the EntityType of the EntityHandle.
 func (e *EntityHandle) Type() EntityType {
 	return e.t

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register(New("data", "Reads NBT data from supported blocks.", nil, dataGetBlockCommand{}))
+	Register(New("data", "Reads NBT data from supported blocks and entities.", nil, dataGetBlockCommand{}, dataGetEntityCommand{}))
 }
 
 type dataGetBlockCommand struct {
@@ -35,22 +35,10 @@ func (c dataGetBlockCommand) Run(_ Source, out *Output, tx *world.Tx) {
 		out.Errorf("block at %v does not expose block-entity NBT", pos)
 		return
 	}
-	var value any = nbtBlock.EncodeNBT()
-	if path, supplied := c.Path.Load(); supplied && path != "" {
-		var err error
-		value, err = lookupNBTPath(value, path)
-		if err != nil {
-			out.Error(err)
-			return
-		}
-	}
-	if scale, supplied := c.Scale.Load(); supplied {
-		scaled, err := scaleNBTValue(value, scale)
-		if err != nil {
-			out.Error(err)
-			return
-		}
-		value = scaled
+	value, err := dataCommandValue(nbtBlock.EncodeNBT(), c.Path, c.Scale)
+	if err != nil {
+		out.Error(err)
+		return
 	}
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -58,6 +46,72 @@ func (c dataGetBlockCommand) Run(_ Source, out *Output, tx *world.Tx) {
 		return
 	}
 	out.Printf("Block data at %v: %s", pos, encoded)
+}
+
+type dataGetEntityCommand struct {
+	Get     SubCommand
+	Entity  SubCommand
+	Targets []Target
+	Path    Optional[string]
+	Scale   Optional[float64]
+}
+
+func (dataGetEntityCommand) Allow(src Source) bool { return commandOperator(src) }
+
+func (c dataGetEntityCommand) Run(_ Source, out *Output, tx *world.Tx) {
+	if tx == nil {
+		out.Error("/data get entity must be executed from a player or a world-bound command source.")
+		return
+	}
+	matched := 0
+	for _, target := range c.Targets {
+		handleTarget, ok := target.(interface{ H() *world.EntityHandle })
+		if !ok || handleTarget.H() == nil {
+			continue
+		}
+		data, ok := handleTarget.H().EncodeNBT(tx)
+		if !ok {
+			continue
+		}
+		value, err := dataCommandValue(data, c.Path, c.Scale)
+		if err != nil {
+			out.Error(err)
+			continue
+		}
+		name := "entity"
+		if named, ok := target.(NamedTarget); ok {
+			name = named.Name()
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			out.Errorf("could not format NBT data: %v", err)
+			continue
+		}
+		out.Printf("Entity %s: %s", name, encoded)
+		matched++
+	}
+	if matched == 0 {
+		out.Error("No entity targets with readable NBT data matched.")
+	}
+}
+
+func dataCommandValue(data map[string]any, path Optional[string], scale Optional[float64]) (any, error) {
+	var value any = data
+	if name, supplied := path.Load(); supplied && name != "" {
+		var err error
+		value, err = lookupNBTPath(value, name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if factor, supplied := scale.Load(); supplied {
+		scaled, err := scaleNBTValue(value, factor)
+		if err != nil {
+			return nil, err
+		}
+		value = scaled
+	}
+	return value, nil
 }
 
 func lookupNBTPath(root any, path string) (any, error) {
