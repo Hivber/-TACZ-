@@ -115,6 +115,55 @@ Examples:
 - `/summon tnt 120 64 -30`
 - `/summon minecraft:ender_crystal`
 
+### /function
+`/function <namespace:path>`
+
+Executes a server-side function file at `functions/<namespace>/<path>.mcfunction`.
+A name without a namespace uses `minecraft`. Blank lines and lines beginning
+with `#` are ignored. Nested function calls are supported with a recursion
+limit of 32 levels and a combined execution limit of 10,000 commands. Function
+names are validated to prevent path traversal. Files are limited to 1 MiB.
+
+Example:
+- `/function minecraft:example`
+
+### /schedule
+`/schedule function <namespace:path> <time> [append|replace]`
+`/schedule clear [<namespace:path>|*]`
+
+Schedules a function in the current world's tick loop. Time accepts ticks
+(`t`, or no suffix), seconds (`s`) or days (`d`), with a maximum delay of
+30 days. `append` is the default; `replace` cancels pending executions of
+the same function before scheduling a new one. Scheduled tasks are in-memory
+only and are discarded when the server stops.
+
+Examples:
+- `/schedule function minecraft:example 200t`
+- `/schedule function minecraft:example 10s replace`
+- `/schedule clear minecraft:example`
+- `/schedule clear *`
+
+### /forceload
+`/forceload add <x> <z> [<toX> <toZ>]`
+`/forceload remove <x> <z> [<toX> <toZ>]`
+`/forceload remove all`
+`/forceload query [<x> <z>]`
+
+Keeps selected chunks loaded by holding Dragonfly chunk loaders. Coordinates
+are block coordinates and negative values use floor-based chunk conversion.
+A single operation is limited to 256 chunks and a world is limited to 2,048
+forced chunks. Forced chunks are currently runtime-only and are released when
+the server stops; they are not persisted into level.dat.
+
+### /data (read-only block subset)
+`/data get block <x> <y> <z> [path] [scale]`
+
+Reads NBT from a block that implements Dragonfly's NBT interface, such as a
+chest or supported sign. Optional paths support compound keys and list indices,
+for example `Items[0].id`. An optional numeric scale is applied to a numeric
+result. Entity NBT, NBT mutation (`merge`, `modify`, `remove`) and Java SNBT
+parsing are not implemented.
+
 ### /random
 
 `/random value <range>`
