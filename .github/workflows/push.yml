@@ -15,6 +15,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Resolve module graph
+        run: |
+          go mod tidy
+          git diff -- go.mod go.sum
+
       - name: Lint
         run: make lint
 
