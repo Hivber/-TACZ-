@@ -70,16 +70,16 @@ func TestHelixBlockEntitiesUseChunkLocalCoordinates(t *testing.T) {
 	dst.SetBlock(uint8(local.X()), int16(local.Y()), uint8(local.Z()), 0, world.DefaultBlockRegistry.BlockRuntimeID(chest))
 
 	source := []helixstructure.BlockEntity{{
-		X:    pos[0]*16 + local.X(),
-		Y:    local.Y(),
-		Z:    pos[1]*16 + local.Z(),
+		X:    int32(int(pos[0])*16 + local.X()),
+		Y:    int32(local.Y()),
+		Z:    int32(int(pos[1])*16 + local.Z()),
 		Data: map[string]any{"id": "Chest"},
 	}}
 	got := h.blockEntities(pos, dst, source)
 	if len(got) != 1 {
 		t.Fatalf("expected one compatible block entity, got %d", len(got))
 	}
-	want := cube.Pos{pos[0]*16 + local.X(), local.Y(), pos[1]*16 + local.Z()}
+	want := cube.Pos{int(pos[0])*16 + local.X(), local.Y(), int(pos[1])*16 + local.Z()}
 	if got[0].Pos != want {
 		t.Fatalf("block entity position = %v, want %v", got[0].Pos, want)
 	}

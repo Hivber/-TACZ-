@@ -363,8 +363,8 @@ func (h *Helix) blockEntities(pos world.ChunkPos, c *chunk.Chunk, source []helix
 		}
 		// The Helix generator reports block entity coordinates in world space,
 		// while chunk.Chunk indexes blocks using 0..15 local X/Z coordinates.
-		localX := int(be.X) - pos[0]*16
-		localZ := int(be.Z) - pos[1]*16
+		localX := int(be.X) - int(pos[0])*16
+		localZ := int(be.Z) - int(pos[1])*16
 		y := int(be.Y)
 		r := c.Range()
 		if localX < 0 || localX >= 16 || localZ < 0 || localZ >= 16 || y < r.Min() || y > r.Max() {
