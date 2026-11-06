@@ -27,21 +27,21 @@ const (
 type CommandBlock struct {
 	solid
 
-	Mode                CommandBlockMode
-	Facing              cube.Face
-	Conditional         bool
-	Command             string
-	CustomName          string
-	LastOutput          string
-	TrackOutput         bool
-	TickDelay           uint32
-	NeedsRedstone       bool
-	Powered             bool
-	ConditionMet        bool
-	ExecuteOnFirstTick  bool
-	LastExecutionTick   int64
-	SuccessCount        int32
-	HasExecuted         bool
+	Mode               CommandBlockMode
+	Facing             cube.Face
+	Conditional        bool
+	Command            string
+	CustomName         string
+	LastOutput         string
+	TrackOutput        bool
+	TickDelay          uint32
+	NeedsRedstone      bool
+	Powered            bool
+	ConditionMet       bool
+	ExecuteOnFirstTick bool
+	LastExecutionTick  int64
+	SuccessCount       int32
+	HasExecuted        bool
 }
 
 // NewCommandBlock constructs a command block with Bedrock's initial settings.
