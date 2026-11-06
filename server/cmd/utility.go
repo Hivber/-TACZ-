@@ -445,8 +445,6 @@ type commandEnchantTarget interface {
 	SetHeldItems(item.Stack, item.Stack)
 }
 
-func (enchantCommand) Allow(src Source) bool { return commandOperator(src) }
-
 type enchantCommand struct {
 	Targets     []Target
 	Enchantment enchantmentName
