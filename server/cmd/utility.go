@@ -494,7 +494,6 @@ func (c enchantCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	out.Printf("Applied %s %d to %d player(s).", c.Enchantment, level, updated)
 }
 
-
 type summonEntityName string
 
 func (summonEntityName) Type() string { return "SummonableEntity" }
