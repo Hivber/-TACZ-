@@ -141,9 +141,9 @@ func (b CommandBlock) EncodeNBT() map[string]any {
 		"conditionalMode":    b.Conditional,
 		"executeOnFirstTick": b.ExecuteOnFirstTick,
 		"LastExecution":      b.LastExecutionTick,
-		"SuccessCount":      b.SuccessCount,
-		"LPCommandMode":     uint32(b.Mode),
-		"hasExecuted":       b.HasExecuted,
+		"SuccessCount":       b.SuccessCount,
+		"LPCommandMode":      uint32(b.Mode),
+		"hasExecuted":        b.HasExecuted,
 	}
 }
 
