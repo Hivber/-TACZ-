@@ -588,7 +588,6 @@ func (g *PNXOverworld) generateOres(c *chunk.Chunk, rng *rand.Rand, minY, maxY i
 				}
 				c.SetBlock(uint8(sx), int16(sy), uint8(sz), 0, oreID)
 			}
-			x, y, z = x+rng.Intn(3)-1, y+rng.Intn(3)-1, z+rng.Intn(3)-1
 		}
 	}
 }
@@ -664,11 +663,12 @@ func (g *PNXOverworld) generateVegetation(c *chunk.Chunk, rng *rand.Rand, column
 			continue
 		}
 		id := g.blocks.shortGrass
-		if col.biome == pnxTaiga && rng.Intn(2) == 0 {
+		switch {
+		case col.biome == pnxTaiga && rng.Intn(2) == 0:
 			id = g.blocks.fern
-		} else if col.biome == pnxSwamp && rng.Intn(3) == 0 {
+		case col.biome == pnxSwamp && rng.Intn(3) == 0:
 			id = g.blocks.blueOrchid
-		} else if rng.Intn(7) == 0 {
+		case rng.Intn(7) == 0:
 			if rng.Intn(2) == 0 {
 				id = g.blocks.dandelion
 			} else {

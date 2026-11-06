@@ -105,14 +105,26 @@ func ParseGameRuleValue(name, raw string) (any, error) {
 				return nil, fmt.Errorf("game rule %q expects a non-negative integer", name)
 			}
 			switch name {
+			case "maxcommandchainlength":
+				if value > 65535 {
+					return nil, fmt.Errorf("maxcommandchainlength must be between 0 and 65535")
+				}
 			case "randomtickspeed":
-				if value > 4096 { return nil, fmt.Errorf("randomtickspeed must be between 0 and 4096") }
+				if value > 4096 {
+					return nil, fmt.Errorf("randomtickspeed must be between 0 and 4096")
+				}
 			case "functioncommandlimit":
-				if value > 10000 { return nil, fmt.Errorf("functioncommandlimit must be between 0 and 10000") }
+				if value > 10000 {
+					return nil, fmt.Errorf("functioncommandlimit must be between 0 and 10000")
+				}
 			case "spawnradius":
-				if value > 128 { return nil, fmt.Errorf("spawnradius must be between 0 and 128") }
+				if value > 128 {
+					return nil, fmt.Errorf("spawnradius must be between 0 and 128")
+				}
 			case "playerssleepingpercentage":
-				if value > 100 { return nil, fmt.Errorf("playerssleepingpercentage must be between 0 and 100") }
+				if value > 100 {
+					return nil, fmt.Errorf("playerssleepingpercentage must be between 0 and 100")
+				}
 			}
 			return uint32(value), nil
 		case string:
@@ -130,7 +142,6 @@ func ParseGameRuleValue(name, raw string) (any, error) {
 }
 
 // GameRules returns a copy of the world's current game rules.
-// GameRules returns a copy of the world's current game rules.
 func (w *World) GameRules() map[string]any {
 	if w == nil || w.set == nil {
 		return DefaultGameRules()
@@ -141,13 +152,17 @@ func (w *World) GameRules() map[string]any {
 // GameRule returns the current value of one game rule.
 func (w *World) GameRule(name string) (any, bool) {
 	name, ok := CanonicalGameRule(name)
-	if !ok || w == nil || w.set == nil { return nil, false }
+	if !ok || w == nil || w.set == nil {
+		return nil, false
+	}
 	w.set.Lock()
 	defer w.set.Unlock()
 	value, ok := w.set.GameRules[name]
 	if !ok {
 		for _, definition := range gameRuleDefinitions {
-			if definition.Name == name { return definition.Default, true }
+			if definition.Name == name {
+				return definition.Default, true
+			}
 		}
 	}
 	return value, ok
@@ -156,32 +171,49 @@ func (w *World) GameRule(name string) (any, bool) {
 // GameRuleBool returns a boolean rule value, or fallback if unavailable.
 func (w *World) GameRuleBool(name string, fallback bool) bool {
 	value, ok := w.GameRule(name)
-	if !ok { return fallback }
+	if !ok {
+		return fallback
+	}
 	result, ok := value.(bool)
-	if !ok { return fallback }
+	if !ok {
+		return fallback
+	}
 	return result
 }
 
 // SetGameRule validates and updates one game rule.
 func (w *World) SetGameRule(name string, value any) error {
 	name, ok := CanonicalGameRule(name)
-	if !ok { return fmt.Errorf("unknown game rule %q", name) }
+	if !ok {
+		return fmt.Errorf("unknown game rule %q", name)
+	}
 	var expected any
 	for _, definition := range gameRuleDefinitions {
-		if definition.Name == name { expected = definition.Default; break }
+		if definition.Name == name {
+			expected = definition.Default
+			break
+		}
 	}
 	switch expected.(type) {
 	case bool:
-		if _, ok := value.(bool); !ok { return fmt.Errorf("game rule %q expects a boolean", name) }
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("game rule %q expects a boolean", name)
+		}
 	case uint32:
-		if _, ok := value.(uint32); !ok { return fmt.Errorf("game rule %q expects an integer", name) }
+		if _, ok := value.(uint32); !ok {
+			return fmt.Errorf("game rule %q expects an integer", name)
+		}
 	case string:
 		v, ok := value.(string)
-		if !ok || (v != "everyone" && v != "off") { return fmt.Errorf("game rule %q expects everyone or off", name) }
+		if !ok || (v != "everyone" && v != "off") {
+			return fmt.Errorf("game rule %q expects everyone or off", name)
+		}
 	default:
 		return fmt.Errorf("unsupported game rule %q", name)
 	}
-	if w == nil || w.set == nil { return fmt.Errorf("world is unavailable") }
+	if w == nil || w.set == nil {
+		return fmt.Errorf("world is unavailable")
+	}
 	switch name {
 	case "dodaylightcycle":
 		w.enableTimeCycle(value.(bool))
@@ -189,7 +221,9 @@ func (w *World) SetGameRule(name string, value any) error {
 		w.enableWeatherCycle(value.(bool))
 	default:
 		w.set.Lock()
-		if w.set.GameRules == nil { w.set.GameRules = DefaultGameRules() }
+		if w.set.GameRules == nil {
+			w.set.GameRules = DefaultGameRules()
+		}
 		w.set.GameRules[name] = value
 		w.set.Unlock()
 	}
