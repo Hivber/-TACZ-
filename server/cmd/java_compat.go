@@ -6,7 +6,7 @@ import (
 
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/item"
-	"github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/item/inventory"
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
@@ -39,10 +39,30 @@ func commandItemName(name string) string {
 	return name
 }
 
-func commandPlayers(targets []Target) []*player.Player {
-	players := make([]*player.Player, 0, len(targets))
+type commandPlayerTarget interface {
+	Target
+	Name() string
+	Collect(item.Stack) (int, bool)
+	Inventory() *inventory.Inventory
+	Armour() *inventory.Armour
+	HeldItems() (item.Stack, item.Stack)
+	SetHeldItems(item.Stack, item.Stack)
+	Speed() float64
+	SetSpeed(float64)
+	FlightSpeed() float64
+	SetFlightSpeed(float64)
+	MaxHealth() float64
+	SetMaxHealth(float64)
+	Scale() float64
+	SetScale(float64)
+	SendBossBar(bossbar.BossBar)
+	RemoveBossBar()
+}
+
+func commandPlayers(targets []Target) []commandPlayerTarget {
+	players := make([]commandPlayerTarget, 0, len(targets))
 	for _, target := range targets {
-		if p, ok := target.(*player.Player); ok {
+		if p, ok := target.(commandPlayerTarget); ok {
 			players = append(players, p)
 		}
 	}
