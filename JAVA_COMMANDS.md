@@ -203,3 +203,19 @@ Selectors such as `@a`, `@p`, `@e`, `@s`, and `@r` require a world-bound executi
 Command blocks are implemented as native Bedrock blocks with saved block-actor data and the Bedrock CommandBlockUpdate editing packet. They support impulse, repeating and chain modes, conditional chains, redstone activation, always-active behaviour, tick delay, first-tick execution and command output tracking. Only operators within interaction range can edit them. Commands execute using the server's registered command table, and the maximum chain length is capped at 65,536 even if a world rule is set higher.
 
 Supported commands are those registered by this Dragonfly server. Commands that require a player target or player-only context cannot treat the command block itself as a player. Command block minecarts and Java-specific entity selectors/NBT syntax are not implemented. The `commandblocksenabled` and `commandblockoutput` game rules control execution and output tracking.
+
+
+## Not yet implemented
+
+The following Java command capabilities are deliberately not registered as
+no-op placeholders:
+
+- `/team`: Dragonfly's current scoreboard API does not provide team membership,
+  collision rules, friendly-fire settings, or the related team state model.
+- `/data merge`, `/data modify`, and `/data remove`: the current `/data`
+  implementation is read-only and does not parse Java SNBT.
+- `/random sequence` and `/random reset`: named deterministic sequences
+  require per-world sequence state and persistence.
+- `/worldborder damage` and `/worldborder warning`: the current border
+  enforces movement bounds but has no damage/warning subsystem or Bedrock UI
+  equivalent to Java's border overlay.

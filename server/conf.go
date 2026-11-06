@@ -159,9 +159,9 @@ func (conf Config) New() *Server {
 		conf.WorldProvider = world.NopProvider{}
 	}
 	if conf.Generator == nil {
-		// Programmatic Config users get the same modern terrain generator as
-		// users of the default config.toml. UserConfig.Config may override this
-		// closure to select a seed or the legacy flat generator.
+		// Programmatic Config users get the PNX-style generator unless they
+		// provide one explicitly. The on-disk UserConfig defaults to Helix
+		// Bedrock 1.26.60 and can select other generators and seeds.
 		conf.Generator = func(dim world.Dimension) world.Generator {
 			return loadGenerator(dim, "pnx", 0)
 		}
