@@ -13,7 +13,7 @@ import (
 // SendCommandOutput sends the output of a command to the player. It will be shown to the caller of the
 // command, which might be the player or a websocket server.
 func (s *Session) SendCommandOutput(output *cmd.Output, l language.Tag) {
-	if s == Nop {
+	if s == Nop || s.suppressCommandOutput.Load() {
 		return
 	}
 	messages := make([]protocol.CommandOutputMessage, 0, output.MessageCount()+output.ErrorCount())

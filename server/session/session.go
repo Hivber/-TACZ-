@@ -106,6 +106,9 @@ type Session struct {
 
 	closeBackground chan struct{}
 
+	// suppressCommandOutput is set while executing a SettingsCommand that asks the server to suppress feedback.
+	suppressCommandOutput atomic.Bool
+
 	br world.BlockRegistry
 }
 
@@ -590,6 +593,8 @@ func (s *Session) registerHandlers() {
 		packet.IDBossEvent:                 nil,
 		packet.IDClientCacheBlobStatus:     &ClientCacheBlobStatusHandler{},
 		packet.IDCommandRequest:            &CommandRequestHandler{},
+		packet.IDSettingsCommand:           &SettingsCommandHandler{},
+		packet.IDServerSettingsRequest:     nil,
 		packet.IDContainerClose:            &ContainerCloseHandler{},
 		packet.IDEmote:                     &EmoteHandler{},
 		packet.IDEmoteList:                 nil,
