@@ -43,7 +43,7 @@ func TestSplitFunctionCommand(t *testing.T) {
 	if name != "give" {
 		t.Fatalf("command name = %q", name)
 	}
-	if args != "minecraft:stone 2" {
+	if args != "@s minecraft:stone 2" {
 		t.Fatalf("args = %q", args)
 	}
 }

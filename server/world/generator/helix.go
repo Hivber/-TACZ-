@@ -208,10 +208,15 @@ func (h *Helix) mapBiomes(ids map[string]uint32) error {
 	h.plainsBiomeID = uint32(plains.EncodeBiome())
 	for name, id := range ids {
 		name = strings.TrimPrefix(name, "minecraft:")
-		if alias, ok := helixBiomeAliases[name]; ok {
-			name = alias
-		}
+		// Prefer a direct Dragonfly biome name. The Helix biome data contains
+		// both legacy Bedrock names and newer aliases, while several Dragonfly
+		// biome String values intentionally retain the legacy spelling.
 		b, ok := world.BiomeByName(name)
+		if !ok {
+			if alias, exists := helixBiomeAliases[name]; exists {
+				b, ok = world.BiomeByName(alias)
+			}
+		}
 		if !ok {
 			return fmt.Errorf("helix: no Dragonfly biome mapping for Bedrock biome %q", name)
 		}
