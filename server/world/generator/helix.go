@@ -361,7 +361,17 @@ func (h *Helix) blockEntities(pos world.ChunkPos, c *chunk.Chunk, source []helix
 		if be.X>>4 != pos[0] || be.Z>>4 != pos[1] {
 			continue
 		}
-		rid := c.Block(uint8(be.X), int16(be.Y), uint8(be.Z), 0)
+		// The Helix generator reports block entity coordinates in world space,
+		// while chunk.Chunk indexes blocks using 0..15 local X/Z coordinates.
+		localX := int(be.X) - pos[0]*16
+		localZ := int(be.Z) - pos[1]*16
+		y := int(be.Y)
+		r := c.Range()
+		if localX < 0 || localX >= 16 || localZ < 0 || localZ >= 16 || y < r.Min() || y > r.Max() {
+			h.droppedBlockEntities.Add(1)
+			continue
+		}
+		rid := c.Block(uint8(localX), int16(y), uint8(localZ), 0)
 		b, ok := world.DefaultBlockRegistry.BlockByRuntimeID(rid)
 		if !ok {
 			h.droppedBlockEntities.Add(1)
@@ -372,7 +382,7 @@ func (h *Helix) blockEntities(pos world.ChunkPos, c *chunk.Chunk, source []helix
 			continue
 		}
 		out = append(out, chunk.BlockEntity{
-			Pos:  cube.Pos{int(be.X), int(be.Y), int(be.Z)},
+			Pos:  cube.Pos{int(be.X), y, int(be.Z)},
 			Data: be.Data,
 		})
 	}

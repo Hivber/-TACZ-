@@ -40,13 +40,13 @@
   OwnerXUID = ""
 
 [World]
-  # Generator selects terrain generation: "pnx" for the new PNX-style terrain, or "flat" for the old flat worlds.
-  Generator = "pnx"
+  # Generator selects terrain generation: "helix" for Bedrock 1.26.60, "pnx" for PNX-style terrain, or "flat".
+  Generator = "helix"
   # Deterministic terrain seed. Different values create different landscapes; 0 is a valid seed.
   Seed = 0
   # The folder that the world files (will) reside in, relative to the working directory. If not currently
   # present, the folder will be made.
-  Folder = "world"
+  Folder = "world_helix"
   # Whether the worlds' data will be saved and loaded. If true, the server will use the
   # default LevelDB data provider and if false, an empty provider will be used. To use your
   # own provider, turn this value to false, as you will still be able to pass your own provider.

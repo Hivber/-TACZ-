@@ -334,7 +334,7 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 	}
 	generatorName := strings.ToLower(strings.TrimSpace(uc.World.Generator))
 	if generatorName == "" {
-		generatorName = "pnx"
+		generatorName = "helix"
 	}
 	if generatorName != "pnx" && generatorName != "flat" && generatorName != "helix" {
 		return conf, fmt.Errorf("unknown world generator %q (supported: pnx, flat, helix)", generatorName)
@@ -466,10 +466,10 @@ func DefaultConfig() UserConfig {
 	c.Network.NetherNet.UDPPorts = "19133"
 	c.Server.Name = "Dragonfly Server"
 	c.Server.AuthEnabled = true
-	c.World.Generator = "pnx"
+	c.World.Generator = "helix"
 	c.World.Seed = 0
 	c.World.SaveData = true
-	c.World.Folder = "world"
+	c.World.Folder = "world_helix"
 	c.Players.MaximumChunkRadius = 32
 	c.Players.SaveData = true
 	c.Players.Folder = "players"
