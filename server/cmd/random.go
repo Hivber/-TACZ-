@@ -15,7 +15,7 @@ func init() {
 
 type randomMode string
 
-func (randomMode) Type() string { return "RandomMode" }
+func (randomMode) Type() string            { return "RandomMode" }
 func (randomMode) Options(Source) []string { return []string{"value", "roll"} }
 
 type randomCommand struct {
@@ -53,40 +53,40 @@ func (c randomCommand) Run(_ Source, out *Output, tx *world.Tx) {
 func parseCommandRandomRange(raw string) (int64, int64, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return 0, 0, errors.New("Random range cannot be empty.")
+		return 0, 0, errors.New("random range cannot be empty")
 	}
 	if !strings.Contains(raw, "..") {
 		value, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return 0, 0, errors.New("Random range must contain signed 32-bit integers.")
+			return 0, 0, errors.New("random range must contain signed 32-bit integers")
 		}
 		return value, value, nil
 	}
 	if strings.Count(raw, "..") != 1 {
-		return 0, 0, errors.New("Random range must use the form min..max.")
+		return 0, 0, errors.New("random range must use the form min..max")
 	}
 	left, right, _ := strings.Cut(raw, "..")
 	minimum, maximum := int64(-1<<31), int64(1<<31-1)
 	if left != "" {
 		value, err := strconv.ParseInt(left, 10, 32)
 		if err != nil {
-			return 0, 0, errors.New("Random range minimum must be a signed 32-bit integer.")
+			return 0, 0, errors.New("random range minimum must be a signed 32-bit integer")
 		}
 		minimum = value
 	}
 	if right != "" {
 		value, err := strconv.ParseInt(right, 10, 32)
 		if err != nil {
-			return 0, 0, errors.New("Random range maximum must be a signed 32-bit integer.")
+			return 0, 0, errors.New("random range maximum must be a signed 32-bit integer")
 		}
 		maximum = value
 	}
 	if minimum > maximum {
-		return 0, 0, errors.New("Random range minimum cannot exceed its maximum.")
+		return 0, 0, errors.New("random range minimum cannot exceed its maximum")
 	}
 	width := maximum - minimum + 1
 	if width < 2 || width > 2147483646 {
-		return 0, 0, errors.New("Random range width must be between 2 and 2147483646.")
+		return 0, 0, errors.New("random range width must be between 2 and 2147483646")
 	}
 	return minimum, maximum, nil
 }
