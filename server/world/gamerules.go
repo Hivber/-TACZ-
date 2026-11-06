@@ -45,7 +45,7 @@ var gameRuleDefinitions = []GameRuleDefinition{
 	{Name: "showbordereffect", Default: true, CanBeModifiedByPlayer: true},
 	{Name: "showrecipemessages", Default: true, CanBeModifiedByPlayer: true},
 	{Name: "projectilescanbreakblocks", Default: true, CanBeModifiedByPlayer: true},
-	{Name: "tntexplosiondropdecay", Default: true, CanBeModifiedByPlayer: true},
+	{Name: "tntexplosiondropdecay", Default: false, CanBeModifiedByPlayer: true},
 	{Name: "maxcommandchainlength", Default: uint32(65535), CanBeModifiedByPlayer: true},
 	{Name: "randomtickspeed", Default: uint32(1), CanBeModifiedByPlayer: true},
 	{Name: "functioncommandlimit", Default: uint32(10000), CanBeModifiedByPlayer: true},

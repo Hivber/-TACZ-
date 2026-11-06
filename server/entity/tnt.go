@@ -34,7 +34,11 @@ func explodeTNT(e *Ent, tx *world.Tx) {
 	if !tx.World().GameRuleBool("tntexplodes", true) {
 		return
 	}
-	block.ExplosionConfig{ItemDropChance: 1}.Explode(tx, world.EntityExplosionSource{
+	dropChance := 1.0
+	if tx.World().GameRuleBool("tntexplosiondropdecay", false) {
+		dropChance = 0
+	}
+	block.ExplosionConfig{ItemDropChance: dropChance}.Explode(tx, world.EntityExplosionSource{
 		Entity:        e,
 		ExplosionSize: 4,
 	})

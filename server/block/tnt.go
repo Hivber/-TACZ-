@@ -48,12 +48,18 @@ func (t TNT) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, u item.User, ctx 
 
 // Ignite ...
 func (t TNT) Ignite(pos cube.Pos, tx *world.Tx, _ world.Entity) bool {
+	if !tx.World().GameRuleBool("tntexplodes", true) {
+		return false
+	}
 	spawnTnt(pos, tx, time.Second*4)
 	return true
 }
 
 // Explode ...
 func (t TNT) Explode(_ world.ExplosionSource, pos cube.Pos, tx *world.Tx) {
+	if !tx.World().GameRuleBool("tntexplodes", true) {
+		return
+	}
 	spawnTnt(pos, tx, time.Second/2+time.Duration(rand.IntN(int(time.Second+time.Second/2))))
 }
 

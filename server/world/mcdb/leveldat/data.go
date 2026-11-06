@@ -222,7 +222,7 @@ func (d *Data) FillDefault() {
 	d.RecipesUnlock = true
 	d.ShowRecipeMessages = true
 	d.ProjectilesCanBreakBlocks = true
-	d.TNTExplosionDropDecay = true
+	d.TNTExplosionDropDecay = false
 	d.PlayersSleepingPercentage = 100
 	d.PlayerWaypoints = 0
 	d.SpawnRadius = 5
