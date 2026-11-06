@@ -115,6 +115,20 @@ Examples:
 - `/summon tnt 120 64 -30`
 - `/summon minecraft:ender_crystal`
 
+### /random
+
+`/random value <range>`
+`/random roll <range>`
+
+Generates an inclusive signed 32-bit integer range. A single integer selects that exact value; ranges may use `min..max`, `..max`, or `min..`. `value` reports only to the command caller; `roll` also announces the result to players in the same world.
+
+Examples:
+- `/random value 1..6`
+- `/random roll 1..100`
+- `/random value ..0`
+
+Named random sequences and `/random reset` are not implemented yet; those require a persistent per-world sequence store.
+
 ## Permissions and limitations
 
 All commands in this compatibility list are operator-only. The executable grants operator status to the configured `OwnerXUID` or UUIDs in `operators.json`; the local server console can also use the operator management commands. If `/give` or another admin command is missing from the in-game command list, verify that the account has operator status and reconnect after granting it.
