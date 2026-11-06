@@ -148,9 +148,7 @@ func splitFunctionCommand(line string) (name, args string) {
 
 func resolveFunctionFile(raw string) (canonical, path string, err error) {
 	raw = strings.TrimSpace(raw)
-	if strings.HasSuffix(raw, ".mcfunction") {
-		raw = strings.TrimSuffix(raw, ".mcfunction")
-	}
+	raw = strings.TrimSuffix(raw, ".mcfunction")
 	if raw == "" || len(raw) > 256 || strings.Count(raw, ":") > 1 || strings.Contains(raw, "\\") {
 		return "", "", fmt.Errorf("invalid function name %q", raw)
 	}
