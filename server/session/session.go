@@ -597,8 +597,6 @@ func (s *Session) registerHandlers() {
 		packet.IDClientCacheBlobStatus:     &ClientCacheBlobStatusHandler{},
 		packet.IDCommandRequest:            &CommandRequestHandler{},
 		packet.IDSettingsCommand:           &SettingsCommandHandler{},
-		packet.IDServerSettingsRequest:     nil, // No server-specific settings form is configured.
-		packet.IDSettingsCommand:           &SettingsCommandHandler{},
 		packet.IDServerSettingsRequest:     nil,
 		packet.IDContainerClose:            &ContainerCloseHandler{},
 		packet.IDEmote:                     &EmoteHandler{},
