@@ -357,4 +357,3 @@ func (c bossbarClearCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	}
 	out.Printf("Cleared boss bar for %d player(s).", len(targets))
 }
-
