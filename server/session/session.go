@@ -109,9 +109,6 @@ type Session struct {
 
 	closeBackground chan struct{}
 
-	// suppressCommandOutput is set while executing a SettingsCommand that asks the server to suppress feedback.
-	suppressCommandOutput atomic.Bool
-
 	br world.BlockRegistry
 }
 
