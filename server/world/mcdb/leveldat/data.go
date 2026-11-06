@@ -219,6 +219,12 @@ func (d *Data) FillDefault() {
 	d.ShowDeathMessages = true
 	d.ShowTags = true
 	d.SpawnMobs = true
+	d.RecipesUnlock = true
+	d.ShowRecipeMessages = true
+	d.ProjectilesCanBreakBlocks = true
+	d.TNTExplosionDropDecay = true
+	d.PlayersSleepingPercentage = 100
+	d.PlayerWaypoints = 0
 	d.SpawnRadius = 5
 	d.SpawnRadius = 5
 	d.SpawnY = math.MaxInt16
@@ -233,6 +239,49 @@ func (d *Data) Settings() *world.Settings {
 	d.WorldStartCount += 1
 	difficulty, _ := world.DifficultyByID(int(d.Difficulty))
 	mode, _ := world.GameModeByID(int(d.GameType))
+	rules := world.DefaultGameRules()
+	rules["commandblockoutput"] = d.CommandBlockOutput
+	rules["commandblocksenabled"] = d.CommandBlocksEnabled
+	rules["dodaylightcycle"] = d.DoDayLightCycle
+	rules["doentitydrops"] = d.DoEntityDrops
+	rules["dofiretick"] = d.DoFireTick
+	rules["recipesunlock"] = d.RecipesUnlock
+	rules["dolimitedcrafting"] = d.DoLimitedCrafting
+	rules["domobloot"] = d.DoMobLoot
+	rules["domobspawning"] = d.DoMobSpawning
+	rules["dotiledrops"] = d.DoTileDrops
+	rules["doweathercycle"] = d.DoWeatherCycle
+	rules["drowningdamage"] = d.DrowningDamage
+	rules["falldamage"] = d.FallDamage
+	rules["firedamage"] = d.FireDamage
+	rules["keepinventory"] = d.KeepInventory
+	rules["mobgriefing"] = d.MobGriefing
+	rules["pvp"] = d.PVP
+	rules["showcoordinates"] = d.ShowCoordinates
+	rules["showdaysplayed"] = d.ShowDaysPlayed
+	rules["naturalregeneration"] = d.NaturalRegeneration
+	rules["tntexplodes"] = d.TNTExplodes
+	rules["sendcommandfeedback"] = d.SendCommandFeedback
+	rules["doinsomnia"] = d.DoInsomnia
+	rules["doimmediaterespawn"] = d.DoImmediateRespawn
+	rules["showdeathmessages"] = d.ShowDeathMessages
+	rules["showtags"] = d.ShowTags
+	rules["freezedamage"] = d.FreezeDamage
+	rules["respawnblocksexplode"] = d.RespawnBlocksExplode
+	rules["showbordereffect"] = d.ShowBorderEffect
+	rules["showrecipemessages"] = d.ShowRecipeMessages
+	rules["projectilescanbreakblocks"] = d.ProjectilesCanBreakBlocks
+	rules["tntexplosiondropdecay"] = d.TNTExplosionDropDecay
+	rules["maxcommandchainlength"] = uint32(max(d.MaxCommandChainLength, 0))
+	rules["randomtickspeed"] = uint32(max(d.RandomTickSpeed, 0))
+	rules["functioncommandlimit"] = uint32(max(d.FunctionCommandLimit, 0))
+	rules["spawnradius"] = uint32(max(d.SpawnRadius, 0))
+	rules["playerssleepingpercentage"] = uint32(max(d.PlayersSleepingPercentage, 0))
+	if d.PlayerWaypoints == 1 {
+		rules["playerwaypoints"] = "off"
+	} else {
+		rules["playerwaypoints"] = "everyone"
+	}
 	return &world.Settings{
 		Name:            d.LevelName,
 		Spawn:           cube.Pos{int(d.SpawnX), int(d.SpawnY), int(d.SpawnZ)},
@@ -247,6 +296,7 @@ func (d *Data) Settings() *world.Settings {
 		DefaultGameMode: mode,
 		Difficulty:      difficulty,
 		TickRange:       d.ServerChunkTickRange,
+		GameRules:       rules,
 	}
 }
 
@@ -272,4 +322,48 @@ func (d *Data) PutSettings(s *world.Settings) {
 	d.GameType = int32(mode)
 	difficulty, _ := world.DifficultyID(s.Difficulty)
 	d.Difficulty = int32(difficulty)
+
+	rules := s.GameRuleValues()
+	boolValue := func(name string) bool { v, _ := rules[name].(bool); return v }
+	uintValue := func(name string) int32 { v, _ := rules[name].(uint32); return int32(v) }
+	d.CommandBlockOutput = boolValue("commandblockoutput")
+	d.CommandBlocksEnabled = boolValue("commandblocksenabled")
+	d.DoEntityDrops = boolValue("doentitydrops")
+	d.DoFireTick = boolValue("dofiretick")
+	d.RecipesUnlock = boolValue("recipesunlock")
+	d.DoLimitedCrafting = boolValue("dolimitedcrafting")
+	d.DoMobLoot = boolValue("domobloot")
+	d.DoMobSpawning = boolValue("domobspawning")
+	d.DoTileDrops = boolValue("dotiledrops")
+	d.DrowningDamage = boolValue("drowningdamage")
+	d.FallDamage = boolValue("falldamage")
+	d.FireDamage = boolValue("firedamage")
+	d.KeepInventory = boolValue("keepinventory")
+	d.MobGriefing = boolValue("mobgriefing")
+	d.PVP = boolValue("pvp")
+	d.ShowCoordinates = boolValue("showcoordinates")
+	d.ShowDaysPlayed = boolValue("showdaysplayed")
+	d.NaturalRegeneration = boolValue("naturalregeneration")
+	d.TNTExplodes = boolValue("tntexplodes")
+	d.SendCommandFeedback = boolValue("sendcommandfeedback")
+	d.DoInsomnia = boolValue("doinsomnia")
+	d.DoImmediateRespawn = boolValue("doimmediaterespawn")
+	d.ShowDeathMessages = boolValue("showdeathmessages")
+	d.ShowTags = boolValue("showtags")
+	d.FreezeDamage = boolValue("freezedamage")
+	d.RespawnBlocksExplode = boolValue("respawnblocksexplode")
+	d.ShowBorderEffect = boolValue("showbordereffect")
+	d.ShowRecipeMessages = boolValue("showrecipemessages")
+	d.ProjectilesCanBreakBlocks = boolValue("projectilescanbreakblocks")
+	d.TNTExplosionDropDecay = boolValue("tntexplosiondropdecay")
+	d.MaxCommandChainLength = uintValue("maxcommandchainlength")
+	d.RandomTickSpeed = uintValue("randomtickspeed")
+	d.FunctionCommandLimit = uintValue("functioncommandlimit")
+	d.SpawnRadius = uintValue("spawnradius")
+	d.PlayersSleepingPercentage = uintValue("playerssleepingpercentage")
+	if rules["playerwaypoints"] == "off" {
+		d.PlayerWaypoints = 1
+	} else {
+		d.PlayerWaypoints = 0
+	}
 }

@@ -809,6 +809,10 @@ func (w *World) enableTimeCycle(v bool) {
 	w.set.Lock()
 	defer w.set.Unlock()
 	w.set.TimeCycle = v
+	if w.set.GameRules == nil {
+		w.set.GameRules = DefaultGameRules()
+	}
+	w.set.GameRules["dodaylightcycle"] = v
 	viewers, _ := w.allViewers()
 	for _, viewer := range viewers {
 		viewer.ViewTimeCycle(v)

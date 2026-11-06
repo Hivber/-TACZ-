@@ -186,6 +186,10 @@ func (w weather) enableWeatherCycle(v bool) {
 	w.w.set.Lock()
 	defer w.w.set.Unlock()
 	w.w.set.WeatherCycle = v
+	if w.w.set.GameRules == nil {
+		w.w.set.GameRules = DefaultGameRules()
+	}
+	w.w.set.GameRules["doweathercycle"] = v
 }
 
 // tickLightning iterates over all loaded chunks in the World, striking

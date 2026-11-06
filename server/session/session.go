@@ -277,6 +277,7 @@ func (s *Session) Spawn(c Controllable, tx *world.Tx) {
 	s.sendAvailableEntities(tx.World())
 
 	c.SetGameMode(c.GameMode())
+	s.SyncGameRules(tx.World())
 	for _, e := range c.Effects() {
 		s.SendEffect(e)
 	}

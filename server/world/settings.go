@@ -45,6 +45,26 @@ type Settings struct {
 	// TickRange is the radius in chunks around a Viewer that has its blocks and entities ticked when the world is
 	// ticked. If set to 0, blocks and entities will never be ticked.
 	TickRange int32
+
+	// GameRules stores the persisted Bedrock game rule values.
+	GameRules map[string]any
+}
+
+// GameRuleValues returns a copy of the current game rule values.
+// GameRuleValues returns a copy of the current game rule values.
+func (s *Settings) GameRuleValues() map[string]any {
+	if s == nil {
+		return DefaultGameRules()
+	}
+	s.Lock()
+	defer s.Unlock()
+	values := DefaultGameRules()
+	for name, value := range s.GameRules {
+		if _, ok := CanonicalGameRule(name); ok {
+			values[name] = value
+		}
+	}
+	return values
 }
 
 // defaultSettings returns the default Settings for a new World.
@@ -58,5 +78,6 @@ func defaultSettings() *Settings {
 		RainTime:        int64(rand.IntN(8400)+600) * 20,
 		ThunderTime:     int64(rand.IntN(8400)+600) * 20,
 		TickRange:       6,
+		GameRules:       DefaultGameRules(),
 	}
 }

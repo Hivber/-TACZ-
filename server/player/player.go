@@ -624,6 +624,19 @@ func (p *Player) blocksUnder() (low, high cube.Pos) {
 // final damage dealt to the Player and if the Player was vulnerable to this
 // kind of damage.
 func (p *Player) Hurt(dmg float64, src world.DamageSource) (float64, bool) {
+	if src.Fire() && !p.tx.World().GameRuleBool("firedamage", true) {
+		return 0, false
+	}
+	switch src.(type) {
+	case entity.DrowningDamageSource:
+		if !p.tx.World().GameRuleBool("drowningdamage", true) {
+			return 0, false
+		}
+	case entity.FallDamageSource, entity.GlideDamageSource:
+		if !p.tx.World().GameRuleBool("falldamage", true) {
+			return 0, false
+		}
+	}
 	if _, ok := p.Effect(effect.FireResistance); (ok && src.Fire()) || p.Dead() || !p.GameMode().AllowsTakingDamage() || dmg < 0 {
 		return 0, false
 	}
@@ -904,8 +917,11 @@ func (p *Player) kill(src world.DamageSource) {
 
 	p.addHealth(-p.MaxHealth())
 
-	keepInv := false
+	keepInv := p.tx.World().GameRuleBool("keepinventory", false)
 	p.Handler().HandleDeath(p, src, &keepInv)
+	if p.tx.World().GameRuleBool("keepinventory", false) {
+		keepInv = true
+	}
 	p.StopSneaking()
 	p.StopSprinting()
 
@@ -1880,6 +1896,9 @@ func (p *Player) UseItemOnEntity(e world.Entity) bool {
 // have.
 // If the player cannot reach the entity at its position, the method returns immediately.
 func (p *Player) AttackEntity(e world.Entity) bool {
+	if target, ok := e.(*Player); ok && target != p && !p.tx.World().GameRuleBool("pvp", true) {
+		return false
+	}
 	if !p.canReach(e.Position()) {
 		return false
 	}
@@ -2837,16 +2856,17 @@ func (p *Player) tickAirSupply() {
 // tickFood ticks food related functionality, such as the depletion of the food bar and regeneration if it
 // is full enough.
 func (p *Player) tickFood() {
+	naturalRegeneration := p.tx.World().GameRuleBool("naturalregeneration", true)
 	if p.hunger.foodTick%10 == 0 && (p.hunger.canQuicklyRegenerate() || p.tx.World().Difficulty().FoodRegenerates()) {
 		if p.tx.World().Difficulty().FoodRegenerates() {
 			p.AddFood(1)
 		}
-		if p.hunger.foodTick%20 == 0 {
+		if naturalRegeneration && p.hunger.foodTick%20 == 0 {
 			p.regenerate(true)
 		}
 	}
 	if p.hunger.foodTick == 1 {
-		if p.hunger.canRegenerate() {
+		if naturalRegeneration && p.hunger.canRegenerate() {
 			p.regenerate(!p.tx.World().Difficulty().FoodRegenerates())
 		} else if p.hunger.starving() {
 			p.starve()

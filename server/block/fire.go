@@ -86,6 +86,9 @@ func rainingAround(pos cube.Pos, tx *world.Tx) bool {
 
 // tick ...
 func (f Fire) tick(pos cube.Pos, tx *world.Tx, r *rand.Rand) {
+	if !tx.World().GameRuleBool("dofiretick", true) {
+		return
+	}
 	if f.Type == SoulFire() {
 		return
 	}
