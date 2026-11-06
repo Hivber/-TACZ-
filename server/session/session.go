@@ -594,7 +594,7 @@ func (s *Session) registerHandlers() {
 		packet.IDBossEvent:                 nil,
 		packet.IDClientCacheBlobStatus:     &ClientCacheBlobStatusHandler{},
 		packet.IDCommandRequest:            &CommandRequestHandler{},
-		packet.IDCommandBlockUpdate:       &CommandBlockUpdateHandler{},
+		packet.IDCommandBlockUpdate:              &CommandBlockUpdateHandler{},
 		packet.IDSettingsCommand:           &SettingsCommandHandler{},
 		packet.IDServerSettingsRequest:     nil,
 		packet.IDContainerClose:            &ContainerCloseHandler{},

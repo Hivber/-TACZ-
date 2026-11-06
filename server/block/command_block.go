@@ -129,21 +129,21 @@ func (b CommandBlock) DecodeNBT(data map[string]any) any {
 // EncodeNBT ...
 func (b CommandBlock) EncodeNBT() map[string]any {
 	return map[string]any{
-		"id":                  "CommandBlock",
-		"Command":             b.Command,
-		"CustomName":          b.CustomName,
-		"LastOutput":          b.LastOutput,
-		"TrackOutput":         b.TrackOutput,
-		"TickDelay":           int32(b.TickDelay),
-		"auto":                !b.NeedsRedstone,
-		"powered":             b.Powered,
-		"conditionMet":        b.ConditionMet,
-		"conditionalMode":     b.Conditional,
-		"executeOnFirstTick":  b.ExecuteOnFirstTick,
-		"LastExecution":       b.LastExecutionTick,
-		"SuccessCount":        b.SuccessCount,
-		"LPCommandMode":       uint32(b.Mode),
-		"hasExecuted":         b.HasExecuted,
+		"id":                 "CommandBlock",
+		"Command":            b.Command,
+		"CustomName":         b.CustomName,
+		"LastOutput":         b.LastOutput,
+		"TrackOutput":        b.TrackOutput,
+		"TickDelay":          int32(b.TickDelay),
+		"auto":               !b.NeedsRedstone,
+		"powered":            b.Powered,
+		"conditionMet":       b.ConditionMet,
+		"conditionalMode":    b.Conditional,
+		"executeOnFirstTick": b.ExecuteOnFirstTick,
+		"LastExecution":      b.LastExecutionTick,
+		"SuccessCount":      b.SuccessCount,
+		"LPCommandMode":     uint32(b.Mode),
+		"hasExecuted":       b.HasExecuted,
 	}
 }
 
