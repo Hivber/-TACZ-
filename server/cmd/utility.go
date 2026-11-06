@@ -416,7 +416,7 @@ var commandEnchantmentTypes = map[string]item.EnchantmentType{
 	"fire_aspect":           enchantment.FireAspect,
 	"efficiency":            enchantment.Efficiency,
 	"silk_touch":            enchantment.SilkTouch,
-	"unbreaking":             enchantment.Unbreaking,
+	"unbreaking":            enchantment.Unbreaking,
 	"fortune":               enchantment.Fortune,
 	"power":                 enchantment.Power,
 	"punch":                 enchantment.Punch,
