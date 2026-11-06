@@ -54,6 +54,7 @@ type World struct {
 	handler atomic.Pointer[Handler]
 
 	weather
+	border WorldBorder
 
 	// closeStarted closes as soon as World.Close begins, before the close
 	// transaction runs; closing closes once the world stops ticking.

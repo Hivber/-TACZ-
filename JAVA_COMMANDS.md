@@ -155,6 +155,20 @@ A single operation is limited to 256 chunks and a world is limited to 2,048
 forced chunks. Forced chunks are currently runtime-only and are released when
 the server stops; they are not persisted into level.dat.
 
+### /worldborder
+`/worldborder get`
+`/worldborder set <diameter> [seconds]`
+`/worldborder add <distance> [seconds]`
+`/worldborder center <x> <z>`
+
+Implements a per-world square horizontal movement boundary. The server clips
+normal player movement at the border while still allowing players outside it
+to move back in. A size transition interpolates over the optional duration.
+Teleports are not clipped. Bedrock does not expose Java's world-border packet,
+so this implementation does not draw the Java border overlay or implement
+damage and warning settings. Border state is currently in-memory and is reset
+when the server restarts.
+
 ### /data (read-only subset)
 `/data get block <x> <y> <z> [path] [scale]`
 `/data get entity <targets> [path] [scale]`

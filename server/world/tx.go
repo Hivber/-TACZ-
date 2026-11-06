@@ -382,6 +382,22 @@ func (tx *Tx) World() *World {
 	return tx.w
 }
 
+// WorldBorder returns the movement border configured for the transaction's world.
+func (tx *Tx) WorldBorder() WorldBorder {
+	if tx.closed {
+		panic("world.Tx: use of transaction after transaction finishes is not permitted")
+	}
+	return tx.w.border.normalised()
+}
+
+// SetWorldBorder changes the movement border configured for the transaction's world.
+func (tx *Tx) SetWorldBorder(border WorldBorder) {
+	if tx.closed {
+		panic("world.Tx: use of transaction after transaction finishes is not permitted")
+	}
+	tx.w.border = border.normalised()
+}
+
 // CurrentTick returns the current tick of the transaction's world.
 func (tx *Tx) CurrentTick() int64 {
 	w := tx.World()
