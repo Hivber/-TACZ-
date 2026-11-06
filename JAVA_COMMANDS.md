@@ -135,4 +135,6 @@ All commands in this compatibility list are operator-only. The executable grants
 
 Selectors such as `@a`, `@p`, `@e`, `@s`, and `@r` require a world-bound execution context. The console command source is trusted for permission checks, but commands that need a player target or an entity transaction cannot be run from a world-less console source.
 
-Command blocks are not part of this command compatibility layer. This Dragonfly source still needs a separate command-block implementation covering the block and actor data, editing UI, persistence, redstone triggering, impulse/repeat/chain modes, conditional execution, delays and safe command-source permissions.
+Command blocks are implemented as native Bedrock blocks with saved block-actor data and the Bedrock CommandBlockUpdate editing packet. They support impulse, repeating and chain modes, conditional chains, redstone activation, always-active behaviour, tick delay, first-tick execution and command output tracking. Only operators within interaction range can edit them. Commands execute using the server's registered command table, and the maximum chain length is capped at 65,536 even if a world rule is set higher.
+
+Supported commands are those registered by this Dragonfly server. Commands that require a player target or player-only context cannot treat the command block itself as a player. Command block minecarts and Java-specific entity selectors/NBT syntax are not implemented. The `commandblocksenabled` and `commandblockoutput` game rules control execution and output tracking.

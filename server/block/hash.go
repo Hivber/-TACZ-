@@ -46,6 +46,7 @@ const (
 	hashCobblestone
 	hashCobweb
 	hashCocoaBean
+	hashCommandBlock
 	hashComposter
 	hashConcrete
 	hashConcretePowder
@@ -415,6 +416,10 @@ func (Cobweb) Hash() (uint64, uint64) {
 
 func (c CocoaBean) Hash() (uint64, uint64) {
 	return hashCocoaBean, uint64(c.Facing) | uint64(c.Age)<<2
+}
+
+func (b CommandBlock) Hash() (uint64, uint64) {
+	return hashCommandBlock, uint64(b.Mode) | uint64(b.Facing)<<2 | uint64(boolByte(b.Conditional))<<5
 }
 
 func (c Composter) Hash() (uint64, uint64) {
