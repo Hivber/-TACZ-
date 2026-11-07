@@ -123,6 +123,11 @@ func newMobBehaviour(kind mobKind) *mobBehaviour {
 	}
 }
 
+
+func (b *mobBehaviour) Apply(data *world.EntityData) {
+	data.Data = b
+}
+
 func (b *mobBehaviour) Tick(e *Ent, tx *world.Tx) *Movement {
 	movement := b.movement.TickMovement(e, e.data.Pos, e.data.Vel, e.data.Rot, tx)
 	e.data.Pos, e.data.Vel = movement.pos, movement.vel
