@@ -104,6 +104,49 @@ func (j Jukebox) Disc() (sound.DiscType, bool) {
 	return sound.DiscType{}, false
 }
 
+// ComparatorOutput returns the comparator signal associated with the inserted music disc.
+// Bedrock Edition assigns each music disc a fixed strength from 1 to 15.
+func (j Jukebox) ComparatorOutput(cube.Pos, *world.Tx) int {
+	disc, ok := j.Disc()
+	if !ok {
+		return 0
+	}
+	switch disc.String() {
+	case "13":
+		return 1
+	case "cat":
+		return 2
+	case "blocks":
+		return 3
+	case "chirp":
+		return 4
+	case "far":
+		return 5
+	case "mall":
+		return 6
+	case "mellohi":
+		return 7
+	case "stal":
+		return 8
+	case "strad", "lava_chicken":
+		return 9
+	case "ward", "tears":
+		return 10
+	case "11", "creator_music_box":
+		return 11
+	case "wait", "creator":
+		return 12
+	case "pigstep", "precipice":
+		return 13
+	case "otherside", "relic":
+		return 14
+	case "5":
+		return 15
+	default:
+		return 0
+	}
+}
+
 // EncodeNBT ...
 func (j Jukebox) EncodeNBT() map[string]any {
 	m := map[string]any{"id": "Jukebox"}

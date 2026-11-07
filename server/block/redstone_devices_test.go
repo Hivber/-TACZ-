@@ -6,6 +6,7 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/inventory"
+	"github.com/df-mc/dragonfly/server/world/sound"
 )
 
 func TestRedstoneRepeaterStates(t *testing.T) {
@@ -85,6 +86,34 @@ func TestComparatorInventorySignal(t *testing.T) {
 	}
 	if got := comparatorContainerSignal(partial); got != 1 {
 		t.Fatalf("partially filled single slot comparator signal = %d, want 1", got)
+	}
+}
+
+func TestJukeboxComparatorSignal(t *testing.T) {
+	want := map[string]int{
+		"13": 1, "cat": 2, "blocks": 3, "chirp": 4, "far": 5,
+		"mall": 6, "mellohi": 7, "stal": 8, "strad": 9, "lava_chicken": 9,
+		"ward": 10, "tears": 10, "11": 11, "creator_music_box": 11,
+		"wait": 12, "creator": 12, "pigstep": 13, "precipice": 13,
+		"otherside": 14, "relic": 14, "5": 15,
+	}
+	if got := (Jukebox{}).ComparatorOutput(cube.Pos{}, nil); got != 0 {
+		t.Fatalf("empty jukebox comparator signal = %d, want 0", got)
+	}
+	for _, disc := range sound.MusicDiscs() {
+		name := disc.String()
+		expected, ok := want[name]
+		if !ok {
+			t.Fatalf("missing expected comparator strength for music disc %q", name)
+		}
+		jukebox := Jukebox{Item: item.NewStack(item.MusicDisc{DiscType: disc}, 1)}
+		if got := jukebox.ComparatorOutput(cube.Pos{}, nil); got != expected {
+			t.Errorf("jukebox comparator signal for %q = %d, want %d", name, got, expected)
+		}
+		delete(want, name)
+	}
+	if len(want) != 0 {
+		t.Fatalf("comparator test has unmapped music discs: %v", want)
 	}
 }
 
