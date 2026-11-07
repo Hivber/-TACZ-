@@ -38,6 +38,8 @@ const (
 	PressurePlateCherry
 	// PressurePlatePaleOak is the pale oak pressure plate.
 	PressurePlatePaleOak
+	// PressurePlatePoplar is the poplar pressure plate.
+	PressurePlatePoplar
 	// PressurePlateBamboo is the bamboo pressure plate.
 	PressurePlateBamboo
 	// PressurePlateCrimson is the crimson pressure plate.
@@ -52,7 +54,7 @@ var pressurePlateBlockNames = [...]string{
 	"minecraft:polished_blackstone_pressure_plate",
 	"minecraft:light_weighted_pressure_plate",
 	"minecraft:heavy_weighted_pressure_plate",
-	"minecraft:oak_pressure_plate",
+	"minecraft:wooden_pressure_plate",
 	"minecraft:spruce_pressure_plate",
 	"minecraft:birch_pressure_plate",
 	"minecraft:jungle_pressure_plate",
@@ -61,6 +63,7 @@ var pressurePlateBlockNames = [...]string{
 	"minecraft:mangrove_pressure_plate",
 	"minecraft:cherry_pressure_plate",
 	"minecraft:pale_oak_pressure_plate",
+	"minecraft:poplar_pressure_plate",
 	"minecraft:bamboo_pressure_plate",
 	"minecraft:crimson_pressure_plate",
 	"minecraft:warped_pressure_plate",
@@ -231,9 +234,16 @@ func (p PressurePlate) Model() world.BlockModel {
 }
 
 // allPressurePlates returns every vanilla pressure plate state.
+func pressurePlateStateCount(kind int) int {
+	if kind == PressurePlateLightWeighted || kind == PressurePlateHeavyWeighted {
+		return 16
+	}
+	return 2
+}
+
 func allPressurePlates() (all []world.Block) {
 	for kind := 0; kind < pressurePlateKindCount; kind++ {
-		for power := 0; power <= 15; power++ {
+		for power := 0; power < pressurePlateStateCount(kind); power++ {
 			all = append(all, PressurePlate{Kind: kind, Power: power})
 		}
 	}

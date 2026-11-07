@@ -18,8 +18,12 @@ func (pressurePlateLivingTestEntity) Hurt(float64, world.DamageSource) (float64,
 
 func TestPressurePlateStatesAndHashes(t *testing.T) {
 	states := allPressurePlates()
-	if len(states) != pressurePlateKindCount*16 {
-		t.Fatalf("pressure plate states = %d, want %d", len(states), pressurePlateKindCount*16)
+	wantStates := 0
+	for kind := 0; kind < pressurePlateKindCount; kind++ {
+		wantStates += pressurePlateStateCount(kind)
+	}
+	if len(states) != wantStates {
+		t.Fatalf("pressure plate states = %d, want %d", len(states), wantStates)
 	}
 
 	seen := make(map[[2]uint64]struct{}, len(states))
@@ -28,6 +32,9 @@ func TestPressurePlateStatesAndHashes(t *testing.T) {
 		name, properties := plate.EncodeBlock()
 		if properties["redstone_signal"] != int32(plate.Power) {
 			t.Fatalf("%s redstone_signal = %v, want %d", name, properties["redstone_signal"], plate.Power)
+		}
+		if plate.Power >= pressurePlateStateCount(plate.Kind) {
+			t.Fatalf("%s registered unsupported power state %d", name, plate.Power)
 		}
 		base, encoded := plate.Hash()
 		key := [2]uint64{base, encoded}
