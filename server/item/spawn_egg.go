@@ -3,7 +3,6 @@ package item
 import (
 	"strings"
 
-	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
@@ -34,10 +33,11 @@ func (s SpawnEgg) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, tx *wor
 	if spawnPos.OutOfBounds(tx.Range()) {
 		return false
 	}
-	if _, air := tx.Block(spawnPos).(block.Air); !air {
-		return false
+	isAir := func(pos cube.Pos) bool {
+		name, _ := tx.Block(pos).EncodeBlock()
+		return name == "minecraft:air"
 	}
-	if _, air := tx.Block(spawnPos.Side(cube.FaceUp)).(block.Air); !air {
+	if !isAir(spawnPos) || !isAir(spawnPos.Side(cube.FaceUp)) {
 		return false
 	}
 	opts := world.EntitySpawnOpts{Position: mgl64.Vec3{float64(spawnPos[0]) + 0.5, float64(spawnPos[1]), float64(spawnPos[2]) + 0.5}}
