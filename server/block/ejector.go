@@ -134,7 +134,7 @@ func (e ejector) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, user item.Use
 	return false
 }
 
-func (e ejector) ComparatorOutput(_ cube.Pos, _ *world.Tx) int {
+func (e ejector) comparatorOutput(_ cube.Pos, _ *world.Tx) int {
 	return comparatorContainerSignal(e.inventory)
 }
 
@@ -206,7 +206,7 @@ func (d Dispenser) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after 
 
 // RedstonePowerUpdate tracks whether the dropper is currently powered.
 func (d Dropper) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
-	e, changed := d.ejector.redstonePowerUpdate(power)
+	e, changed := d.redstonePowerUpdate(power)
 	d.ejector = e
 	return d, changed
 }
@@ -257,7 +257,7 @@ func (d Dropper) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, tx *worl
 }
 
 func (d Dispenser) BreakInfo() BreakInfo { return d.breakInfo(d) }
-func (d Dropper) BreakInfo() BreakInfo   { return d.ejector.breakInfo(d) }
+func (d Dropper) BreakInfo() BreakInfo   { return d.breakInfo(d) }
 
 func (Dispenser) EncodeItem() (string, int16) { return "minecraft:dispenser", 0 }
 func (Dropper) EncodeItem() (string, int16)   { return "minecraft:dropper", 0 }
@@ -286,7 +286,7 @@ func (d Dispenser) DecodeNBT(data map[string]any) any {
 func (d Dropper) EncodeNBT() map[string]any { return d.encodeNBT("Dropper") }
 
 func (d Dropper) DecodeNBT(data map[string]any) any {
-	d.ejector = d.ejector.decodeNBT(data)
+	d.ejector = d.decodeNBT(data)
 	return d
 }
 
@@ -296,18 +296,18 @@ func (d Dispenser) WithName(a ...any) world.Item {
 }
 
 func (d Dropper) WithName(a ...any) world.Item {
-	d.ejector = d.ejector.withName(a...)
+	d.ejector = d.withName(a...)
 	return d
 }
 
 // ComparatorOutput exposes the fullness of the dispenser inventory to comparators.
 func (d Dispenser) ComparatorOutput(pos cube.Pos, tx *world.Tx) int {
-	return d.ComparatorOutput(pos, tx)
+	return d.comparatorOutput(pos, tx)
 }
 
 // ComparatorOutput exposes the fullness of the dropper inventory to comparators.
 func (d Dropper) ComparatorOutput(pos cube.Pos, tx *world.Tx) int {
-	return d.ejector.ComparatorOutput(pos, tx)
+	return d.comparatorOutput(pos, tx)
 }
 
 // dispense chooses one non-empty slot and handles one item.
