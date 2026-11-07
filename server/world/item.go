@@ -89,14 +89,37 @@ func init() {
 	}
 }
 
-// ItemByName attempts to return an item by a name and a metadata value.
+// ItemByName attempts to return an item by a name and a metadata value. If the
+// item is a known vanilla item but has no dedicated Dragonfly implementation,
+// an inert vanillaItemFallback is returned instead. This allows vanilla items
+// to remain visible in creative inventories and retain their identity in
+// inventories, commands and network packets while their behaviour is not yet
+// implemented.
 func ItemByName(name string, meta int16) (Item, bool) {
 	it, ok := items[itemHash{name: name, meta: meta}]
 	if !ok {
 		// Also try obtaining the item with a metadata value of 0, for cases with durability.
 		it, ok = items[itemHash{name: name}]
 	}
-	return it, ok
+	if ok {
+		return it, true
+	}
+	if _, vanilla := itemNamesToRuntimeIDs[name]; vanilla {
+		return vanillaItemFallback{name: name, meta: meta}, true
+	}
+	return nil, false
+}
+
+// vanillaItemFallback preserves the identity of a vanilla item that has a
+// runtime ID but no dedicated item implementation. It intentionally does not
+// implement any use, equipment, durability or interaction interfaces.
+type vanillaItemFallback struct {
+	name string
+	meta int16
+}
+
+func (i vanillaItemFallback) EncodeItem() (string, int16) {
+	return i.name, i.meta
 }
 
 // ItemRuntimeID attempts to return the runtime ID of the Item passed. False is returned if the Item is not
