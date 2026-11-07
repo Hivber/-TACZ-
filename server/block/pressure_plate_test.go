@@ -97,17 +97,28 @@ func TestPressurePlateEntityStepAndRelease(t *testing.T) {
 }
 
 func TestPressurePlatePowerOutputFaces(t *testing.T) {
-	plate := PressurePlate{Kind: PressurePlateLightWeighted, Power: 11}
-	for _, face := range cube.Faces() {
-		if got := plate.RedstonePower(cube.Pos{}, nil, face); got != 11 {
-			t.Errorf("weak output on face %v = %d, want 11", face, got)
-		}
-		wantStrong := 0
-		if face == cube.FaceDown {
-			wantStrong = 11
-		}
-		if got := plate.RedstoneStrongPower(cube.Pos{}, nil, face); got != wantStrong {
-			t.Errorf("strong output on face %v = %d, want %d", face, got, wantStrong)
-		}
+	tests := []struct {
+		name  string
+		plate PressurePlate
+		want  int
+	}{
+		{name: "weighted analogue", plate: PressurePlate{Kind: PressurePlateLightWeighted, Power: 11}, want: 11},
+		{name: "ordinary digital", plate: PressurePlate{Kind: PressurePlateStone, Power: 1}, want: 15},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, face := range cube.Faces() {
+				if got := test.plate.RedstonePower(cube.Pos{}, nil, face); got != test.want {
+					t.Errorf("weak output on face %v = %d, want %d", face, got, test.want)
+				}
+				wantStrong := 0
+				if face == cube.FaceDown {
+					wantStrong = test.want
+				}
+				if got := test.plate.RedstoneStrongPower(cube.Pos{}, nil, face); got != wantStrong {
+					t.Errorf("strong output on face %v = %d, want %d", face, got, wantStrong)
+				}
+			}
+		})
 	}
 }
