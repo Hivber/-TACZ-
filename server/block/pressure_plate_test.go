@@ -83,8 +83,8 @@ func TestPressurePlateEntityStepAndRelease(t *testing.T) {
 	if err := w.Do(func(tx *world.Tx) {
 		tx.SetBlock(pos, plate, nil)
 		plate.EntityStepOn(pos, tx, pressurePlateLivingTestEntity{})
-		if got := tx.Block(pos).(PressurePlate).Power; got != 15 {
-			t.Fatalf("stone plate power after a living entity stepped on it = %d, want 15", got)
+		if got := tx.Block(pos).(PressurePlate).Power; got != 1 {
+			t.Fatalf("stone plate redstone_signal after a living entity stepped on it = %d, want 1", got)
 		}
 		current := tx.Block(pos).(PressurePlate)
 		current.ScheduledTick(pos, tx, nil)

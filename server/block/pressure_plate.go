@@ -91,7 +91,7 @@ var (
 )
 
 func (p PressurePlate) RedstonePower(cube.Pos, *world.Tx, cube.Face) int {
-	return p.Power
+	return pressurePlateSignal(p.Kind, p.Power)
 }
 
 // RedstoneStrongPower returns strong power only towards the block below the pressure plate.
@@ -130,8 +130,9 @@ func (p PressurePlate) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 		return
 	}
 	power := pressurePlatePower(current.Kind, current.entityCount(tx, pos))
-	if current.Power != power {
-		current.Power = power
+	state := pressurePlateState(current.Kind, power)
+	if current.Power != state {
+		current.Power = state
 		tx.SetBlock(pos, current, nil)
 	}
 	if power > 0 {
@@ -161,13 +162,28 @@ func (p PressurePlate) entityCount(tx *world.Tx, pos cube.Pos) int {
 }
 
 func (p PressurePlate) setPower(pos cube.Pos, tx *world.Tx, power int) {
-	if p.Power != power {
-		p.Power = power
+	state := pressurePlateState(p.Kind, power)
+	if p.Power != state {
+		p.Power = state
 		tx.SetBlock(pos, p, nil)
 	}
 	if power > 0 {
 		tx.ScheduleBlockUpdate(pos, p, time.Second/20)
 	}
+}
+
+func pressurePlateState(kind, signal int) int {
+	if kind != PressurePlateLightWeighted && kind != PressurePlateHeavyWeighted && signal > 0 {
+		return 1
+	}
+	return signal
+}
+
+func pressurePlateSignal(kind, state int) int {
+	if kind != PressurePlateLightWeighted && kind != PressurePlateHeavyWeighted && state > 0 {
+		return 15
+	}
+	return state
 }
 
 func pressurePlatePower(kind, entities int) int {
