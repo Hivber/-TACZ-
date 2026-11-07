@@ -30,15 +30,18 @@ type WoodDoor struct {
 	Right bool
 }
 
-
 var (
 	_ world.RedstonePowerConsumer    = WoodDoor{}
 	_ world.RedstonePowerPostUpdater = WoodDoor{}
 )
 
 // RedstonePowerUpdate opens the door while it receives a redstone signal.
-func (d WoodDoor) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+func (d WoodDoor) RedstonePowerUpdate(pos cube.Pos, tx *world.Tx, power int) (world.Block, bool) {
 	open := power > 0
+	if tx != nil {
+		otherPos := pos.Side(cube.Face(boolByte(!d.Top)))
+		open = open || tx.RedstonePower(otherPos) > 0
+	}
 	if d.Open == open {
 		return d, false
 	}
