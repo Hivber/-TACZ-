@@ -119,11 +119,11 @@ func TestJukeboxComparatorSignal(t *testing.T) {
 
 func TestLecternBedrockComparatorOutput(t *testing.T) {
 	tests := []struct {
-		name     string
-		pages    int
-		page     int
-		written  bool
-		want     int
+		name    string
+		pages   int
+		page    int
+		written bool
+		want    int
 	}{
 		{name: "empty lectern", want: 0},
 		{name: "one page", pages: 1, want: 15},
