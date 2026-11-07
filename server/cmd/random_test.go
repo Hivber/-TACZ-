@@ -15,9 +15,9 @@ func TestParseCommandRandomRange(t *testing.T) {
 		{name: "open lower", raw: "..-3", min: -1 << 31, max: -3},
 		{name: "open upper", raw: "3..", min: 3, max: 1<<31 - 1},
 		{name: "reversed", raw: "6..1", wantErr: true},
-		{name: "too narrow", raw: "1..1", wantErr: true},
+		{name: "equal endpoints", raw: "1..1", min: 1, max: 1},
 		{name: "bad integer", raw: "a..6", wantErr: true},
-		{name: "too wide", raw: "..2147483647", wantErr: true},
+		{name: "full signed range", raw: "..2147483647", min: -1 << 31, max: 1<<31 - 1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

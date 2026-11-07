@@ -17,7 +17,7 @@ Items are resolved from Dragonfly's registered item registry. If an inventory is
 `/clear`
 `/clear <targets> [item] [maxCount]`
 
-The no-argument form clears the caller's normal inventory and hotbar. The target form optionally filters by a registered item identifier and caps the total number removed per target; a maxCount of 0 means unlimited. Ender chests and armour slots are not included.
+The no-argument form clears the caller's normal inventory, hotbar, armour slots and off-hand. The target form optionally filters by a registered item identifier and caps the total number removed per target; a maxCount of 0 means unlimited. Ender chests are not included.
 
 Examples:
 - `/clear`
@@ -48,15 +48,18 @@ Examples:
 ### /xp (alias /experience)
 `/xp add <targets> <amount> [points|levels]`
 `/xp remove <targets> <amount> [points|levels]`
-`/xp query <targets>`
+`/xp set <targets> <amount> [points|levels]`
+`/xp query <targets> [points|levels]`
 
-The default unit is `points`. Each add/remove operation is capped at 1,000,000,000; the level-setting path is capped at 100,000,000 to stay within the safe range of the current experience manager's integer calculations.
+The default unit is `points`. Add/remove/set point operations are capped at 1,000,000,000; level add/set operations are capped at 100,000,000 to stay within the safe range of the current experience manager's integer calculations. Query defaults to levels.
 
 Examples:
 - `/xp add @s 100 points`
 - `/xp add @a 5 levels`
 - `/xp remove @s 20`
-- `/xp query @s`
+- `/xp set @s 250 points`
+- `/xp set @s 12 levels`
+- `/xp query @s points`
 
 ### /item
 `/item <targets> <slot> <item> [count]`
@@ -200,10 +203,11 @@ All commands in this compatibility list require operator permissions except `/ra
 
 Selectors such as `@a`, `@p`, `@e`, `@s`, and `@r` require a world-bound execution context. The console command source is trusted for permission checks, but commands that need a player target or an entity transaction cannot be run from a world-less console source.
 
-Command blocks are implemented as native Bedrock blocks with saved block-actor data and the Bedrock CommandBlockUpdate editing packet. They support impulse, repeating and chain modes, conditional chains, redstone activation, always-active behaviour, tick delay, first-tick execution and command output tracking. Only operators within interaction range can edit them. Commands execute using the server's registered command table, and the maximum chain length is capped at 65,536 even if a world rule is set higher.
 
-Supported commands are those registered by this Dragonfly server. Commands that require a player target or player-only context cannot treat the command block itself as a player. Command block minecarts and Java-specific entity selectors/NBT syntax are not implemented. The `commandblocksenabled` and `commandblockoutput` game rules control execution and output tracking.
 
+## Out of scope
+
+- Command blocks are not part of this development target. Their partial experimental code is not being expanded or included in the promised feature coverage.
 
 ## Not yet implemented
 

@@ -393,8 +393,13 @@ func (xpSetCommand) Allow(src Source) bool { return commandOperator(src) }
 
 func (c xpSetCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	amount := c.Amount
-	if amount < 0 || amount > 1_000_000_000 {
-		out.Error("Experience amount must be between 0 and 1,000,000,000.")
+	unit := c.Unit.LoadOr(xpUnit("points"))
+	maximum := 1_000_000_000
+	if unit == "levels" {
+		maximum = 100_000_000
+	}
+	if amount < 0 || amount > maximum {
+		out.Errorf("Experience amount for %s must be between 0 and %d.", unit, maximum)
 		return
 	}
 	players := commandExperiencePlayers(c.Targets)
@@ -402,7 +407,6 @@ func (c xpSetCommand) Run(_ Source, out *Output, _ *world.Tx) {
 		out.Error("No player targets matched.")
 		return
 	}
-	unit := c.Unit.LoadOr(xpUnit("points"))
 	updated := 0
 	for _, target := range players {
 		switch unit {

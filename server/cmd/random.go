@@ -84,9 +84,7 @@ func parseCommandRandomRange(raw string) (int64, int64, error) {
 	if minimum > maximum {
 		return 0, 0, errors.New("random range minimum cannot exceed its maximum")
 	}
-	width := maximum - minimum + 1
-	if width < 2 || width > 2147483646 {
-		return 0, 0, errors.New("random range width must be between 2 and 2147483646")
-	}
+	// The full signed 32-bit interval has a width of 2^32, which still
+	// fits in int64 and is accepted by rand.Int64N. Equal endpoints are valid.
 	return minimum, maximum, nil
 }
