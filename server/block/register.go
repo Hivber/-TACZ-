@@ -184,6 +184,8 @@ func init() {
 	registerAll(allConcrete())
 	registerAll(allConcretePowder())
 	registerAll(allDaylightDetectors())
+	registerAll(allDispensers())
+	registerAll(allDroppers())
 	registerAll(allCoral())
 	registerAll(allCoralBlocks())
 	registerAll(allDeepslate())
