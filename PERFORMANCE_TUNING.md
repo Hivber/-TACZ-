@@ -45,3 +45,6 @@ Neighbour updates now use two reusable buffers. Work queued while neighbour call
 ## Runtime directories
 
 The executable creates `plugins/` and `mods/` in its working directory at startup. They are empty folders for future organisation only: the current server does not scan, import, load, or execute files from either directory.
+
+
+Redstone source and consumer updates now resolve their nearest dirty context only when an update event or block-state change will actually be emitted. Unchanged power therefore avoids the nearest-context scan entirely.

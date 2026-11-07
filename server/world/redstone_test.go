@@ -1113,3 +1113,37 @@ func (redstoneSolidModel) BBox(cube.Pos, BlockSource) []cube.BBox { return nil }
 func (redstoneSolidModel) FaceSolid(cube.Pos, cube.Face, BlockSource) bool {
 	return true
 }
+
+
+func TestRedstoneUnchangedUpdatesSkipDirtyContextLookup(t *testing.T) {
+	sourcePos := cube.Pos{0, 64, 0}
+	consumerPos := cube.Pos{1, 64, 0}
+	w := Config{Synchronous: true, Blocks: redstoneSignalLossTestRegistry()}.New()
+	defer w.Close()
+
+	runWorld(w, func(tx *Tx) {
+		opts := &SetOpts{DisableRedstoneUpdates: true}
+		tx.SetBlock(sourcePos, redstoneLossSource{Power: 15}, opts)
+		tx.SetBlock(consumerPos, redstoneLossConsumer{}, opts)
+
+		engine := tx.World().redstone
+		engine.output[sourcePos] = 15
+		engine.power[consumerPos] = 0
+		dirty := make(map[cube.Pos]redstoneDirty, 32)
+		for i := 0; i < 32; i++ {
+			pos := cube.Pos{i * 16, 64, 16}
+			dirty[pos] = redstoneDirty{
+				changed: pos, hasChanged: true, source: pos, hasSource: true,
+				cause: RedstoneUpdateCauseBlockUpdate,
+			}
+		}
+
+		if !engine.updateSource(tx, sourcePos, dirty) {
+			t.Fatal("unchanged source update was rejected")
+		}
+		engine.update(tx, consumerPos, dirty, 0)
+		if engine.lastContextScanPositions != 0 {
+			t.Fatalf("unchanged redstone updates scanned %d dirty positions, want 0", engine.lastContextScanPositions)
+		}
+	})
+}
