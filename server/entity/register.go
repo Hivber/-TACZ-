@@ -27,6 +27,12 @@ var DefaultRegistry = conf.New([]world.EntityType{
 	TNTType,
 	TextType,
 	WindChargeType,
+	PigType,
+	CowType,
+	SheepType,
+	ChickenType,
+	ZombieType,
+	SkeletonType,
 })
 
 var conf = world.EntityRegistryConfig{
@@ -35,6 +41,8 @@ var conf = world.EntityRegistryConfig{
 	EndCrystal:         NewEndCrystal,
 	Snowball:           NewSnowball,
 	WindCharge:         NewWindCharge,
+	Mob:                NewMob,
+	NaturalSpawner:     SpawnNaturalMobs,
 	BottleOfEnchanting: NewBottleOfEnchanting,
 	EnderPearl:         NewEnderPearl,
 	FallingBlock:       NewFallingBlock,

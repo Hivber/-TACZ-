@@ -518,6 +518,8 @@ type EntityRegistryConfig struct {
 	WindCharge         func(opts EntitySpawnOpts, owner Entity) *EntityHandle
 	SplashPotion       func(opts EntitySpawnOpts, t any, owner Entity) *EntityHandle
 	Lightning          func(opts EntitySpawnOpts) *EntityHandle
+	Mob                func(opts EntitySpawnOpts, name string) *EntityHandle
+	NaturalSpawner     func(*Tx)
 }
 
 // ArrowSpawnConfig holds the options used to spawn an arrow entity.

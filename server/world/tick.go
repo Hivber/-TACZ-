@@ -110,6 +110,12 @@ func (t ticker) tick(tx *Tx) {
 	t.tickEntities(tx, tick)
 	w.performance.recordStage(TickStageEntities, time.Since(stageStart))
 
+	if tick%200 == 0 && w.GameRuleBool("domobspawning", true) {
+		if spawn := w.conf.Entities.Config().NaturalSpawner; spawn != nil {
+			spawn(tx)
+		}
+	}
+
 	stageStart = time.Now()
 	w.scheduledUpdates.tick(tx, tick)
 	w.performance.recordStage(TickStageScheduled, time.Since(stageStart))
