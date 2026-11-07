@@ -323,11 +323,11 @@ func (m *Mob) KnockBack(src mgl64.Vec3, force, height float64) {
 	m.SetVelocity(velocity)
 }
 
-func (m *Mob) AddEffect(e effect.Effect) { m.mobState().effects.Add(e, m) }
+func (m *Mob) AddEffect(e effect.Effect)  { m.mobState().effects.Add(e, m) }
 func (m *Mob) RemoveEffect(e effect.Type) { m.mobState().effects.Remove(e, m) }
-func (m *Mob) Effects() []effect.Effect { return m.mobState().effects.Effects() }
-func (m *Mob) Speed() float64 { return m.mobState().kind.speed }
-func (m *Mob) SetSpeed(v float64) { m.mobState().kind.speed = max(v, 0) }
+func (m *Mob) Effects() []effect.Effect   { return m.mobState().effects.Effects() }
+func (m *Mob) Speed() float64             { return m.mobState().kind.speed }
+func (m *Mob) SetSpeed(v float64)         { m.mobState().kind.speed = max(v, 0) }
 
 // SpawnNaturalMobs is called by the world tick loop. It performs a bounded,
 // loaded-chunk-only spawn attempt around each active player. The first pass
