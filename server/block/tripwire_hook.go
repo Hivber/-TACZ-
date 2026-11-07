@@ -1,6 +1,9 @@
 package block
 
 import (
+	"math/rand/v2"
+	"time"
+
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/block/model"
 	"github.com/df-mc/dragonfly/server/item"
@@ -30,6 +33,7 @@ var (
 	_ world.RedstoneStrongPowerSource = TripwireHook{}
 	_ world.RedstoneWeakBlockPowerer  = TripwireHook{}
 	_ world.NeighbourUpdateTicker     = TripwireHook{}
+	_ world.ScheduledTicker           = TripwireHook{}
 )
 
 // Model returns the wall-mounted collision box of the tripwire hook.
@@ -66,6 +70,54 @@ func (h TripwireHook) NeighbourUpdateTick(pos, _ cube.Pos, tx *world.Tx) {
 		return
 	}
 	updateTripwireHookLine(pos, h, tx)
+}
+
+// ScheduledTick ends the short pulse caused by breaking a connected tripwire.
+// If a valid line has since been restored, its live state takes precedence.
+func (h TripwireHook) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
+	current, ok := tx.Block(pos).(TripwireHook)
+	if !ok || !current.Powered {
+		return
+	}
+	if current.Attached {
+		updateTripwireHookLine(pos, current, tx)
+		return
+	}
+	current.Powered = false
+	tx.SetBlock(pos, current, nil)
+}
+
+const tripwireHookBreakPulseDuration = time.Second / 2
+
+func pulseTripwireHook(pos cube.Pos, tx *world.Tx) {
+	hook, ok := tx.Block(pos).(TripwireHook)
+	if !ok || hook.Powered {
+		return
+	}
+	hook.Powered = true
+	tx.SetBlock(pos, hook, nil)
+	tx.ScheduleBlockUpdate(pos, hook, tripwireHookBreakPulseDuration)
+}
+
+// pulseTripwireHooksFromWire finds both remaining endpoints of a wire that has
+// just been removed and gives each endpoint the vanilla break pulse.
+func pulseTripwireHooksFromWire(pos cube.Pos, tx *world.Tx) {
+	for _, direction := range cube.Directions() {
+		for distance := 1; distance < maxTripwireCircuitLength; distance++ {
+			scanPos := pos.Add(tripwireOffset(direction, distance))
+			switch blockAt := tx.Block(scanPos).(type) {
+			case String:
+				continue
+			case TripwireHook:
+				if blockAt.Facing == direction.Opposite() {
+					pulseTripwireHook(scanPos, tx)
+				}
+			}
+			if _, ok := tx.Block(scanPos).(String); !ok {
+				break
+			}
+		}
+	}
 }
 
 // UseOnBlock places the hook on a horizontal face of a supporting block.

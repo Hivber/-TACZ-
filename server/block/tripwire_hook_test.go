@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
 )
@@ -190,5 +191,73 @@ func TestTripwireHookModelHasWallMountedCollision(t *testing.T) {
 				t.Fatalf("tripwire hook facing %v reports solid face %v", facing, face)
 			}
 		}
+	}
+}
+
+type tripwireShearsTestUser struct {
+	item.User
+	held item.Stack
+}
+
+func (u tripwireShearsTestUser) HeldItems() (item.Stack, item.Stack) {
+	return u.held, item.Stack{}
+}
+
+func TestTripwireBreakPulseAndShearsSuppression(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		tool       item.Tool
+		wantPulse  bool
+		wantDrops  int
+	}{
+		{name: "ordinary break", tool: item.ToolNone{}, wantPulse: true, wantDrops: 1},
+		{name: "shears break", tool: item.Shears{}, wantPulse: false, wantDrops: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			w := world.Config{Synchronous: true}.New()
+			defer w.Close()
+
+			leftHookPos, rightHookPos := cube.Pos{0, 64, 0}, cube.Pos{4, 64, 0}
+			wirePos := cube.Pos{2, 64, 0}
+			var drops []item.Stack
+			if err := w.Do(func(tx *world.Tx) {
+				left := TripwireHook{Facing: cube.East}
+				right := TripwireHook{Facing: cube.West}
+				tx.SetBlock(leftHookPos, left, nil)
+				tx.SetBlock(rightHookPos, right, nil)
+				for x := 1; x <= 3; x++ {
+					tx.SetBlock(cube.Pos{x, 64, 0}, String{}, nil)
+				}
+				updateTripwireHookLine(leftHookPos, left, tx)
+				wire := tx.Block(wirePos).(String)
+				info := wire.BreakInfo()
+				drops = info.Drops(test.tool, nil)
+
+				tx.SetBlock(wirePos, Air{}, nil)
+				user := tripwireShearsTestUser{held: item.NewStack(test.tool, 1)}
+				info.BreakHandler(wirePos, tx, user)
+
+				leftAfter := tx.Block(leftHookPos).(TripwireHook)
+				rightAfter := tx.Block(rightHookPos).(TripwireHook)
+				if leftAfter.Attached || rightAfter.Attached {
+					t.Fatal("broken tripwire left hooks attached")
+				}
+				if leftAfter.Powered != test.wantPulse || rightAfter.Powered != test.wantPulse {
+					t.Fatalf("endpoint power = (%v, %v), want (%v, %v)", leftAfter.Powered, rightAfter.Powered, test.wantPulse, test.wantPulse)
+				}
+				if test.wantPulse {
+					leftAfter.ScheduledTick(leftHookPos, tx, nil)
+					rightAfter.ScheduledTick(rightHookPos, tx, nil)
+					if tx.Block(leftHookPos).(TripwireHook).Powered || tx.Block(rightHookPos).(TripwireHook).Powered {
+						t.Fatal("tripwire break pulse did not end")
+					}
+				}
+			}).Wait(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if len(drops) != test.wantDrops {
+				t.Fatalf("tripwire drops = %d, want %d", len(drops), test.wantDrops)
+			}
+		})
 	}
 }

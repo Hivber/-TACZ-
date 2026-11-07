@@ -142,10 +142,30 @@ func (s String) HasLiquidDrops() bool {
 
 // BreakInfo ...
 func (s String) BreakInfo() BreakInfo {
-	return newBreakInfo(0, alwaysHarvestable, nothingEffective, oneOf(String{})).
-		withBreakHandler(func(pos cube.Pos, tx *world.Tx, _ item.User) {
+	drops := func(tool item.Tool, _ []item.Enchantment) []item.Stack {
+		if tool.ToolType() == item.TypeShears {
+			return nil
+		}
+		return oneOf(String{})(tool, nil)
+	}
+	return newBreakInfo(0, alwaysHarvestable, nothingEffective, drops).
+		withBreakHandler(func(pos cube.Pos, tx *world.Tx, user item.User) {
+			// First detach the circuit. If shears were not used, breaking a
+			// connected tripwire emits a short pulse from both hooks.
 			updateTripwireLinesForWire(pos, tx)
+			if s.Attached && !s.Disarmed && !tripwireBreakUsesShears(user) {
+				pulseTripwireHooksFromWire(pos, tx)
+			}
 		})
+}
+
+func tripwireBreakUsesShears(user item.User) bool {
+	if user == nil {
+		return false
+	}
+	held, _ := user.HeldItems()
+	tool, ok := held.Item().(item.Tool)
+	return ok && tool.ToolType() == item.TypeShears
 }
 
 // EncodeItem ...
