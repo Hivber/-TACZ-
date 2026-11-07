@@ -21,7 +21,9 @@ func (movementTestEntityType) BBox(world.Entity) cube.BBox {
 	return cube.Box(-0.3, 0, -0.3, 0.3, 1.8, 0.3)
 }
 func (movementTestEntityType) DecodeNBT(map[string]any, *world.EntityData) {}
-func (movementTestEntityType) EncodeNBT(*world.EntityData) map[string]any { return nil }
+func (movementTestEntityType) EncodeNBT(*world.EntityData) map[string]any {
+	return nil
+}
 
 type movementTestEntityConfig struct{}
 
