@@ -19,8 +19,14 @@ func TestRedstoneRepeaterStates(t *testing.T) {
 		if name != "minecraft:unpowered_repeater" && name != "minecraft:powered_repeater" {
 			t.Fatalf("unexpected repeater block name %q", name)
 		}
-		if properties["repeater_delay"] != int32(repeater.Delay) {
-			t.Fatalf("repeater delay property = %v, want %d", properties["repeater_delay"], repeater.Delay)
+		if properties["repeater_delay"] != int32(repeater.Delay-1) {
+			t.Fatalf("repeater delay property = %v, want %d", properties["repeater_delay"], repeater.Delay-1)
+		}
+		if properties["minecraft:cardinal_direction"] != repeater.Direction.Opposite().String() {
+			t.Fatalf("repeater cardinal direction = %v, want input-facing %s", properties["minecraft:cardinal_direction"], repeater.Direction.Opposite())
+		}
+		if _, hasPoweredBit := properties["powered_bit"]; hasPoweredBit {
+			t.Fatal("repeater powered state must be represented by the powered/unpowered block identifier")
 		}
 		if _, exists := seen[world.DefaultBlockRegistry.BlockHash(repeater)]; exists {
 			t.Fatalf("duplicate repeater block hash for %+v", repeater)

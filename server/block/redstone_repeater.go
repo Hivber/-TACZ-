@@ -165,9 +165,8 @@ func (r RedstoneRepeater) EncodeBlock() (string, map[string]any) {
 		name = "minecraft:powered_repeater"
 	}
 	return name, map[string]any{
-		"minecraft:cardinal_direction": r.Direction.String(),
-		"repeater_delay":               int32(r.effectiveDelay()),
-		"powered_bit":                  r.Powered,
+		"minecraft:cardinal_direction": r.Direction.Opposite().String(),
+		"repeater_delay":               int32(r.effectiveDelay() - 1),
 	}
 }
 

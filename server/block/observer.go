@@ -84,7 +84,7 @@ func (Observer) EncodeItem() (string, int16) { return "minecraft:observer", 0 }
 
 func (o Observer) EncodeBlock() (string, map[string]any) {
 	return "minecraft:observer", map[string]any{
-		"minecraft:facing_direction": int32(o.Facing),
+		"minecraft:facing_direction": o.Facing.String(),
 		"powered_bit":                o.Powered,
 	}
 }
