@@ -10,21 +10,21 @@ const performanceTickSamples = 100
 // PerformanceSnapshot contains a point-in-time view of World tick and workload
 // metrics. A snapshot must be obtained from an active world transaction.
 type PerformanceSnapshot struct {
-	TickCount             uint64
-	TicksPerSecond        float64
-	LastTick              time.Duration
-	AverageTick           time.Duration
-	P95Tick               time.Duration
-	MaxTick               time.Duration
-	LoadedChunks          int
-	LoadingChunks         int
-	QueuedChunkLoads      int
+	TickCount              uint64
+	TicksPerSecond         float64
+	LastTick               time.Duration
+	AverageTick            time.Duration
+	P95Tick                time.Duration
+	MaxTick                time.Duration
+	LoadedChunks           int
+	LoadingChunks          int
+	QueuedChunkLoads       int
 	ChunkLoadQueueCapacity int
-	ChunkLoadWorkers      int
-	LoadedEntities        int
-	ActiveLoaders         int
-	SimulationDistance   int
-	RandomTickSpeed       int
+	ChunkLoadWorkers       int
+	LoadedEntities         int
+	ActiveLoaders          int
+	SimulationDistance     int
+	RandomTickSpeed        int
 }
 
 // tickPerformance is updated by the world's owner and deliberately avoids
