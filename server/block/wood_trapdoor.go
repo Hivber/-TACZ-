@@ -28,6 +28,35 @@ type WoodTrapdoor struct {
 	Top bool
 }
 
+
+var (
+	_ world.RedstonePowerConsumer    = WoodTrapdoor{}
+	_ world.RedstonePowerPostUpdater = WoodTrapdoor{}
+)
+
+// RedstonePowerUpdate opens the trapdoor while it receives a redstone signal.
+func (t WoodTrapdoor) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+	open := power > 0
+	if t.Open == open {
+		return t, false
+	}
+	t.Open = open
+	return t, true
+}
+
+// RedstonePowerPostUpdate plays the trapdoor sound after a redstone state change.
+func (t WoodTrapdoor) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after world.Block, _, _ int) {
+	trapdoor, ok := after.(WoodTrapdoor)
+	if !ok {
+		return
+	}
+	if trapdoor.Open {
+		tx.PlaySound(pos.Vec3Centre(), sound.TrapdoorOpen{Block: trapdoor})
+	} else {
+		tx.PlaySound(pos.Vec3Centre(), sound.TrapdoorClose{Block: trapdoor})
+	}
+}
+
 // FlammabilityInfo ...
 func (t WoodTrapdoor) FlammabilityInfo() FlammabilityInfo {
 	if !t.Wood.Flammable() {

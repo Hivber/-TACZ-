@@ -32,6 +32,43 @@ type CopperDoor struct {
 	Right bool
 }
 
+
+var (
+	_ world.RedstonePowerConsumer    = CopperDoor{}
+	_ world.RedstonePowerPostUpdater = CopperDoor{}
+)
+
+// RedstonePowerUpdate opens the copper door while it receives a redstone signal.
+func (d CopperDoor) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+	open := power > 0
+	if d.Open == open {
+		return d, false
+	}
+	d.Open = open
+	return d, true
+}
+
+// RedstonePowerPostUpdate synchronises the other half and plays one door sound.
+func (d CopperDoor) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after world.Block, _, _ int) {
+	door, ok := after.(CopperDoor)
+	if !ok {
+		return
+	}
+	otherPos := pos.Side(cube.Face(boolByte(!door.Top)))
+	if other, ok := tx.Block(otherPos).(CopperDoor); ok &&
+		other.Oxidation == door.Oxidation && other.Waxed == door.Waxed && other.Top != door.Top {
+		if other.Open != door.Open {
+			other.Open = door.Open
+			tx.SetBlock(otherPos, other, &world.SetOpts{DisableRedstoneUpdates: true})
+		}
+	}
+	if door.Open {
+		tx.PlaySound(pos.Vec3Centre(), sound.DoorOpen{Block: door})
+	} else {
+		tx.PlaySound(pos.Vec3Centre(), sound.DoorClose{Block: door})
+	}
+}
+
 func (d CopperDoor) Strip() (world.Block, world.Sound, bool) {
 	if d.Waxed {
 		d.Waxed = false

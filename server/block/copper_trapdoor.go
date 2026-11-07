@@ -30,6 +30,35 @@ type CopperTrapdoor struct {
 	Top bool
 }
 
+
+var (
+	_ world.RedstonePowerConsumer    = CopperTrapdoor{}
+	_ world.RedstonePowerPostUpdater = CopperTrapdoor{}
+)
+
+// RedstonePowerUpdate opens the copper trapdoor while it receives a redstone signal.
+func (t CopperTrapdoor) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+	open := power > 0
+	if t.Open == open {
+		return t, false
+	}
+	t.Open = open
+	return t, true
+}
+
+// RedstonePowerPostUpdate plays the trapdoor sound after a redstone state change.
+func (t CopperTrapdoor) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after world.Block, _, _ int) {
+	trapdoor, ok := after.(CopperTrapdoor)
+	if !ok {
+		return
+	}
+	if trapdoor.Open {
+		tx.PlaySound(pos.Vec3Centre(), sound.TrapdoorOpen{Block: trapdoor})
+	} else {
+		tx.PlaySound(pos.Vec3Centre(), sound.TrapdoorClose{Block: trapdoor})
+	}
+}
+
 // Model ...
 func (t CopperTrapdoor) Model() world.BlockModel {
 	return model.Trapdoor{Facing: t.Facing, Top: t.Top, Open: t.Open}

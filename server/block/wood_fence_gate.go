@@ -27,6 +27,35 @@ type WoodFenceGate struct {
 	Lowered bool
 }
 
+
+var (
+	_ world.RedstonePowerConsumer    = WoodFenceGate{}
+	_ world.RedstonePowerPostUpdater = WoodFenceGate{}
+)
+
+// RedstonePowerUpdate opens the fence gate while it receives a redstone signal.
+func (f WoodFenceGate) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+	open := power > 0
+	if f.Open == open {
+		return f, false
+	}
+	f.Open = open
+	return f, true
+}
+
+// RedstonePowerPostUpdate plays the fence gate sound after a redstone state change.
+func (f WoodFenceGate) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after world.Block, _, _ int) {
+	gate, ok := after.(WoodFenceGate)
+	if !ok {
+		return
+	}
+	if gate.Open {
+		tx.PlaySound(pos.Vec3Centre(), sound.FenceGateOpen{Block: gate})
+	} else {
+		tx.PlaySound(pos.Vec3Centre(), sound.FenceGateClose{Block: gate})
+	}
+}
+
 // BreakInfo ...
 func (f WoodFenceGate) BreakInfo() BreakInfo {
 	return newBreakInfo(2, alwaysHarvestable, axeEffective, oneOf(f)).withBlastResistance(3)
