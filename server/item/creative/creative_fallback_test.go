@@ -8,7 +8,8 @@ import (
 
 func TestCreativeCatalogueResolvesKnownVanillaItemsWithoutDedicatedImplementations(t *testing.T) {
 	var catalogue struct {
-		Items []creativeItemEntry `nbt:"items"`
+		Groups []creativeGroupEntry `nbt:"groups"`
+		Items  []creativeItemEntry  `nbt:"items"`
 	}
 	if err := nbt.Unmarshal(creativeItemData, &catalogue); err != nil {
 		t.Fatalf("decode embedded creative catalogue: %v", err)
