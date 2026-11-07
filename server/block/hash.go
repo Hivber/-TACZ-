@@ -225,6 +225,7 @@ const (
 	hashTerracotta
 	hashTintedGlass
 	hashTorch
+	hashTripwireHook
 	hashTuff
 	hashTuffBricks
 	hashVines
@@ -1138,6 +1139,10 @@ func (TintedGlass) Hash() (uint64, uint64) {
 
 func (t Torch) Hash() (uint64, uint64) {
 	return hashTorch, uint64(t.Facing) | uint64(t.Type.Uint8())<<3
+}
+
+func (h TripwireHook) Hash() (uint64, uint64) {
+	return hashTripwireHook, uint64(h.Facing) | uint64(boolByte(h.Attached))<<2 | uint64(boolByte(h.Powered))<<3
 }
 
 func (t Tuff) Hash() (uint64, uint64) {
