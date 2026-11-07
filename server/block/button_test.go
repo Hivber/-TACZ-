@@ -155,9 +155,9 @@ type buttonTestArrowEntity struct {
 	data   *world.EntityData
 }
 
-func (e buttonTestArrowEntity) Close() error { return nil }
-func (e buttonTestArrowEntity) H() *world.EntityHandle { return e.handle }
-func (e buttonTestArrowEntity) Position() mgl64.Vec3 { return e.data.Pos }
+func (e buttonTestArrowEntity) Close() error            { return nil }
+func (e buttonTestArrowEntity) H() *world.EntityHandle  { return e.handle }
+func (e buttonTestArrowEntity) Position() mgl64.Vec3    { return e.data.Pos }
 func (e buttonTestArrowEntity) Rotation() cube.Rotation { return e.data.Rot }
 
 func TestWoodenButtonArrowActivationAndHold(t *testing.T) {
