@@ -164,6 +164,7 @@ const (
 	hashPolishedTuff
 	hashPortal
 	hashPotato
+	hashPressurePlate
 	hashPrismarine
 	hashPumpkin
 	hashPumpkinSeeds
@@ -892,6 +893,10 @@ func (p Portal) Hash() (uint64, uint64) {
 
 func (p Potato) Hash() (uint64, uint64) {
 	return hashPotato, uint64(p.Growth)
+}
+
+func (p PressurePlate) Hash() (uint64, uint64) {
+	return hashPressurePlate, uint64(p.Kind) | uint64(p.Power)<<8
 }
 
 func (p Prismarine) Hash() (uint64, uint64) {
