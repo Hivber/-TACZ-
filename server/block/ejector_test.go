@@ -113,6 +113,9 @@ func TestEjectorRandomSlotAndInsertion(t *testing.T) {
 	if !insertEjectorItem(destination, item.NewStack(item.Stick{}, 1)) {
 		t.Fatal("insertion into an empty inventory failed")
 	}
+	if _, err := destination.AddItem(item.NewStack(item.Stick{}, 63)); err != nil {
+		t.Fatal(err)
+	}
 	if insertEjectorItem(destination, item.NewStack(item.Stick{}, 1)) {
 		t.Fatal("insertion into a full inventory succeeded")
 	}
