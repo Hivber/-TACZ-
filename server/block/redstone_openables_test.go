@@ -5,7 +5,77 @@ import (
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/go-gl/mathgl/mgl64"
 )
+
+func TestRedstoneSignalSynchronisesBothDoorHalves(t *testing.T) {
+	tests := []struct {
+		name   string
+		bottom world.Block
+		top    world.Block
+		isOpen func(world.Block) bool
+	}{
+		{
+			name:   "wood door",
+			bottom: WoodDoor{Facing: cube.North},
+			top:    WoodDoor{Facing: cube.North, Top: true},
+			isOpen: func(b world.Block) bool { return b.(WoodDoor).Open },
+		},
+		{
+			name:   "copper door",
+			bottom: CopperDoor{Facing: cube.North},
+			top:    CopperDoor{Facing: cube.North, Top: true},
+			isOpen: func(b world.Block) bool { return b.(CopperDoor).Open },
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w := world.Config{Synchronous: true}.New()
+			defer w.Close()
+
+			loader := world.NewLoader(1, w, world.NopViewer{})
+			runWorld(w, func(tx *world.Tx) {
+				loader.Move(tx, mgl64.Vec3{1, 64, 1})
+				loader.Load(tx, 1)
+			})
+			defer func() {
+				runWorld(w, func(tx *world.Tx) {
+					loader.Close(tx)
+				})
+			}()
+
+			bottomPos := cube.Pos{1, 64, 1}
+			topPos := bottomPos.Side(cube.FaceUp)
+			sourcePos := bottomPos.Side(cube.FaceWest)
+			runWorld(w, func(tx *world.Tx) {
+				tx.SetBlock(bottomPos.Side(cube.FaceDown), Stone{}, nil)
+				tx.SetBlock(bottomPos, test.bottom, nil)
+				tx.SetBlock(topPos, test.top, nil)
+				tx.SetBlock(sourcePos, RedstoneBlock{}, nil)
+			})
+			w.AdvanceTick()
+
+			var bottom, top world.Block
+			runWorld(w, func(tx *world.Tx) {
+				bottom, top = tx.Block(bottomPos), tx.Block(topPos)
+			})
+			if !test.isOpen(bottom) || !test.isOpen(top) {
+				t.Fatalf("powered door halves are not both open: bottom=%#v top=%#v", bottom, top)
+			}
+
+			runWorld(w, func(tx *world.Tx) {
+				tx.SetBlock(sourcePos, nil, nil)
+			})
+			w.AdvanceTick()
+			runWorld(w, func(tx *world.Tx) {
+				bottom, top = tx.Block(bottomPos), tx.Block(topPos)
+			})
+			if test.isOpen(bottom) || test.isOpen(top) {
+				t.Fatalf("unpowered door halves are not both closed: bottom=%#v top=%#v", bottom, top)
+			}
+		})
+	}
+}
 
 func TestRedstoneOpensAndClosesExistingMechanisms(t *testing.T) {
 	tests := []struct {
