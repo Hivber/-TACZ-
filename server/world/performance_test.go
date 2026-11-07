@@ -56,7 +56,6 @@ func TestTickStageRollingMetrics(t *testing.T) {
 	}
 }
 
-
 func TestTickPerformanceRecordsSkippedStagesAsZero(t *testing.T) {
 	var metrics tickPerformance
 	metrics.beginTick()

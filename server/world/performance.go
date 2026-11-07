@@ -262,7 +262,7 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 			P95:     m.queueWait.percentile95(),
 			Count:   m.queueWait.sampleCount,
 		},
-		NeighbourUpdatesProcessed: m.neighbourUpdatesProcessed,
+		NeighbourUpdatesProcessed:    m.neighbourUpdatesProcessed,
 		PendingNeighbourUpdates:      len(w.neighbourUpdates),
 		RedstoneDirtyPositions:       w.redstone.lastDirtyPositions,
 		RedstoneGraphNodes:           w.redstone.lastGraphNodes,
