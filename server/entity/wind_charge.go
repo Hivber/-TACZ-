@@ -1,8 +1,10 @@
 package entity
 
 import (
+	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/block/cube/trace"
+	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
@@ -10,9 +12,9 @@ import (
 )
 
 const (
-	windChargeBurstRadius = 2.4
-	windChargeHorizontal  = 0.75
-	windChargeVertical    = 0.9
+	windChargeBurstRadius = 2.0
+	windChargeKnockback   = 0.2
+	windChargeUpward      = 0.6
 )
 
 // NewWindCharge creates a wind charge projectile fired by a player.
@@ -24,7 +26,7 @@ func NewWindCharge(opts world.EntitySpawnOpts, owner world.Entity) *world.Entity
 
 var windChargeConf = ProjectileBehaviourConfig{
 	Gravity:       0,
-	Drag:          0,
+	Drag:          0.01,
 	Damage:        0.5,
 	Sound:         sound.Custom{Name: "wind_charge.burst", Volume: 1, Pitch: 1},
 	Particle:      particle.HugeExplosion{},
@@ -53,40 +55,83 @@ func (windChargeType) DecodeNBT(_ map[string]any, data *world.EntityData) {
 
 func (windChargeType) EncodeNBT(_ *world.EntityData) map[string]any { return nil }
 
-// windChargeHit applies the burst to nearby living entities. The generic
-// projectile behaviour handles the direct-impact damage.
-func windChargeHit(_ *Ent, tx *world.Tx, target trace.Result) {
-	centre := target.Position()
-	r := windChargeBurstRadius
-	box := cube.Box(-r, -r, -r, r, r, r).Translate(centre)
-	for other := range tx.EntitiesWithin(box) {
-		living, ok := other.(Living)
-		if !ok {
-			continue
+// windChargeHit applies the burst and block interactions after the generic
+// projectile behaviour has processed direct-hit damage and ProjectileHitter blocks.
+func windChargeHit(projectile *Ent, tx *world.Tx, target trace.Result) {
+	centre := projectile.Position()
+	switch result := target.(type) {
+	case trace.BlockResult:
+		activateWindChargeBlock(result.BlockPosition(), result.Face(), projectile, tx)
+		for other := range tx.EntitiesWithin(cube.Box(
+			-windChargeBurstRadius, -windChargeBurstRadius, -windChargeBurstRadius,
+			windChargeBurstRadius, windChargeBurstRadius, windChargeBurstRadius,
+		).Translate(centre)) {
+			applyWindChargeBurst(other, centre)
 		}
-		impulse := windChargeImpulse(living.Position().Sub(centre))
-		if impulse.LenSqr() == 0 {
-			continue
-		}
-		living.SetVelocity(living.Velocity().Add(impulse))
+	case trace.EntityResult:
+		applyWindChargeBurst(result.Entity(), centre)
 	}
 }
 
-// windChargeImpulse returns the horizontal and upward velocity added by a
-// player-fired wind burst. The effect fades linearly to zero at 2.4 blocks.
-func windChargeImpulse(offset mgl64.Vec3) mgl64.Vec3 {
-	distance := offset.Len()
-	if distance >= windChargeBurstRadius {
-		return mgl64.Vec3{}
-	}
-	strength := 1 - distance/windChargeBurstRadius
-	horizontal := mgl64.Vec3{offset[0], 0, offset[2]}
-	if horizontal.LenSqr() > 0 {
-		horizontal = horizontal.Normalize()
-	}
-	return mgl64.Vec3{
-		horizontal[0] * windChargeHorizontal * strength,
-		windChargeVertical * strength,
-		horizontal[2] * windChargeHorizontal * strength,
+// activateWindChargeBlock applies the supported Bedrock wind-charge block
+// interactions. Decorated pots are handled by the generic ProjectileHitter path.
+func activateWindChargeBlock(pos cube.Pos, face cube.Face, projectile *Ent, tx *world.Tx) {
+	b := tx.Block(pos)
+	switch b.(type) {
+	case block.WoodDoor, block.CopperDoor,
+		block.WoodTrapdoor, block.CopperTrapdoor,
+		block.WoodFenceGate, block.Lever:
+		if activatable, ok := b.(block.Activatable); ok {
+			user := windChargeBlockUser{position: projectile.Position(), rotation: projectile.Rotation()}
+			activatable.Activate(pos, face, tx, user, &item.UseContext{})
+		}
+	case block.Candle:
+		if candle, ok := b.(block.Candle); ok {
+			candle.Ignite(pos, tx, projectile)
+		}
 	}
 }
+
+// applyWindChargeBurst applies the Bedrock wind-burst velocity to one living entity.
+// Existing velocity is damped by half, then radial and upward impulses are added.
+func applyWindChargeBurst(e world.Entity, centre mgl64.Vec3) {
+	living, ok := e.(Living)
+	if !ok {
+		return
+	}
+	offset := living.Position().Sub(centre)
+	if offset.Len() >= windChargeBurstRadius {
+		return
+	}
+	living.SetVelocity(windChargeImpulse(living.Velocity(), offset))
+	if resetter, ok := e.(interface{ ResetFallDistance() }); ok {
+		resetter.ResetFallDistance()
+	}
+}
+
+// windChargeImpulse returns the resulting velocity after a wind-charge burst.
+// The formula follows the PowerNukkitX Bedrock implementation.
+func windChargeImpulse(velocity, offset mgl64.Vec3) mgl64.Vec3 {
+	result := velocity.Mul(0.5)
+	result[0] += offset[0] * windChargeKnockback
+	result[1] += windChargeUpward
+	result[2] += offset[2] * windChargeKnockback
+	return result
+}
+
+// windChargeBlockUser provides the small item.User surface needed by block
+// activation methods. It carries the projectile direction but has no inventory.
+type windChargeBlockUser struct {
+	position mgl64.Vec3
+	rotation cube.Rotation
+}
+
+func (u windChargeBlockUser) H() *world.EntityHandle       { return nil }
+func (u windChargeBlockUser) Close() error                 { return nil }
+func (u windChargeBlockUser) Position() mgl64.Vec3         { return u.position }
+func (u windChargeBlockUser) Rotation() cube.Rotation      { return u.rotation }
+func (windChargeBlockUser) HeldItems() (item.Stack, item.Stack) { return item.Stack{}, item.Stack{} }
+func (windChargeBlockUser) SetHeldItems(item.Stack, item.Stack) {}
+func (windChargeBlockUser) UsingItem() bool                 { return false }
+func (windChargeBlockUser) ReleaseItem()                    {}
+func (windChargeBlockUser) UseItem()                        {}

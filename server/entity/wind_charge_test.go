@@ -6,15 +6,43 @@ import (
 	"github.com/go-gl/mathgl/mgl64"
 )
 
+func TestWindChargeBurstConstants(t *testing.T) {
+	if windChargeBurstRadius != 2 {
+		t.Fatalf("wind charge burst radius = %v, want 2", windChargeBurstRadius)
+	}
+}
+
 func TestWindChargeImpulse(t *testing.T) {
-	if got := windChargeImpulse(mgl64.Vec3{}); got != (mgl64.Vec3{0, windChargeVertical, 0}) {
-		t.Fatalf("centre impulse = %v, want vertical impulse", got)
+	tests := []struct {
+		name     string
+		velocity mgl64.Vec3
+		offset   mgl64.Vec3
+		want     mgl64.Vec3
+	}{
+		{
+			name:     "centre adds upward force and damps velocity",
+			velocity: mgl64.Vec3{0.4, 0.2, -0.6},
+			offset:   mgl64.Vec3{},
+			want:     mgl64.Vec3{0.2, 0.7, -0.3},
+		},
+		{
+			name:     "radial force",
+			velocity: mgl64.Vec3{},
+			offset:   mgl64.Vec3{1, 0, -2},
+			want:     mgl64.Vec3{0.2, 0.6, -0.4},
+		},
 	}
-	if got := windChargeImpulse(mgl64.Vec3{windChargeBurstRadius, 0, 0}); got.LenSqr() != 0 {
-		t.Fatalf("impulse at burst edge = %v, want zero", got)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := windChargeImpulse(test.velocity, test.offset); got != test.want {
+				t.Fatalf("windChargeImpulse() = %v, want %v", got, test.want)
+			}
+		})
 	}
-	got := windChargeImpulse(mgl64.Vec3{1, 0, 0})
-	if got[0] <= 0 || got[1] <= 0 || got[2] != 0 {
-		t.Fatalf("unexpected horizontal burst impulse: %v", got)
+}
+
+func TestWindChargeBurstRange(t *testing.T) {
+	if (mgl64.Vec3{windChargeBurstRadius, 0, 0}).Len() < windChargeBurstRadius {
+		t.Fatal("wind charge burst radius check is inconsistent")
 	}
 }

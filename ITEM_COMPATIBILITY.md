@@ -25,11 +25,13 @@ projectile, riding or container behaviour.
   losing durability on attacks. Throwing, Loyalty return, Riptide propulsion,
   Channeling lightning and Impaling-specific damage are not yet implemented.
 - **Wind charge:** can be thrown as a server-side projectile, deals 1 point of
-  direct hit damage, and creates a 2.4-block wind burst that launches nearby
-  living entities. It has a 64-item stack limit and a 10-tick use cooldown.
-  Full Bedrock block interactions (doors, gates, buttons, levers, bells, candles
-  and decorated pots), projectile deflection, liquid attenuation and fall-damage
-  baseline handling remain unimplemented.
+  direct hit damage, and creates a 2-block wind burst. The burst halves the
+  target's existing velocity, adds a radial impulse and 0.6 upward velocity,
+  then resets fall distance. It can toggle registered doors, trapdoors, fence
+  gates and levers, ignite candles, and break decorated pots through Dragonfly's
+  projectile-hit interface. It has a 64-item stack limit and a 10-tick cooldown.
+  Buttons, bells, chorus flowers, projectile deflection and liquid attenuation
+  remain unavailable or unimplemented in this branch.
 
 ## Remaining fallback items
 
