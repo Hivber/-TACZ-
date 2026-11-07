@@ -215,6 +215,19 @@ func TestDecoratedPotComparatorOutput(t *testing.T) {
 	}
 }
 
+func TestCopperGolemStatueComparatorOutput(t *testing.T) {
+	poses := CopperGolemPoses()
+	for index, pose := range poses {
+		statue := CopperGolemStatue{Pose: pose}
+		if got, want := statue.ComparatorOutput(cube.Pos{}, nil), index+1; got != want {
+			t.Errorf("copper golem statue pose %v comparator output = %d, want %d", pose, got, want)
+		}
+	}
+	if got := (CopperGolemStatue{Pose: CopperGolemPose{pose: 4}}).ComparatorOutput(cube.Pos{}, nil); got != 0 {
+		t.Errorf("invalid copper golem statue pose comparator output = %d, want 0", got)
+	}
+}
+
 func TestItemFrameComparatorOutput(t *testing.T) {
 	tests := []struct {
 		name     string

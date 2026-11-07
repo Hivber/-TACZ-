@@ -63,6 +63,22 @@ func (c CopperGolemStatue) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3
 	return placed(ctx)
 }
 
+// ComparatorOutput returns a signal strength based on the statue's current pose.
+func (c CopperGolemStatue) ComparatorOutput(cube.Pos, *world.Tx) int {
+	switch c.Pose.Uint8() {
+	case 0:
+		return 1
+	case 1:
+		return 2
+	case 2:
+		return 3
+	case 3:
+		return 4
+	default:
+		return 0
+	}
+}
+
 // Wax waxes the copper lantern to stop it from oxidising further.
 func (c CopperGolemStatue) Wax(cube.Pos, mgl64.Vec3) (world.Block, bool) {
 	if c.Waxed {
