@@ -17,6 +17,9 @@ import (
 
 func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
+	if err := ensureRuntimeDirectories("."); err != nil {
+		panic(err)
+	}
 	chat.Global.Subscribe(chat.StdoutSubscriber{})
 	conf, err := readConfig(slog.Default())
 	if err != nil {

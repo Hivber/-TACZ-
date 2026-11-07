@@ -40,3 +40,8 @@ The overall tick line distinguishes the maximum among the latest 100 ticks from 
 The latest `/perf` output includes world-transaction queue wait, processed/pending neighbour updates, redstone dirty positions, compiled graph nodes/edges and the number of dirty-position candidates scanned while selecting redstone update contexts.
 
 Neighbour updates now use two reusable buffers. Work queued while neighbour callbacks are running is still deferred to the next tick, preserving the previous processing boundary while avoiding a per-tick slice clone.
+
+
+## Runtime directories
+
+The executable creates `plugins/` and `mods/` in its working directory at startup. They are empty folders for future organisation only: the current server does not scan, import, load, or execute files from either directory.

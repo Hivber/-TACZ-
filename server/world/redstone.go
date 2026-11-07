@@ -303,19 +303,18 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 
 	powers := e.graphPower(tx, graph)
 	for i, node := range graph.nodes {
-		d := e.dirtyContext(dirty, node.pos)
-		if node.sink {
-			e.update(tx, node.pos, d, powers[i])
-		}
-	}
-	for _, node := range graph.nodes {
-		if _, ok := checkedSources[node.pos]; ok {
+		if !node.sink {
 			continue
 		}
 		d := e.dirtyContext(dirty, node.pos)
-		if node.source {
-			e.updateSource(tx, node.pos, d)
+		e.update(tx, node.pos, d, powers[i])
+	}
+	for _, node := range graph.nodes {
+		if _, ok := checkedSources[node.pos]; ok || !node.source {
+			continue
 		}
+		d := e.dirtyContext(dirty, node.pos)
+		e.updateSource(tx, node.pos, d)
 	}
 }
 
