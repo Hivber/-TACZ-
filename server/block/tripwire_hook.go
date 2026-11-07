@@ -209,6 +209,7 @@ func updateTripwireHookLine(pos cube.Pos, hook TripwireHook, tx *world.Tx) {
 		pathClear      = true
 		linePowered    bool
 	)
+scanLoop:
 	for distance := 1; distance < maxTripwireCircuitLength; distance++ {
 		scanPos := pos.Add(tripwireOffset(hook.Facing, distance))
 		switch b := tx.Block(scanPos).(type) {
@@ -225,9 +226,9 @@ func updateTripwireHookLine(pos cube.Pos, hook TripwireHook, tx *world.Tx) {
 				otherPos = scanPos
 				foundOtherHook = true
 			}
-			distance = maxTripwireCircuitLength
+			break scanLoop
 		default:
-			pathClear = false
+			break scanLoop
 		}
 	}
 

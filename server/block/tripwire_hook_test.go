@@ -207,11 +207,12 @@ func TestTripwireBreakPulseAndShearsSuppression(t *testing.T) {
 	for _, test := range []struct {
 		name       string
 		tool       item.Tool
+		held       item.Stack
 		wantPulse  bool
 		wantDrops  int
 	}{
-		{name: "ordinary break", tool: item.ToolNone{}, wantPulse: true, wantDrops: 1},
-		{name: "shears break", tool: item.Shears{}, wantPulse: false, wantDrops: 0},
+		{name: "ordinary break", tool: item.ToolNone{}, held: item.NewStack(item.Stick{}, 1), wantPulse: true, wantDrops: 1},
+		{name: "shears break", tool: item.Shears{}, held: item.NewStack(item.Shears{}, 1), wantPulse: false, wantDrops: 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			w := world.Config{Synchronous: true}.New()
@@ -234,7 +235,7 @@ func TestTripwireBreakPulseAndShearsSuppression(t *testing.T) {
 				drops = info.Drops(test.tool, nil)
 
 				tx.SetBlock(wirePos, Air{}, nil)
-				user := tripwireShearsTestUser{held: item.NewStack(test.tool, 1)}
+				user := tripwireShearsTestUser{held: test.held}
 				info.BreakHandler(wirePos, tx, user)
 
 				leftAfter := tx.Block(leftHookPos).(TripwireHook)
