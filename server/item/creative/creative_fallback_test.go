@@ -65,7 +65,7 @@ func TestCreativeCatalogueUsesDedicatedShieldAndTridentImplementations(t *testin
 	}
 
 	for name, check := range map[string]func(item.Stack) bool{
-		"minecraft:shield":  func(s item.Stack) bool { _, ok := s.Item().(item.Shield); return ok },
+		"minecraft:shield":      func(s item.Stack) bool { _, ok := s.Item().(item.Shield); return ok },
 		"minecraft:trident":     func(s item.Stack) bool { _, ok := s.Item().(item.Trident); return ok },
 		"minecraft:wind_charge": func(s item.Stack) bool { _, ok := s.Item().(item.WindCharge); return ok },
 	} {
