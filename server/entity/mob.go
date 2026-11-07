@@ -10,6 +10,7 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	"github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/potion"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/go-gl/mathgl/mgl64"
@@ -23,6 +24,14 @@ type Mob struct {
 	kind mobKind
 }
 
+type mobSpawnCategory uint8
+
+const (
+	mobSpawnNone mobSpawnCategory = iota
+	mobSpawnAnimal
+	mobSpawnMonster
+)
+
 type mobKind struct {
 	id       string
 	maxHP    float64
@@ -31,16 +40,53 @@ type mobKind struct {
 	height   float64
 	width    float64
 	hostile  bool
+	ranged   bool
+	sunBurn  bool
 	lootItem world.Item
+
+	spawnCategory mobSpawnCategory
+	spawnWeight   int
+	groupMin      int
+	groupMax      int
+	minLight      uint8
+	maxLight      uint8
+	biomeTag      string
+	grassRequired bool
 }
 
 var (
-	PigType      = mobType{kind: mobKind{id: "minecraft:pig", maxHP: 10, speed: 0.055, width: 0.9, height: 0.9, lootItem: item.Porkchop{}}}
-	CowType      = mobType{kind: mobKind{id: "minecraft:cow", maxHP: 10, speed: 0.05, width: 0.9, height: 1.4, lootItem: item.Beef{}}}
-	SheepType    = mobType{kind: mobKind{id: "minecraft:sheep", maxHP: 8, speed: 0.055, width: 0.9, height: 1.3, lootItem: item.Mutton{}}}
-	ChickenType  = mobType{kind: mobKind{id: "minecraft:chicken", maxHP: 4, speed: 0.06, width: 0.4, height: 0.7, lootItem: item.Chicken{}}}
-	ZombieType   = mobType{kind: mobKind{id: "minecraft:zombie", maxHP: 20, speed: 0.075, damage: 3, width: 0.6, height: 1.95, hostile: true, lootItem: item.RottenFlesh{}}}
-	SkeletonType = mobType{kind: mobKind{id: "minecraft:skeleton", maxHP: 20, speed: 0.065, damage: 2, width: 0.6, height: 1.95, hostile: true, lootItem: item.Bone{}}}
+	PigType = mobType{kind: mobKind{
+		id: "minecraft:pig", maxHP: 10, speed: 0.055, width: 0.9, height: 0.9,
+		lootItem: item.Porkchop{}, spawnCategory: mobSpawnAnimal, spawnWeight: 10,
+		groupMin: 1, groupMax: 3, minLight: 7, maxLight: 15, biomeTag: "animal", grassRequired: true,
+	}}
+	CowType = mobType{kind: mobKind{
+		id: "minecraft:cow", maxHP: 10, speed: 0.05, width: 0.9, height: 1.4,
+		lootItem: item.Beef{}, spawnCategory: mobSpawnAnimal, spawnWeight: 8,
+		groupMin: 2, groupMax: 4, minLight: 7, maxLight: 15, biomeTag: "animal", grassRequired: true,
+	}}
+	SheepType = mobType{kind: mobKind{
+		id: "minecraft:sheep", maxHP: 8, speed: 0.055, width: 0.9, height: 1.3,
+		lootItem: item.Mutton{}, spawnCategory: mobSpawnAnimal, spawnWeight: 12,
+		groupMin: 2, groupMax: 4, minLight: 7, maxLight: 15, biomeTag: "animal", grassRequired: true,
+	}}
+	ChickenType = mobType{kind: mobKind{
+		id: "minecraft:chicken", maxHP: 4, speed: 0.06, width: 0.4, height: 0.7,
+		lootItem: item.Chicken{}, spawnCategory: mobSpawnAnimal, spawnWeight: 10,
+		groupMin: 2, groupMax: 4, minLight: 7, maxLight: 15, biomeTag: "animal", grassRequired: true,
+	}}
+	ZombieType = mobType{kind: mobKind{
+		id: "minecraft:zombie", maxHP: 20, speed: 0.075, damage: 3, width: 0.6, height: 1.95,
+		hostile: true, sunBurn: true, lootItem: item.RottenFlesh{},
+		spawnCategory: mobSpawnMonster, spawnWeight: 95, groupMin: 2, groupMax: 4,
+		minLight: 0, maxLight: 7, biomeTag: "monster",
+	}}
+	SkeletonType = mobType{kind: mobKind{
+		id: "minecraft:skeleton", maxHP: 20, speed: 0.065, damage: 2, width: 0.6, height: 1.95,
+		hostile: true, ranged: true, sunBurn: true, lootItem: item.Bone{},
+		spawnCategory: mobSpawnMonster, spawnWeight: 100, groupMin: 1, groupMax: 2,
+		minLight: 0, maxLight: 7, biomeTag: "monster",
+	}}
 )
 
 type mobType struct{ kind mobKind }
@@ -57,9 +103,12 @@ func (t mobType) BBox(world.Entity) cube.BBox {
 }
 
 func (t mobType) DecodeNBT(nbt map[string]any, data *world.EntityData) {
-	b := newMobBehaviour(t.kind)
+	b := newMobBehaviour(t.kind, false)
 	if health, ok := nbt["Health"].(float32); ok && health > 0 {
 		b.health = NewHealthManager(float64(health), t.kind.maxHP)
+	}
+	if natural, ok := nbt["NaturalSpawn"].(bool); ok {
+		b.naturalSpawn = natural
 	}
 	data.Data = b
 }
@@ -69,7 +118,10 @@ func (t mobType) EncodeNBT(data *world.EntityData) map[string]any {
 	if b == nil {
 		return map[string]any{}
 	}
-	return map[string]any{"Health": float32(b.health.Health())}
+	return map[string]any{
+		"Health":       float32(b.health.Health()),
+		"NaturalSpawn": b.naturalSpawn,
+	}
 }
 
 var mobTypes = map[string]mobType{
@@ -81,8 +133,14 @@ var mobTypes = map[string]mobType{
 	SkeletonType.kind.id: SkeletonType,
 }
 
+// newMobHandle creates a handle using the entity type and the profile passed.
+func newMobHandle(opts world.EntitySpawnOpts, t mobType, natural bool) *world.EntityHandle {
+	return opts.New(t, newMobBehaviour(t.kind, natural))
+}
+
 // NewMob creates a living mob handle for a vanilla entity identifier. The name
-// may be passed with or without the minecraft: namespace.
+// may be passed with or without the minecraft: namespace. It returns nil when
+// the entity has no server-side implementation yet.
 func NewMob(opts world.EntitySpawnOpts, name string) *world.EntityHandle {
 	if !strings.Contains(name, ":") {
 		name = "minecraft:" + name
@@ -91,30 +149,44 @@ func NewMob(opts world.EntitySpawnOpts, name string) *world.EntityHandle {
 	if !ok {
 		return nil
 	}
-	return opts.New(t, newMobBehaviour(t.kind))
+	return newMobHandle(opts, t, false)
+}
+
+// NewNaturalMob creates a mob from the natural-spawning system.
+func NewNaturalMob(opts world.EntitySpawnOpts, name string) *world.EntityHandle {
+	if !strings.Contains(name, ":") {
+		name = "minecraft:" + name
+	}
+	t, ok := mobTypes[name]
+	if !ok || t.kind.spawnCategory == mobSpawnNone {
+		return nil
+	}
+	return newMobHandle(opts, t, true)
 }
 
 type mobBehaviour struct {
 	BaseBehaviour
-	kind           mobKind
-	health         *HealthManager
-	effects        *EffectManager
-	movement       *MovementComputer
-	immuneUntil    time.Time
-	lastDamage     float64
-	attackCooldown int
-	target         *world.EntityHandle
-	wanderTarget   mgl64.Vec3
-	wanderTicks    int
-	dead           bool
+	kind            mobKind
+	health          *HealthManager
+	effects         *EffectManager
+	movement        *MovementComputer
+	immuneUntil     time.Time
+	lastDamage      float64
+	attackCooldown  int
+	target          *world.EntityHandle
+	wanderTarget    mgl64.Vec3
+	wanderTicks     int
+	dead            bool
+	naturalSpawn    bool
 }
 
-func newMobBehaviour(kind mobKind) *mobBehaviour {
+func newMobBehaviour(kind mobKind, natural bool) *mobBehaviour {
 	return &mobBehaviour{
 		BaseBehaviour: NewBaseBehaviour(),
 		kind:          kind,
 		health:        NewHealthManager(kind.maxHP, kind.maxHP),
 		effects:       NewEffectManager(),
+		naturalSpawn:  natural,
 		movement: &MovementComputer{
 			Gravity:           0.08,
 			Drag:              0.02,
@@ -133,7 +205,8 @@ func (b *mobBehaviour) Tick(e *Ent, tx *world.Tx) *Movement {
 	return movement
 }
 
-// Tick advances mob effects, basic goal-based movement, and melee AI.
+// Tick advances mob effects, basic goal-based movement, melee/ranged attacks,
+// daylight burning and natural despawning.
 func (m *Mob) Tick(tx *world.Tx, current int64) {
 	b := m.mobState()
 	if b.dead {
@@ -141,6 +214,15 @@ func (m *Mob) Tick(tx *world.Tx, current int64) {
 		return
 	}
 	b.effects.Tick(m, tx)
+	if b.naturalSpawn && m.tickDespawn(tx, current) {
+		return
+	}
+	if b.kind.sunBurn && current%20 == 0 {
+		m.tickSunBurn(tx)
+		if m.Dead() {
+			return
+		}
+	}
 	b.tickAI(m, tx, current)
 	m.Ent.Tick(tx, current)
 }
@@ -154,8 +236,12 @@ func (b *mobBehaviour) tickAI(m *Mob, tx *world.Tx, current int64) {
 		b.attackCooldown--
 	}
 	if b.kind.hostile {
+		maxTargetDistance := 28.0
+		if b.kind.ranged {
+			maxTargetDistance = 18
+		}
 		if current%10 == 0 || b.target == nil {
-			b.target = b.closestPlayer(m, tx)
+			b.target = b.closestPlayer(m, tx, maxTargetDistance)
 		}
 		if b.target == nil {
 			m.data.Vel[0], m.data.Vel[2] = 0, 0
@@ -174,9 +260,17 @@ func (b *mobBehaviour) tickAI(m *Mob, tx *world.Tx, current int64) {
 			m.data.Vel[0], m.data.Vel[2] = 0, 0
 			if b.attackCooldown == 0 {
 				if living, ok := target.(Living); ok {
-					living.Hurt(b.kind.damage, AttackDamageSource{Attacker: m})
+					living.Hurt(mobAttackDamage(m), AttackDamageSource{Attacker: m})
 				}
 				b.attackCooldown = 20
+			}
+			return
+		}
+		if b.kind.ranged && distance >= 3 && distance <= 18 {
+			m.data.Vel[0], m.data.Vel[2] = 0, 0
+			if b.attackCooldown == 0 {
+				b.fireArrow(m, target)
+				b.attackCooldown = 40
 			}
 			return
 		}
@@ -201,9 +295,9 @@ func (b *mobBehaviour) tickAI(m *Mob, tx *world.Tx, current int64) {
 	b.moveToward(m, delta)
 }
 
-func (b *mobBehaviour) closestPlayer(m *Mob, tx *world.Tx) *world.EntityHandle {
+func (b *mobBehaviour) closestPlayer(m *Mob, tx *world.Tx, maxDistance float64) *world.EntityHandle {
 	var nearest *world.EntityHandle
-	best := 20.0 * 20.0
+	best := maxDistance * maxDistance
 	for candidate := range tx.Players() {
 		if gm, ok := candidate.(interface{ GameMode() world.GameMode }); ok && !gm.GameMode().HasCollision() {
 			continue
@@ -220,6 +314,30 @@ func (b *mobBehaviour) closestPlayer(m *Mob, tx *world.Tx) *world.EntityHandle {
 	return nearest
 }
 
+func (b *mobBehaviour) fireArrow(m *Mob, target world.Entity) {
+	create := m.tx.World().EntityRegistry().Config().Arrow
+	if create == nil {
+		return
+	}
+	origin := m.Position().Add(mgl64.Vec3{0, 1.45})
+	targetPos := target.Position().Add(mgl64.Vec3{0, 0.9})
+	direction := targetPos.Sub(origin)
+	if direction.LenSqr() == 0 {
+		return
+	}
+	velocity := direction.Normalize().Mul(1.6)
+	opts := world.EntitySpawnOpts{Position: origin, Velocity: velocity}
+	arrow := create(opts, world.ArrowSpawnConfig{
+		Damage:               2,
+		Owner:                m,
+		ObtainArrowOnPickup:  true,
+		Tip:                  potion.Water(),
+	})
+	if arrow != nil {
+		m.tx.AddEntity(arrow)
+	}
+}
+
 func (b *mobBehaviour) moveToward(m *Mob, delta mgl64.Vec3) {
 	delta[1] = 0
 	if delta.LenSqr() == 0 {
@@ -231,6 +349,59 @@ func (b *mobBehaviour) moveToward(m *Mob, delta mgl64.Vec3) {
 	m.data.Rot = cube.Rotation{mgl64.RadToDeg(math.Atan2(direction[0], direction[2])), 0}
 }
 
+func mobAttackDamage(m *Mob) float64 {
+	damage := m.mobState().kind.damage
+	switch m.tx.World().Difficulty() {
+	case world.DifficultyEasy:
+		damage *= 0.5
+	case world.DifficultyHard:
+		damage *= 1.5
+	}
+	return damage
+}
+
+func (m *Mob) tickSunBurn(tx *world.Tx) {
+	pos := cube.PosFromVec3(m.Position().Add(mgl64.Vec3{0, 0.5}))
+	if _, wet := tx.Liquid(pos); wet || tx.RainingAt(pos) {
+		m.Extinguish()
+		return
+	}
+	timeOfDay := tx.World().Time() % 24000
+	daylight := timeOfDay < 12000 && tx.SkyLight(pos) >= 15
+	if daylight {
+		m.SetOnFire(8 * time.Second)
+	}
+	if m.OnFireDuration() > 0 {
+		m.Hurt(1, FireDamageSource{})
+	}
+}
+
+func (m *Mob) tickDespawn(tx *world.Tx, current int64) bool {
+	if m.NameTag() != "" || current%20 != 0 {
+		return false
+	}
+	nearest := nearestPlayerDistanceSquared(m.Position(), tx)
+	if nearest > 128*128 {
+		_ = m.Close()
+		return true
+	}
+	if nearest > 32*32 && m.Age() > 30*time.Second && rand.IntN(800) == 0 {
+		_ = m.Close()
+		return true
+	}
+	return false
+}
+
+func nearestPlayerDistanceSquared(pos mgl64.Vec3, tx *world.Tx) float64 {
+	nearest := math.Inf(1)
+	for player := range tx.Players() {
+		delta := player.Position().Sub(pos)
+		delta[1] = 0
+		nearest = min(nearest, delta.LenSqr())
+	}
+	return nearest
+}
+
 func (m *Mob) Health() float64    { return m.mobState().health.Health() }
 func (m *Mob) MaxHealth() float64 { return m.mobState().health.MaxHealth() }
 func (m *Mob) SetMaxHealth(v float64) {
@@ -239,7 +410,7 @@ func (m *Mob) SetMaxHealth(v float64) {
 }
 func (m *Mob) Dead() bool { return m.mobState().dead || m.Health() <= 0 }
 
-// Hurt applies melee, projectile and explosion damage to a mob.
+// Hurt applies melee, projectile, fire and explosion damage to a mob.
 func (m *Mob) Hurt(damage float64, src world.DamageSource) (float64, bool) {
 	b := m.mobState()
 	if b.dead || damage < 0 || (src.Fire() && hasMobEffect(b, effect.FireResistance)) {
@@ -329,9 +500,54 @@ func (m *Mob) Effects() []effect.Effect   { return m.mobState().effects.Effects(
 func (m *Mob) Speed() float64             { return m.mobState().kind.speed }
 func (m *Mob) SetSpeed(v float64)         { m.mobState().kind.speed = max(v, 0) }
 
-// SpawnNaturalMobs is called by the world tick loop. It performs a bounded,
-// loaded-chunk-only spawn attempt around each active player. The first pass
-// covers common surface animals and basic night-hostile mobs.
+// mobKindCanSpawn reports whether a mob profile is allowed by the supplied biome and light.
+func mobKindCanSpawn(kind mobKind, biome world.Biome, light uint8) bool {
+	if kind.spawnCategory == mobSpawnNone || kind.spawnWeight <= 0 || kind.biomeTag == "" {
+		return false
+	}
+	if light < kind.minLight || light > kind.maxLight {
+		return false
+	}
+	for _, tag := range biome.Tags() {
+		if tag == kind.biomeTag {
+			return true
+		}
+	}
+	return false
+}
+
+func chooseNaturalMob(category mobSpawnCategory, biome world.Biome, light uint8) (mobKind, bool) {
+	eligible := make([]mobKind, 0, len(mobTypes))
+	totalWeight := 0
+	for _, typ := range mobTypes {
+		kind := typ.kind
+		if kind.spawnCategory != category || !mobKindCanSpawn(kind, biome, light) {
+			continue
+		}
+		eligible = append(eligible, kind)
+		totalWeight += kind.spawnWeight
+	}
+	if totalWeight == 0 {
+		return mobKind{}, false
+	}
+	choice := rand.IntN(totalWeight)
+	for _, kind := range eligible {
+		choice -= kind.spawnWeight
+		if choice < 0 {
+			return kind, true
+		}
+	}
+	return mobKind{}, false
+}
+
+func mobSpawnGroupSize(kind mobKind) int {
+	minimum, maximum := max(kind.groupMin, 1), max(kind.groupMax, kind.groupMin, 1)
+	return minimum + rand.IntN(maximum-minimum+1)
+}
+
+// SpawnNaturalMobs performs bounded, loaded-chunk-only surface spawning around players.
+// The first implementation follows the category/weight/group/biome/light rule structure
+// used by Bedrock servers, while keeping the scan budget small for mobile hosts.
 func SpawnNaturalMobs(tx *world.Tx) {
 	w := tx.World()
 	if w.Dimension() != world.Overworld || !w.GameRuleBool("domobspawning", true) {
@@ -348,90 +564,132 @@ func SpawnNaturalMobs(tx *world.Tx) {
 		return
 	}
 
-	animals, hostiles := 0, 0
+	animals, monsters := 0, 0
 	for e := range tx.Entities() {
 		mob, ok := e.(*Mob)
 		if !ok {
 			continue
 		}
-		if mob.kind.hostile {
-			hostiles++
-		} else {
+		if nearestPlayerDistanceSquared(mob.Position(), tx) > 128*128 {
+			continue
+		}
+		if mob.kind.spawnCategory == mobSpawnMonster {
+			monsters++
+		} else if mob.kind.spawnCategory == mobSpawnAnimal {
 			animals++
 		}
 	}
-	animalCap, hostileCap := min(24, len(players)*6), min(24, len(players)*6)
+	animalCap, monsterCap := min(40, len(players)*10), min(70, len(players)*15)
 	timeOfDay := w.Time() % 24000
 	night := timeOfDay >= 13000 && timeOfDay < 23000
-	canSpawnHostile := night && w.Difficulty() != world.DifficultyPeaceful && hostiles < hostileCap
+	monsterAllowed := night && w.Difficulty() != world.DifficultyPeaceful
 
 	for _, player := range players {
-		if animals >= animalCap && !canSpawnHostile {
-			return
-		}
-		if rand.IntN(3) == 0 {
-			continue
-		}
-		pos := player.Position()
-		distance := float64(12 + rand.IntN(17))
-		angle := rand.Float64() * math.Pi * 2
-		x := int(math.Floor(pos[0] + math.Cos(angle)*distance))
-		z := int(math.Floor(pos[2] + math.Sin(angle)*distance))
-		probe := cube.Pos{x, int(math.Floor(pos[1])), z}
-		if _, loaded := tx.BlockLoaded(probe); !loaded {
-			continue
-		}
-		y := tx.HighestLightBlocker(x, z)
-		spawnPos := cube.Pos{x, y + 1, z}
-		if spawnPos.OutOfBounds(tx.Range()) {
-			continue
-		}
-		ground, loaded := tx.BlockLoaded(cube.Pos{x, y, z})
-		if !loaded || len(ground.Model().BBox(cube.Pos{x, y, z}, tx)) == 0 {
-			continue
-		}
-		if _, loaded := tx.BlockLoaded(spawnPos); !loaded {
-			continue
-		}
-		if _, air := tx.Block(spawnPos).(block.Air); !air {
-			continue
-		}
-		head := spawnPos.Side(cube.FaceUp)
-		if _, air := tx.Block(head).(block.Air); !air {
-			continue
-		}
-		light := tx.Light(spawnPos)
-
-		kind := ""
-		if canSpawnHostile && hostiles < hostileCap && light <= 7 {
-			if rand.IntN(3) == 0 {
-				kind = "minecraft:skeleton"
-			} else {
-				kind = "minecraft:zombie"
+		for attempt := 0; attempt < 2; attempt++ {
+			category := mobSpawnAnimal
+			if monsterAllowed && monsters < monsterCap && rand.IntN(4) != 0 {
+				category = mobSpawnMonster
+			} else if animals >= animalCap {
+				if monsterAllowed && monsters < monsterCap {
+					category = mobSpawnMonster
+				} else {
+					continue
+				}
 			}
-			hostiles++
-		} else if animals < animalCap && light >= 9 {
-			if _, grass := ground.(block.Grass); !grass {
+			if category == mobSpawnMonster && monsters >= monsterCap {
 				continue
 			}
-			switch rand.IntN(4) {
-			case 0:
-				kind = "minecraft:pig"
-			case 1:
-				kind = "minecraft:cow"
-			case 2:
-				kind = "minecraft:sheep"
-			default:
-				kind = "minecraft:chicken"
+			if category == mobSpawnAnimal && animals >= animalCap {
+				continue
 			}
-			animals++
-		}
-		if kind == "" {
-			continue
-		}
-		if create := w.EntityRegistry().Config().Mob; create != nil {
-			opts := world.EntitySpawnOpts{Position: mgl64.Vec3{float64(x) + 0.5, float64(y + 1), float64(z) + 0.5}}
-			tx.AddEntity(create(opts, kind))
+
+			p := player.Position()
+			distance := float64(24 + rand.IntN(25))
+			angle := rand.Float64() * math.Pi * 2
+			x := int(math.Floor(p[0] + math.Cos(angle)*distance))
+			z := int(math.Floor(p[2] + math.Sin(angle)*distance))
+			spawnPos, ground, biome, light, ok := naturalSpawnSurface(tx, x, z, p[1])
+			if !ok {
+				continue
+			}
+			kind, ok := chooseNaturalMob(category, biome, light)
+			if !ok || (kind.grassRequired && isGrassBlock(ground) == false) {
+				continue
+			}
+
+			groupSize := mobSpawnGroupSize(kind)
+			for member := 0; member < groupSize; member++ {
+				if category == mobSpawnAnimal && animals >= animalCap || category == mobSpawnMonster && monsters >= monsterCap {
+					break
+				}
+				memberPos := spawnPos
+				if member > 0 {
+					sx, sz := x+rand.IntN(9)-4, z+rand.IntN(9)-4
+					var surfaceOK bool
+					memberPos, ground, biome, light, surfaceOK = naturalSpawnSurface(tx, sx, sz, p[1])
+					if !surfaceOK || !mobKindCanSpawn(kind, biome, light) || (kind.grassRequired && !isGrassBlock(ground)) {
+						continue
+					}
+				}
+				if naturalSpawnBlocked(tx, kind, memberPos) {
+					continue
+				}
+				opts := world.EntitySpawnOpts{Position: mgl64.Vec3{float64(memberPos[0]) + 0.5, float64(memberPos[1]), float64(memberPos[2]) + 0.5}}
+				handle := NewNaturalMob(opts, kind.id)
+				if handle == nil {
+					continue
+				}
+				tx.AddEntity(handle)
+				if category == mobSpawnAnimal {
+					animals++
+				} else {
+					monsters++
+				}
+			}
 		}
 	}
+}
+
+func naturalSpawnSurface(tx *world.Tx, x, z int, referenceY float64) (cube.Pos, world.Block, world.Biome, uint8, bool) {
+	probe := cube.Pos{x, int(math.Floor(referenceY)), z}
+	if _, loaded := tx.BlockLoaded(probe); !loaded {
+		return cube.Pos{}, nil, nil, 0, false
+	}
+	y := tx.HighestLightBlocker(x, z)
+	groundPos := cube.Pos{x, y, z}
+	ground, loaded := tx.BlockLoaded(groundPos)
+	if !loaded || len(ground.Model().BBox(groundPos, tx)) == 0 {
+		return cube.Pos{}, nil, nil, 0, false
+	}
+	spawnPos := cube.Pos{x, y + 1, z}
+	if spawnPos.OutOfBounds(tx.Range()) {
+		return cube.Pos{}, nil, nil, 0, false
+	}
+	light := tx.Light(spawnPos)
+	biome := tx.Biome(spawnPos)
+	return spawnPos, ground, biome, light, true
+}
+
+func isGrassBlock(b world.Block) bool {
+	_, ok := b.(block.Grass)
+	return ok
+}
+
+func naturalSpawnBlocked(tx *world.Tx, kind mobKind, pos cube.Pos) bool {
+	for y := 0; y < int(math.Ceil(kind.height)); y++ {
+		checkPos := pos.Add(cube.Pos{0, y, 0})
+		b, loaded := tx.BlockLoaded(checkPos)
+		if !loaded {
+			return true
+		}
+		if _, air := b.(block.Air); !air {
+			return true
+		}
+	}
+	box := cube.Box(-kind.width/2, 0, -kind.width/2, kind.width/2, kind.height, kind.width/2).
+		Translate(mgl64.Vec3{float64(pos[0]) + 0.5, float64(pos[1]), float64(pos[2]) + 0.5})
+	for range tx.EntitiesWithin(box.Grow(0.05)) {
+		return true
+	}
+	return false
 }

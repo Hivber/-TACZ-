@@ -49,6 +49,9 @@ type (
 		// Source is the source of the explosion that dealt the damage.
 		Source world.ExplosionSource
 	}
+
+	// FireDamageSource is used for damage caused by burning.
+	FireDamageSource struct{}
 )
 
 func (FallDamageSource) ReducedByArmour() bool     { return false }
@@ -96,3 +99,12 @@ func (ExplosionDamageSource) AffectedByEnchantment(e item.EnchantmentType) bool 
 	return e == enchantment.BlastProtection
 }
 func (ExplosionDamageSource) IgnoreTotem() bool { return false }
+
+
+func (FireDamageSource) ReducedByArmour() bool     { return true }
+func (FireDamageSource) ReducedByResistance() bool { return true }
+func (FireDamageSource) Fire() bool                { return true }
+func (FireDamageSource) IgnoreTotem() bool          { return false }
+func (FireDamageSource) AffectedByEnchantment(e item.EnchantmentType) bool {
+	return e == enchantment.FireProtection
+}

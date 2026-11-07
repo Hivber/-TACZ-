@@ -72,3 +72,22 @@ This is not full vanilla mob parity yet. Biome-specific spawn tables, group
 weights, despawning, breeding, taming, full pathfinding, ranged skeleton AI,
 creeper behaviour, Nether/End spawns and the remaining vanilla mob types
 remain future work.
+
+
+## Mob natural-spawning improvements
+
+Natural spawning now uses profile-based category, weight, group bounds, biome tags
+and light ranges instead of selecting a random mob from one hard-coded list.
+The first profiles cover surface animals and basic night monsters. Spawns occur
+only in already-loaded chunks, outside the 24-block player exclusion radius,
+and obey category caps near active players.
+
+Zombies and skeletons now acquire targets at species-appropriate ranges;
+skeletons fire server-side arrows at medium range. These two hostile species
+burn in direct daylight, can be extinguished by rain or liquid, and receive
+difficulty-scaled melee damage. Naturally spawned mobs have hard/soft distance
+despawn checks; custom-named mobs are retained.
+
+This remains a deliberately limited first AI/spawn pass: the profiles do not
+yet model the full Bedrock spawn tables, all mob categories, navigation,
+equipment, breeding, taming, or species-specific survival behaviours.
