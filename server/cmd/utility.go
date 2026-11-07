@@ -15,7 +15,7 @@ import (
 func init() {
 	Register(New("clear", "Clears items from a player's inventory.", nil, clearSelfCommand{}, clearTargetsCommand{}))
 	Register(New("effect", "Gives or clears status effects on players.", nil, effectGiveCommand{}, effectClearCommand{}))
-	Register(New("xp", "Adds, removes or queries player experience.", []string{"experience"}, xpAddCommand{}, xpRemoveCommand{}, xpQueryCommand{}))
+	Register(New("xp", "Adds, removes, sets or queries player experience.", []string{"experience"}, xpAddCommand{}, xpRemoveCommand{}, xpSetCommand{}, xpQueryCommand{}))
 	Register(New("enchant", "Adds an enchantment to the item held by a player.", nil, enchantCommand{}))
 	Register(New("summon", "Summons an entity implemented by this server.", nil, summonCommand{}))
 }
@@ -78,12 +78,34 @@ func (c clearTargetsCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	out.Printf("Cleared %d item(s) from %d player(s).", removed, len(players))
 }
 
-// clearPlayerInventory removes matching items from the player's normal
-// inventory and hotbar. The main-hand slot is part of this inventory.
+// clearPlayerInventory removes matching items from the player's inventory,
+// armour slots and off-hand. The main-hand slot is part of the normal inventory.
 func clearPlayerInventory(target commandPlayerTarget, wantedName string, limit int) int {
+	removed := clearMatchingCommandInventory(target.Inventory(), wantedName, limit, 0)
+	if removed < limit {
+		removed += clearMatchingCommandInventory(target.Armour().Inventory(), wantedName, limit, removed)
+	}
+	if removed < limit {
+		mainHand, offHand := target.HeldItems()
+		if !offHand.Empty() {
+			name, _ := offHand.Item().EncodeItem()
+			if wantedName == "" || name == wantedName {
+				count := min(offHand.Count(), limit-removed)
+				target.SetHeldItems(mainHand, offHand.Grow(-count))
+				removed += count
+			}
+		}
+	}
+	return removed
+}
+
+func clearMatchingCommandInventory(inv interface {
+	Slots() []item.Stack
+	SetItem(int, item.Stack) error
+}, wantedName string, limit, alreadyRemoved int) int {
 	removed := 0
-	for slot, stack := range target.Inventory().Slots() {
-		if stack.Empty() {
+	for slot, stack := range inv.Slots() {
+		if stack.Empty() || alreadyRemoved+removed >= limit {
 			continue
 		}
 		if wantedName != "" {
@@ -92,18 +114,9 @@ func clearPlayerInventory(target commandPlayerTarget, wantedName string, limit i
 				continue
 			}
 		}
-		count := stack.Count()
-		if count > limit-removed {
-			count = limit - removed
-		}
-		if count <= 0 {
-			break
-		}
-		_ = target.Inventory().SetItem(slot, stack.Grow(-count))
+		count := min(stack.Count(), limit-alreadyRemoved-removed)
+		_ = inv.SetItem(slot, stack.Grow(-count))
 		removed += count
-		if removed >= limit {
-			break
-		}
 	}
 	return removed
 }
@@ -221,7 +234,7 @@ func (c effectGiveCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	if lasting, ok := t.(effect.LastingType); ok {
 		applied = effect.New(lasting, amplifier+1, time.Duration(seconds)*time.Second)
 	} else {
-		applied = effect.NewInstant(t, amplifier)
+		applied = effect.NewInstant(t, amplifier+1)
 	}
 	if hideParticles {
 		applied = applied.WithoutParticles()
@@ -284,6 +297,7 @@ func (xpUnit) Options(Source) []string { return []string{"points", "levels"} }
 type commandExperienceTarget interface {
 	Target
 	Name() string
+	Experience() int
 	AddExperience(int) int
 	RemoveExperience(int)
 	ExperienceLevel() int
@@ -368,9 +382,52 @@ func (c xpRemoveCommand) Run(_ Source, out *Output, _ *world.Tx) {
 	applyCommandXP(c.Targets, c.Amount, c.Unit.LoadOr(xpUnit("points")), out, false)
 }
 
+type xpSetCommand struct {
+	Set     SubCommand `cmd:"set"`
+	Targets []Target
+	Amount  int
+	Unit    Optional[xpUnit]
+}
+
+func (xpSetCommand) Allow(src Source) bool { return commandOperator(src) }
+
+func (c xpSetCommand) Run(_ Source, out *Output, _ *world.Tx) {
+	amount := c.Amount
+	if amount < 0 || amount > 1_000_000_000 {
+		out.Error("Experience amount must be between 0 and 1,000,000,000.")
+		return
+	}
+	players := commandExperiencePlayers(c.Targets)
+	if len(players) == 0 {
+		out.Error("No player targets matched.")
+		return
+	}
+	unit := c.Unit.LoadOr(xpUnit("points"))
+	updated := 0
+	for _, target := range players {
+		switch unit {
+		case "points":
+			current := target.Experience()
+			if amount > current {
+				target.AddExperience(amount - current)
+			} else if amount < current {
+				target.RemoveExperience(current - amount)
+			}
+		case "levels":
+			target.SetExperienceLevel(amount)
+		default:
+			out.Errorf("Unknown experience unit: %s", unit)
+			return
+		}
+		updated++
+	}
+	out.Printf("Set experience to %d %s for %d player(s).", amount, unit, updated)
+}
+
 type xpQueryCommand struct {
 	Query   SubCommand `cmd:"query"`
 	Targets []Target
+	Unit    Optional[xpUnit]
 }
 
 func (xpQueryCommand) Allow(src Source) bool { return commandOperator(src) }
@@ -381,8 +438,17 @@ func (c xpQueryCommand) Run(_ Source, out *Output, _ *world.Tx) {
 		out.Error("No player targets matched.")
 		return
 	}
+	unit := c.Unit.LoadOr(xpUnit("levels"))
 	for _, target := range players {
-		out.Printf("%s has experience level %d (%.1f%% to the next level).", target.Name(), target.ExperienceLevel(), target.ExperienceProgress()*100)
+		switch unit {
+		case "points":
+			out.Printf("%s has %d experience point(s).", target.Name(), target.Experience())
+		case "levels":
+			out.Printf("%s has experience level %d (%.1f%% to the next level).", target.Name(), target.ExperienceLevel(), target.ExperienceProgress()*100)
+		default:
+			out.Errorf("Unknown experience unit: %s", unit)
+			return
+		}
 	}
 }
 
