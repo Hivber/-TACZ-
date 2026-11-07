@@ -7,6 +7,24 @@ import (
 
 const performanceTickSamples = 100
 
+// TickStage identifies a measured subsystem of the world tick.
+type TickStage uint8
+
+const (
+	TickStageLightning TickStage = iota
+	TickStageEntities
+	TickStageScheduled
+	TickStageRandomBlocks
+	TickStageNeighbours
+	TickStageRedstone
+	TickStageOther
+	tickStageCount
+)
+
+var tickStageNames = [tickStageCount]string{
+	"lightning", "entities", "scheduled", "random_blocks", "neighbours", "redstone", "other",
+}
+
 // PerformanceSnapshot contains a point-in-time view of World tick and workload
 // metrics. A snapshot must be obtained from an active world transaction.
 type PerformanceSnapshot struct {
@@ -15,6 +33,7 @@ type PerformanceSnapshot struct {
 	LastTick               time.Duration
 	AverageTick            time.Duration
 	P95Tick                time.Duration
+	RecentMaxTick          time.Duration
 	MaxTick                time.Duration
 	LoadedChunks           int
 	LoadingChunks          int
@@ -25,6 +44,16 @@ type PerformanceSnapshot struct {
 	ActiveLoaders          int
 	SimulationDistance     int
 	RandomTickSpeed        int
+	Stages                 [tickStageCount]TickStageSnapshot
+}
+
+// TickStageSnapshot describes the recent cost of one stage of world ticking.
+type TickStageSnapshot struct {
+	Name    string
+	Last    time.Duration
+	Average time.Duration
+	P95     time.Duration
+	Count   int
 }
 
 // tickPerformance is updated by the world's owner and deliberately avoids
@@ -37,10 +66,67 @@ type tickPerformance struct {
 	samples     [performanceTickSamples]time.Duration
 	sampleCount int
 	sampleIndex int
-
+	stages      [tickStageCount]tickStagePerformance
 	windowStart time.Time
 	windowTicks uint64
 	tps         float64
+}
+
+type tickStagePerformance struct {
+	last        time.Duration
+	average     time.Duration
+	max         time.Duration
+	samples     [performanceTickSamples]time.Duration
+	sampleCount int
+	sampleIndex int
+}
+
+func (m *tickPerformance) beginTick() {
+	for i := range m.stages {
+		m.stages[i].last = 0
+	}
+}
+
+func (m *tickPerformance) recordStage(stage TickStage, duration time.Duration) {
+	m.stages[stage].record(duration)
+}
+
+func (m *tickStagePerformance) record(duration time.Duration) {
+	m.last = duration
+	if m.sampleCount == 0 {
+		m.average = duration
+	} else {
+		m.average += (duration - m.average) / 20
+	}
+	if duration > m.max {
+		m.max = duration
+	}
+	m.samples[m.sampleIndex] = duration
+	m.sampleIndex = (m.sampleIndex + 1) % len(m.samples)
+	if m.sampleCount < len(m.samples) {
+		m.sampleCount++
+	}
+}
+
+func (m *tickStagePerformance) percentile95() time.Duration {
+	if m.sampleCount == 0 {
+		return 0
+	}
+	samples := make([]time.Duration, m.sampleCount)
+	copy(samples, m.samples[:m.sampleCount])
+	slices.Sort(samples)
+	rank := (len(samples)*95 + 99) / 100
+	return samples[rank-1]
+}
+
+func (m *tickStagePerformance) recentMax() time.Duration {
+	var maximum time.Duration
+	for _, duration := range m.samples[:m.sampleCount] {
+		if duration > maximum {
+			maximum = duration
+		}
+	}
+	return maximum
 }
 
 func (m *tickPerformance) record(now time.Time, duration time.Duration) {
@@ -55,16 +141,12 @@ func (m *tickPerformance) record(now time.Time, duration time.Duration) {
 	if duration > m.max {
 		m.max = duration
 	}
-
 	m.samples[m.sampleIndex] = duration
 	m.sampleIndex = (m.sampleIndex + 1) % len(m.samples)
 	if m.sampleCount < len(m.samples) {
 		m.sampleCount++
 	}
-
 	if m.windowStart.IsZero() {
-		// Start the rate window at the first observed tick. Only later ticks
-		// count toward the elapsed interval, avoiding a one-tick startup bias.
 		m.windowStart = now
 	} else {
 		m.windowTicks++
@@ -87,9 +169,25 @@ func (m *tickPerformance) percentile95() time.Duration {
 	return samples[rank-1]
 }
 
+func (m *tickPerformance) recentMax() time.Duration {
+	var maximum time.Duration
+	for _, duration := range m.samples[:m.sampleCount] {
+		if duration > maximum {
+			maximum = duration
+		}
+	}
+	return maximum
+}
+
 func (w *World) recordTickPerformance(start time.Time) {
 	now := time.Now()
-	w.performance.record(now, now.Sub(start))
+	duration := now.Sub(start)
+	var stageDuration time.Duration
+	for i := TickStageLightning; i < TickStageOther; i++ {
+		stageDuration += w.performance.stages[i].last
+	}
+	w.performance.recordStage(TickStageOther, max(duration-stageDuration, 0))
+	w.performance.record(now, duration)
 }
 
 // Performance returns tick and workload metrics for the World being operated
@@ -97,14 +195,12 @@ func (w *World) recordTickPerformance(start time.Time) {
 func (tx *Tx) Performance() PerformanceSnapshot {
 	w := tx.World()
 	m := &w.performance
-
 	tps := m.tps
 	if m.windowTicks > 0 {
 		if elapsed := time.Since(m.windowStart); elapsed > 0 {
 			tps = float64(m.windowTicks) / elapsed.Seconds()
 		}
 	}
-
 	w.viewerMu.Lock()
 	activeLoaders := len(w.viewers)
 	w.viewerMu.Unlock()
@@ -114,22 +210,25 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 		queueDepth = len(w.chunkWorkers.queue)
 		queueCapacity = cap(w.chunkWorkers.queue)
 	}
-
+	var stages [tickStageCount]TickStageSnapshot
+	for i := range stages {
+		stage := &m.stages[i]
+		stages[i] = TickStageSnapshot{
+			Name: tickStageNames[i],
+			Last: stage.last,
+			Average: stage.average,
+			P95: stage.percentile95(),
+			Count: stage.sampleCount,
+		}
+	}
 	return PerformanceSnapshot{
-		TickCount:              m.total,
-		TicksPerSecond:         tps,
-		LastTick:               m.last,
-		AverageTick:            m.average,
-		P95Tick:                m.percentile95(),
-		MaxTick:                m.max,
-		LoadedChunks:           len(w.chunks),
-		LoadingChunks:          len(w.chunkRequests),
-		QueuedChunkLoads:       queueDepth,
-		ChunkLoadQueueCapacity: queueCapacity,
-		ChunkLoadWorkers:       w.conf.ChunkLoadWorkers,
-		LoadedEntities:         len(w.entities),
-		ActiveLoaders:          activeLoaders,
-		SimulationDistance:     w.tickRange(),
-		RandomTickSpeed:        w.conf.RandomTickSpeed,
+		TickCount: m.total, TicksPerSecond: tps, LastTick: m.last,
+		AverageTick: m.average, P95Tick: m.percentile95(),
+		RecentMaxTick: m.recentMax(), MaxTick: m.max,
+		LoadedChunks: len(w.chunks), LoadingChunks: len(w.chunkRequests),
+		QueuedChunkLoads: queueDepth, ChunkLoadQueueCapacity: queueCapacity,
+		ChunkLoadWorkers: w.conf.ChunkLoadWorkers, LoadedEntities: len(w.entities),
+		ActiveLoaders: activeLoaders, SimulationDistance: w.tickRange(),
+		RandomTickSpeed: w.conf.RandomTickSpeed, Stages: stages,
 	}
 }

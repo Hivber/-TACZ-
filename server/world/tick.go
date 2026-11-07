@@ -46,6 +46,7 @@ func (w *World) AdvanceTick() {
 func (t ticker) tick(tx *Tx) {
 	started := time.Now()
 	w := tx.World()
+	w.performance.beginTick()
 	defer w.recordTickPerformance(started)
 	viewers, loaders := w.allViewers()
 
@@ -95,15 +96,31 @@ func (t ticker) tick(tx *Tx) {
 			}
 		}
 	}
+	stageStart := time.Now()
 	if thunder {
 		w.tickLightning(tx)
 	}
+	w.performance.recordStage(TickStageLightning, time.Since(stageStart))
 
+	stageStart = time.Now()
 	t.tickEntities(tx, tick)
+	w.performance.recordStage(TickStageEntities, time.Since(stageStart))
+
+	stageStart = time.Now()
 	w.scheduledUpdates.tick(tx, tick)
+	w.performance.recordStage(TickStageScheduled, time.Since(stageStart))
+
+	stageStart = time.Now()
 	t.tickBlocksRandomly(tx, loaders, tick)
+	w.performance.recordStage(TickStageRandomBlocks, time.Since(stageStart))
+
+	stageStart = time.Now()
 	t.performNeighbourUpdates(tx)
+	w.performance.recordStage(TickStageNeighbours, time.Since(stageStart))
+
+	stageStart = time.Now()
 	w.redstone.tick(tx, tick)
+	w.performance.recordStage(TickStageRedstone, time.Since(stageStart))
 }
 
 // performNeighbourUpdates performs all block updates that came as a result of a neighbouring block being changed.

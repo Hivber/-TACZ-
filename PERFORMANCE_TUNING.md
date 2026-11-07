@@ -26,3 +26,10 @@ Operators can run `/perf` in-game to inspect the process and the current world:
 The P95 tick time is calculated from the most recent 100 tick samples. The average is an exponential moving average. Metrics are sampled on demand except for the small fixed-size tick-duration recorder; no profiling server or public network endpoint is opened.
 
 This first diagnostic pass does not yet measure OS process CPU percentage, network bytes, per-stage tick costs, or end-to-end chunk generation latency. Use Go CPU/heap profiles and repeatable load tests before selecting deeper optimisations. A high tick duration suggests world logic; a growing chunk queue suggests generation or storage cannot keep up; high heap/GC values suggest allocation pressure. These are investigation clues, not automatic proof of a specific bottleneck.
+
+
+## Tick-stage profiling
+
+The `/perf` output also shows exponential-moving-average and recent-window P95 durations for entity updates, scheduled block updates, random/block-entity ticks, neighbour updates, redstone, lightning and remaining unclassified work.
+
+The overall tick line distinguishes the maximum among the latest 100 ticks from the lifetime maximum. A historical spike remains visible without being confused with current performance. These timings do not change simulation order or disable game mechanics.

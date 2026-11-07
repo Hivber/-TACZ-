@@ -39,12 +39,13 @@ func (perfCommand) Run(_ Source, out *Output, tx *world.Tx) {
 
 	stats := tx.Performance()
 	out.Printf(
-		"World: TPS=%.1f, ticks=%d, tick_last/avg/P95/max=%s/%s/%s/%s.",
+		"World: TPS=%.1f, ticks=%d, tick_last/EMA/P95/recent_max/lifetime_max=%s/%s/%s/%s/%s.",
 		stats.TicksPerSecond,
 		stats.TickCount,
 		stats.LastTick,
 		stats.AverageTick,
 		stats.P95Tick,
+		stats.RecentMaxTick,
 		stats.MaxTick,
 	)
 	out.Printf(
@@ -58,5 +59,18 @@ func (perfCommand) Run(_ Source, out *Output, tx *world.Tx) {
 		stats.ActiveLoaders,
 		stats.SimulationDistance,
 		stats.RandomTickSpeed,
+	)
+	out.Printf(
+		"Tick stage EMA/P95: entities=%s/%s, scheduled=%s/%s, random_blocks=%s/%s.",
+		stats.Stages[world.TickStageEntities].Average, stats.Stages[world.TickStageEntities].P95,
+		stats.Stages[world.TickStageScheduled].Average, stats.Stages[world.TickStageScheduled].P95,
+		stats.Stages[world.TickStageRandomBlocks].Average, stats.Stages[world.TickStageRandomBlocks].P95,
+	)
+	out.Printf(
+		"Tick stage EMA/P95: neighbours=%s/%s, redstone=%s/%s, lightning=%s/%s, other=%s/%s.",
+		stats.Stages[world.TickStageNeighbours].Average, stats.Stages[world.TickStageNeighbours].P95,
+		stats.Stages[world.TickStageRedstone].Average, stats.Stages[world.TickStageRedstone].P95,
+		stats.Stages[world.TickStageLightning].Average, stats.Stages[world.TickStageLightning].P95,
+		stats.Stages[world.TickStageOther].Average, stats.Stages[world.TickStageOther].P95,
 	)
 }

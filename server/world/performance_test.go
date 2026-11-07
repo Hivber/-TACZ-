@@ -35,3 +35,24 @@ func TestTickPerformanceEmptyPercentile(t *testing.T) {
 		t.Fatalf("empty P95 = %s, want 0", got)
 	}
 }
+
+
+func TestTickStageRollingMetrics(t *testing.T) {
+	var stage tickStagePerformance
+	stage.record(500 * time.Millisecond)
+	for i := 1; i <= performanceTickSamples; i++ {
+		stage.record(time.Duration(i) * time.Millisecond)
+	}
+	if stage.sampleCount != performanceTickSamples {
+		t.Fatalf("sample count = %d, want %d", stage.sampleCount, performanceTickSamples)
+	}
+	if got, want := stage.percentile95(), 95*time.Millisecond; got != want {
+		t.Fatalf("P95 = %s, want %s", got, want)
+	}
+	if got, want := stage.recentMax(), 100*time.Millisecond; got != want {
+		t.Fatalf("recent maximum = %s, want %s", got, want)
+	}
+	if got, want := stage.max, 500*time.Millisecond; got != want {
+		t.Fatalf("lifetime maximum = %s, want %s", got, want)
+	}
+}
