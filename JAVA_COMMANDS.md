@@ -216,8 +216,7 @@ no-op placeholders:
 
 - `/team`: Dragonfly's current scoreboard API does not provide team membership,
   collision rules, friendly-fire settings, or the related team state model.
-- `/data merge`, `/data modify`, and `/data remove`: the current `/data`
-  implementation is read-only and does not parse Java SNBT.
+- Entity NBT mutation remains unsupported. Block mutation currently supports compound merge, path set and path removal for blocks implementing Dragonfly's NBT interface; typed SNBT arrays and the complete Java SNBT grammar are not implemented.
 - `/random sequence` and `/random reset`: named deterministic sequences
   require per-world sequence state and persistence.
 - `/worldborder damage` and `/worldborder warning`: the current border

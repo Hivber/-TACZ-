@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register(New("data", "Reads NBT data from supported blocks and entities.", nil, dataGetBlockCommand{}, dataGetEntityCommand{}))
+	Register(New("data", "Reads and modifies NBT data on supported blocks and reads entity NBT.", nil, dataGetBlockCommand{}, dataGetEntityCommand{}, dataMergeBlockCommand{}, dataModifyBlockCommand{}, dataRemoveBlockCommand{}))
 }
 
 type dataGetBlockCommand struct {
@@ -28,6 +28,10 @@ type dataGetBlockCommand struct {
 func (dataGetBlockCommand) Allow(src Source) bool { return commandOperator(src) }
 
 func (c dataGetBlockCommand) Run(_ Source, out *Output, tx *world.Tx) {
+	if tx == nil {
+		out.Error("/data get block must be executed from a player or a world-bound command source.")
+		return
+	}
 	pos := cube.Pos{c.X, c.Y, c.Z}
 	block := tx.Block(pos)
 	nbtBlock, ok := block.(world.NBTer)
