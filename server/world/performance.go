@@ -44,13 +44,13 @@ type PerformanceSnapshot struct {
 	ActiveLoaders          int
 	SimulationDistance     int
 	RandomTickSpeed        int
-	Stages                    [tickStageCount]TickStageSnapshot
-	QueueWait                 TickStageSnapshot
-	NeighbourUpdatesProcessed int
-	PendingNeighbourUpdates   int
-	RedstoneDirtyPositions    int
-	RedstoneGraphNodes        int
-	RedstoneGraphEdges        int
+	Stages                       [tickStageCount]TickStageSnapshot
+	QueueWait                    TickStageSnapshot
+	NeighbourUpdatesProcessed    int
+	PendingNeighbourUpdates      int
+	RedstoneDirtyPositions       int
+	RedstoneGraphNodes           int
+	RedstoneGraphEdges           int
 	RedstoneContextScanPositions uint64
 }
 
@@ -73,12 +73,12 @@ type tickPerformance struct {
 	samples     [performanceTickSamples]time.Duration
 	sampleCount int
 	sampleIndex int
-	stages      [tickStageCount]tickStagePerformance
-	queueWait   tickStagePerformance
+	stages                    [tickStageCount]tickStagePerformance
+	queueWait                 tickStagePerformance
 	neighbourUpdatesProcessed int
-	windowStart time.Time
-	windowTicks uint64
-	tps         float64
+	windowStart               time.Time
+	windowTicks               uint64
+	tps                       float64
 }
 
 type tickStagePerformance struct {
@@ -243,14 +243,17 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 		ActiveLoaders: activeLoaders, SimulationDistance: w.tickRange(),
 		RandomTickSpeed: w.conf.RandomTickSpeed, Stages: stages,
 		QueueWait: TickStageSnapshot{
-			Name: "world_queue_wait", Last: m.queueWait.last, Average: m.queueWait.average,
-			P95: m.queueWait.percentile95(), Count: m.queueWait.sampleCount,
+			Name:    "world_queue_wait",
+			Last:    m.queueWait.last,
+			Average: m.queueWait.average,
+			P95:     m.queueWait.percentile95(),
+			Count:   m.queueWait.sampleCount,
 		},
 		NeighbourUpdatesProcessed: m.neighbourUpdatesProcessed,
-		PendingNeighbourUpdates: len(w.neighbourUpdates),
-		RedstoneDirtyPositions: w.redstone.lastDirtyPositions,
-		RedstoneGraphNodes: w.redstone.lastGraphNodes,
-		RedstoneGraphEdges: w.redstone.lastGraphEdges,
+		PendingNeighbourUpdates:      len(w.neighbourUpdates),
+		RedstoneDirtyPositions:       w.redstone.lastDirtyPositions,
+		RedstoneGraphNodes:           w.redstone.lastGraphNodes,
+		RedstoneGraphEdges:           w.redstone.lastGraphEdges,
 		RedstoneContextScanPositions: w.redstone.lastContextScanPositions,
 	}
 }

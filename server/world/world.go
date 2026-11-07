@@ -85,7 +85,7 @@ type World struct {
 	scheduledUpdates *scheduledTickQueue
 	redstone         *redstoneEngine
 	neighbourUpdates       []neighbourUpdate
-	neighbourUpdateBuffer []neighbourUpdate
+	neighbourUpdateBuffer  []neighbourUpdate
 
 	viewerMu sync.Mutex
 	viewers  map[*Loader]Viewer
