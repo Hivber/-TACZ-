@@ -1,7 +1,7 @@
 package block
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
