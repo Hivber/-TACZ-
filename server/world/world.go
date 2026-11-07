@@ -82,10 +82,10 @@ type World struct {
 	// position at which an update is scheduled. If the current tick exceeds the
 	// tick value passed, the block update will be performed and the entry will
 	// be removed from the map.
-	scheduledUpdates *scheduledTickQueue
-	redstone         *redstoneEngine
-	neighbourUpdates       []neighbourUpdate
-	neighbourUpdateBuffer  []neighbourUpdate
+	scheduledUpdates      *scheduledTickQueue
+	redstone              *redstoneEngine
+	neighbourUpdates      []neighbourUpdate
+	neighbourUpdateBuffer []neighbourUpdate
 
 	viewerMu sync.Mutex
 	viewers  map[*Loader]Viewer

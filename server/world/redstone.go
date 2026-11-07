@@ -113,17 +113,18 @@ type RedstoneNonConductive interface {
 // and scheduled block ticks remain the semantic model for block behaviour; the engine just resolves wire/relayer power
 // and lets consumers and actions schedule any delayed or directional changes themselves.
 type redstoneEngine struct {
-	currentTick               int64
-	lastDirtyPositions        int
-	lastGraphNodes            int
-	lastGraphEdges            int
-	lastContextScanPositions  uint64
-	dirty             map[cube.Pos]redstoneDirty
-	power             map[cube.Pos]int
-	output            map[cube.Pos]int
-	evaluating        map[cube.Pos]struct{}
-	suppressedSources map[cube.Pos]int
-	torchBurnout      map[cube.Pos]redstoneTorchBurnout
+	currentTick              int64
+	lastDirtyPositions       int
+	lastGraphNodes           int
+	lastGraphEdges           int
+	lastContextScanPositions uint64
+	dirty                    map[cube.Pos]redstoneDirty
+	power                    map[cube.Pos]int
+	output                   map[cube.Pos]int
+	evaluating               map[cube.Pos]struct{}
+	suppressedSources        map[cube.Pos]int
+	torchBurnout             map[cube.Pos]redstoneTorchBurnout
+}
 }
 
 // redstoneDirty records why a position needs redstone evaluation.
