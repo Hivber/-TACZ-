@@ -283,6 +283,9 @@ type UserConfig struct {
 		SaveData bool
 		// Folder is the folder that the data of the world resides in.
 		Folder string
+		// ChunkLoadWorkers controls concurrent chunk loading and terrain generation.
+		// Two workers are the balanced default; set to 1 to minimise background CPU/memory use.
+		ChunkLoadWorkers int
 	}
 	Players struct {
 		// MaxCount is the maximum amount of players allowed to join the server
@@ -329,7 +332,8 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 		MuteEmoteChat:           uc.Server.MuteEmoteChat,
 		OwnerXUID:               strings.TrimSpace(uc.Server.OwnerXUID),
 		MaxPlayers:              uc.Players.MaxCount,
-		MaxChunkRadius:          uc.Players.MaximumChunkRadius,
+		MaxChunkRadius:          normaliseChunkRadius(uc.Players.MaximumChunkRadius, log),
+		ChunkLoadWorkers:        normaliseChunkLoadWorkers(uc.World.ChunkLoadWorkers),
 		DisableResourceBuilding: !uc.Resources.AutoBuildPack,
 	}
 	generatorName := strings.ToLower(strings.TrimSpace(uc.World.Generator))
@@ -457,6 +461,35 @@ func loadGenerator(dim world.Dimension, name string, seed int64) world.Generator
 }
 
 // DefaultConfig returns a configuration with the default values filled out.
+const (
+	// defaultChunkRadius is the recommended client view-distance cap for a balanced server.
+	defaultChunkRadius = 10
+	// maximumChunkRadius prevents a single client from requesting an excessive number of chunks.
+	maximumChunkRadius = 16
+	// maximumChunkLoadWorkers bounds background generation so it cannot starve world ticks.
+	maximumChunkLoadWorkers = 8
+)
+
+func normaliseChunkRadius(configured int, log *slog.Logger) int {
+	if configured <= 0 {
+		return defaultChunkRadius
+	}
+	if configured > maximumChunkRadius {
+		if log != nil {
+			log.Warn("configured chunk radius exceeds the performance safety limit; reducing it", "configured", configured, "effective", maximumChunkRadius)
+		}
+		return maximumChunkRadius
+	}
+	return configured
+}
+
+func normaliseChunkLoadWorkers(configured int) int {
+	if configured <= 0 {
+		return 2
+	}
+	return min(configured, maximumChunkLoadWorkers)
+}
+
 func DefaultConfig() UserConfig {
 	c := UserConfig{}
 	c.Network.Address = ":19132"
@@ -470,7 +503,8 @@ func DefaultConfig() UserConfig {
 	c.World.Seed = 0
 	c.World.SaveData = true
 	c.World.Folder = "world_helix"
-	c.Players.MaximumChunkRadius = 32
+	c.World.ChunkLoadWorkers = 2
+	c.Players.MaximumChunkRadius = 10
 	c.Players.SaveData = true
 	c.Players.Folder = "players"
 	c.Resources.AutoBuildPack = true

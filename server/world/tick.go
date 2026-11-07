@@ -126,32 +126,33 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 // tickBlocksRandomly executes random block ticks in loaded chunks within range of loaders.
 func (t ticker) tickBlocksRandomly(tx *Tx, loaders []*Loader, tick int64) {
 	var (
-		r             = int32(tx.World().tickRange())
+		w             = tx.World()
+		r             = int32(w.tickRange())
 		g             randUint4
 		blockEntities []cube.Pos
 		randomBlocks  []cube.Pos
 	)
-	if r == 0 {
+	if r <= 0 {
 		// NOP if the simulation distance is 0.
 		return
 	}
 
-	loaded := make([]ChunkPos, 0, len(loaders))
-	if tx.World().conf.Synchronous {
-		loaded = slices.Collect(maps.Keys(tx.World().chunks))
-	} else {
-		for _, loader := range loaders {
-			loader.mu.RLock()
-			pos := loader.pos
-			loader.mu.RUnlock()
-
-			loaded = append(loaded, pos)
+	// Visit only chunks inside simulation distance. Previously every loaded chunk,
+	// including chunks loaded solely for rendering, was scanned every tick.
+	// Enumerating the simulation area keeps this work independent of view distance.
+	active := make(map[ChunkPos]struct{})
+	if w.conf.Synchronous {
+		// Synchronous worlds intentionally tick every loaded chunk, even without viewers.
+		for pos := range w.chunks {
+			active[pos] = struct{}{}
 		}
+	} else {
+		active = simulationChunkPositions(loaders, r)
 	}
 
-	for pos, c := range tx.World().chunks {
-		if !t.anyWithinDistance(pos, loaded, r) {
-			// No loaders in this chunk that are within the simulation distance, so proceed to the next.
+	for pos := range active {
+		c, loaded := w.chunks[pos]
+		if !loaded {
 			continue
 		}
 		blockEntities = append(blockEntities, slices.Collect(maps.Keys(c.BlockEntities))...)
@@ -194,17 +195,29 @@ func (t ticker) tickBlocksRandomly(tx *Tx, loaders []*Loader, tick int64) {
 	}
 }
 
-// anyWithinDistance checks if any of the ChunkPos loaded are within the distance r of the ChunkPos pos.
-func (t ticker) anyWithinDistance(pos ChunkPos, loaded []ChunkPos, r int32) bool {
-	for _, chunkPos := range loaded {
-		xDiff, zDiff := chunkPos[0]-pos[0], chunkPos[1]-pos[1]
-		if (xDiff*xDiff)+(zDiff*zDiff) <= r*r {
-			// The chunk was within the simulation distance of at least one viewer, so we can proceed to
-			// ticking the block.
-			return true
+// simulationChunkPositions returns chunks inside the circular simulation distance of any loader.
+// Overlapping player ranges are deduplicated so every chunk is ticked once.
+func simulationChunkPositions(loaders []*Loader, radius int32) map[ChunkPos]struct{} {
+	positions := make(map[ChunkPos]struct{})
+	if radius <= 0 {
+		return positions
+	}
+	radiusSquared := radius * radius
+	for _, loader := range loaders {
+		loader.mu.RLock()
+		centre := loader.pos
+		loader.mu.RUnlock()
+
+		for x := -radius; x <= radius; x++ {
+			for z := -radius; z <= radius; z++ {
+				if x*x+z*z > radiusSquared {
+					continue
+				}
+				positions[ChunkPos{centre[0] + x, centre[1] + z}] = struct{}{}
+			}
 		}
 	}
-	return false
+	return positions
 }
 
 // tickEntities ticks all entities in the world, making sure they are still located in the correct chunks and
