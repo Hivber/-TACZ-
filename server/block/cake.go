@@ -153,6 +153,14 @@ func (c Cake) BreakInfo() BreakInfo {
 	return newBreakInfo(0.5, neverHarvestable, nothingEffective, simpleDrops())
 }
 
+// ComparatorOutput returns 14 for a whole cake and decreases by two for each bite.
+func (c Cake) ComparatorOutput(cube.Pos, *world.Tx) int {
+	if c.Candle {
+		return 0
+	}
+	return max(14-c.Bites*2, 0)
+}
+
 // EncodeItem ...
 func (c Cake) EncodeItem() (name string, meta int16) {
 	if c.Candle {

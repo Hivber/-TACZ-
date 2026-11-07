@@ -37,7 +37,7 @@ type RedstoneComparator struct {
 
 // comparatorInputOverride is implemented by blocks that expose a direct
 // comparator output instead of relying on container fullness.
-type comparatorInputOverride interface {
+type ComparatorInput interface {
 	ComparatorOutput(pos cube.Pos, tx *world.Tx) int
 }
 
@@ -86,7 +86,7 @@ func comparatorContainerSignal(inv *inventory.Inventory) int {
 
 func comparatorBlockInput(pos cube.Pos, tx *world.Tx) (int, bool) {
 	b := tx.Block(pos)
-	if override, ok := b.(comparatorInputOverride); ok {
+	if override, ok := b.(ComparatorInput); ok {
 		return world.ClampRedstonePower(override.ComparatorOutput(pos, tx)), true
 	}
 	if container, ok := b.(Container); ok {
@@ -126,8 +126,6 @@ func (c RedstoneComparator) inputStrength(pos cube.Pos, tx *world.Tx) int {
 }
 
 func (c RedstoneComparator) sideStrength(pos cube.Pos, tx *world.Tx) int {
-	left := pos.Side(c.Direction.RotateLeft().Face())
-	right := pos.Side(c.Direction.RotateRight().Face())
 	return max(tx.RedstonePowerFrom(pos, c.Direction.RotateLeft().Face()), tx.RedstonePowerFrom(pos, c.Direction.RotateRight().Face()))
 }
 

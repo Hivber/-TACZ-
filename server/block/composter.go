@@ -140,6 +140,11 @@ func (c Composter) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 	}
 }
 
+// ComparatorOutput returns the current fill level as a comparator signal.
+func (c Composter) ComparatorOutput(cube.Pos, *world.Tx) int {
+	return world.ClampRedstonePower(c.Level)
+}
+
 // EncodeItem ...
 func (c Composter) EncodeItem() (name string, meta int16) {
 	return "minecraft:composter", 0
