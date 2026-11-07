@@ -151,6 +151,7 @@ const (
 	hashNetherite
 	hashNetherrack
 	hashNote
+	hashObserver
 	hashObsidian
 	hashPackedIce
 	hashPackedMud
@@ -177,6 +178,7 @@ const (
 	hashRedShrub
 	hashRedstoneBlock
 	hashRedstoneOre
+	hashRedstoneRepeater
 	hashRedstoneTorch
 	hashRedstoneWire
 	hashReinforcedDeepslate
@@ -838,6 +840,10 @@ func (Note) Hash() (uint64, uint64) {
 	return hashNote, 0
 }
 
+func (o Observer) Hash() (uint64, uint64) {
+	return hashObserver, uint64(o.Facing) | uint64(boolByte(o.Powered))<<3
+}
+
 func (o Obsidian) Hash() (uint64, uint64) {
 	return hashObsidian, uint64(boolByte(o.Crying))
 }
@@ -940,6 +946,10 @@ func (RedstoneBlock) Hash() (uint64, uint64) {
 
 func (r RedstoneOre) Hash() (uint64, uint64) {
 	return hashRedstoneOre, uint64(r.Type.Uint8()) | uint64(boolByte(r.Lit))<<1
+}
+
+func (r RedstoneRepeater) Hash() (uint64, uint64) {
+	return hashRedstoneRepeater, uint64(r.Direction) | uint64(r.Delay)<<2 | uint64(boolByte(r.Powered))<<10
 }
 
 func (t RedstoneTorch) Hash() (uint64, uint64) {
