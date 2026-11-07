@@ -61,7 +61,7 @@ func (o Observer) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 	}
 	current.Powered = true
 	tx.SetBlock(pos, current, nil)
-	tx.ScheduleBlockUpdate(pos, current, redstoneTicks(2))
+	tx.ScheduleBlockUpdate(pos, current, redstoneTicks(1))
 }
 
 // UseOnBlock places the observing face towards the block that was clicked.

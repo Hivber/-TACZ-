@@ -136,7 +136,7 @@ func (r RedstoneRepeater) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3,
 	if !tx.Block(below).Model().FaceSolid(below, cube.FaceUp, tx) {
 		return false
 	}
-	r.Direction = user.Rotation().Direction()
+	r.Direction = user.Rotation().Direction().Opposite()
 	r.Delay, r.Powered = 1, false
 	place(tx, pos, r, user, ctx)
 	if placed(ctx) {
@@ -165,7 +165,7 @@ func (r RedstoneRepeater) EncodeBlock() (string, map[string]any) {
 		name = "minecraft:powered_repeater"
 	}
 	return name, map[string]any{
-		"minecraft:cardinal_direction": r.Direction.Opposite().String(),
+		"minecraft:cardinal_direction": r.Direction.String(),
 		"repeater_delay":               int32(r.effectiveDelay() - 1),
 	}
 }

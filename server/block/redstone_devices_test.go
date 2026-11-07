@@ -21,8 +21,8 @@ func TestRedstoneRepeaterStates(t *testing.T) {
 		if properties["repeater_delay"] != int32(repeater.Delay-1) {
 			t.Fatalf("repeater delay property = %v, want %d", properties["repeater_delay"], repeater.Delay-1)
 		}
-		if properties["minecraft:cardinal_direction"] != repeater.Direction.Opposite().String() {
-			t.Fatalf("repeater cardinal direction = %v, want input-facing %s", properties["minecraft:cardinal_direction"], repeater.Direction.Opposite())
+		if properties["minecraft:cardinal_direction"] != repeater.Direction.String() {
+			t.Fatalf("repeater cardinal direction = %v, want output-facing %s", properties["minecraft:cardinal_direction"], repeater.Direction)
 		}
 		if _, hasPoweredBit := properties["powered_bit"]; hasPoweredBit {
 			t.Fatal("repeater powered state must be represented by the powered/unpowered block identifier")
