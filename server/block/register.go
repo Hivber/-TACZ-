@@ -183,6 +183,7 @@ func init() {
 	registerAll(allComposters())
 	registerAll(allConcrete())
 	registerAll(allConcretePowder())
+	registerAll(allDaylightDetectors())
 	registerAll(allCoral())
 	registerAll(allCoralBlocks())
 	registerAll(allDeepslate())
