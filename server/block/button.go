@@ -133,14 +133,15 @@ func (b Button) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, tx *world
 
 // Activate presses the button and schedules its automatic release.
 // A pressed button cannot be pressed again until it has released.
-func (b Button) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, _ item.User, _ *item.UseContext) bool {
-	if b.Powered {
+func (Button) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, _ item.User, _ *item.UseContext) bool {
+	current, ok := tx.Block(pos).(Button)
+	if !ok || current.Powered {
 		return false
 	}
-	b.Powered = true
-	tx.SetBlock(pos, b, nil)
+	current.Powered = true
+	tx.SetBlock(pos, current, nil)
 	tx.PlaySound(pos.Vec3Centre(), sound.PowerOn{})
-	tx.ScheduleBlockUpdate(pos, b, b.pulseDuration())
+	tx.ScheduleBlockUpdate(pos, current, current.pulseDuration())
 	return true
 }
 
