@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/block/model"
 	"github.com/df-mc/dragonfly/server/internal/nbtconv"
@@ -14,7 +15,7 @@ import (
 
 // Lectern is a librarian's job site block found in villages. It is used to hold books for multiple players to read in
 // multiplayer.
-// TODO: Redstone functionality.
+// Lectern is a librarian's job site block generated in villages. It holds a book for multiple players to read.
 type Lectern struct {
 	bass
 	sourceWaterDisplacer
@@ -23,8 +24,33 @@ type Lectern struct {
 	Facing cube.Direction
 	// Book is the book currently held by the Lectern.
 	Book item.Stack
-	// Page is the page the Lectern is currently on in the book.
+	// Page is the zero-based page index currently selected in the book UI.
 	Page int
+	// Powered indicates that the lectern is emitting its short page-turn redstone pulse.
+	Powered bool
+}
+
+var (
+	_ world.RedstonePowerSource = Lectern{}
+	_ world.ScheduledTicker     = Lectern{}
+)
+
+// RedstonePower emits a full-strength pulse from every side while a player turns a page.
+func (l Lectern) RedstonePower(cube.Pos, *world.Tx, cube.Face) int {
+	if l.Powered {
+		return 15
+	}
+	return 0
+}
+
+// ScheduledTick ends the short redstone pulse after one redstone tick (two game ticks).
+func (l Lectern) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
+	current, ok := tx.Block(pos).(Lectern)
+	if !ok || !current.Powered {
+		return
+	}
+	current.Powered = false
+	tx.SetBlock(pos, current, nil)
 }
 
 // Model ...
@@ -106,6 +132,7 @@ func (l Lectern) Punch(pos cube.Pos, _ cube.Face, tx *world.Tx, _ item.User) {
 	dropItem(tx, l.Book, pos.Side(cube.FaceUp).Vec3Middle())
 
 	l.Book = item.Stack{}
+	l.Powered = false
 	tx.SetBlock(pos, l, nil)
 	tx.PlaySound(pos.Vec3Centre(), sound.Attack{})
 }
@@ -123,7 +150,9 @@ func (l Lectern) TurnPage(pos cube.Pos, tx *world.Tx, page int) error {
 		return fmt.Errorf("page number %d is out of bounds", page)
 	}
 	l.Page = page
+	l.Powered = true
 	tx.SetBlock(pos, l, nil)
+	tx.ScheduleBlockUpdate(pos, l, redstoneTicks(1))
 	return nil
 }
 
@@ -182,14 +211,16 @@ func (Lectern) EncodeItem() (name string, meta int16) {
 func (l Lectern) EncodeBlock() (string, map[string]any) {
 	return "minecraft:lectern", map[string]any{
 		"minecraft:cardinal_direction": l.Facing.String(),
-		"powered_bit":                  uint8(0), // We don't support redstone, anyway.
+		"powered_bit":                  uint8(boolByte(l.Powered)),
 	}
 }
 
 // allLecterns ...
 func allLecterns() (lecterns []world.Block) {
 	for _, f := range cube.Directions() {
-		lecterns = append(lecterns, Lectern{Facing: f})
+		for _, powered := range []bool{false, true} {
+			lecterns = append(lecterns, Lectern{Facing: f, Powered: powered})
+		}
 	}
 	return
 }

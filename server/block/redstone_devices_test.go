@@ -117,6 +117,29 @@ func TestJukeboxComparatorSignal(t *testing.T) {
 	}
 }
 
+func TestLecternPageTurnRedstonePower(t *testing.T) {
+	for _, face := range cube.Faces() {
+		if got := (Lectern{}).RedstonePower(cube.Pos{}, nil, face); got != 0 {
+			t.Errorf("unpowered lectern output on face %v = %d, want 0", face, got)
+		}
+		if got := (Lectern{Powered: true}).RedstonePower(cube.Pos{}, nil, face); got != 15 {
+			t.Errorf("powered lectern output on face %v = %d, want 15", face, got)
+		}
+	}
+	states := make(map[uint64]struct{}, 8)
+	for _, block := range allLecterns() {
+		base, state := block.Hash()
+		key := base<<16 | state
+		if _, exists := states[key]; exists {
+			t.Fatalf("duplicate lectern block hash for state %#v", block)
+		}
+		states[key] = struct{}{}
+	}
+	if len(states) != 8 {
+		t.Fatalf("registered lectern states = %d, want 8", len(states))
+	}
+}
+
 func TestLecternBedrockComparatorOutput(t *testing.T) {
 	tests := []struct {
 		name    string
