@@ -103,7 +103,7 @@ func (ExplosionDamageSource) IgnoreTotem() bool { return false }
 func (FireDamageSource) ReducedByArmour() bool     { return true }
 func (FireDamageSource) ReducedByResistance() bool { return true }
 func (FireDamageSource) Fire() bool                { return true }
-func (FireDamageSource) IgnoreTotem() bool          { return false }
+func (FireDamageSource) IgnoreTotem() bool         { return false }
 func (FireDamageSource) AffectedByEnchantment(e item.EnchantmentType) bool {
 	return e == enchantment.FireProtection
 }

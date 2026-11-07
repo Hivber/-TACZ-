@@ -328,10 +328,10 @@ func (b *mobBehaviour) fireArrow(m *Mob, target world.Entity) {
 	velocity := direction.Normalize().Mul(1.6)
 	opts := world.EntitySpawnOpts{Position: origin, Velocity: velocity}
 	arrow := create(opts, world.ArrowSpawnConfig{
-		Damage:               2,
-		Owner:                m,
-		ObtainArrowOnPickup:  true,
-		Tip:                  potion.Water(),
+		Damage:              2,
+		Owner:               m,
+		ObtainArrowOnPickup: true,
+		Tip:                 potion.Water(),
 	})
 	if arrow != nil {
 		m.tx.AddEntity(arrow)
