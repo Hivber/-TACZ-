@@ -12,66 +12,126 @@ import (
 	"github.com/go-gl/mathgl/mgl64"
 )
 
-const shieldRaiseDelay = 5 * time.Second / 20
+const (
+	shieldRaiseDelay = 5 * time.Second / 20
+	shieldTransitionDuration = 2 * time.Second / 20
+	shieldBlockFlagDuration = 5 * time.Second / 20
+	shieldAttackInterruptDuration = 6 * time.Second / 20
+)
 
-// ShieldBlocking reports whether the player is currently raising a shield.
-// It is consumed by the session metadata encoder to synchronise the Bedrock BLOCKING flag.
-func (p *Player) ShieldBlocking() bool {
-	return p.shieldBlocking
+// ShieldBlocking reports whether the player's shield is currently raised.
+func (p *Player) ShieldBlocking() bool { return p.shieldBlocking }
+
+// ShieldTransitionBlocking reports whether the shield is transitioning between raised and lowered.
+func (p *Player) ShieldTransitionBlocking() bool {
+	return !p.shieldTransitionEnd.IsZero() && time.Now().Before(p.shieldTransitionEnd)
 }
 
-// updateShieldBlockingState synchronises the shield's raised state with the player's
-// crouch state and held off-hand item. It is called from player input transitions and ticks.
+// ShieldBlocked reports whether the player's shield has recently blocked a hit.
+func (p *Player) ShieldBlocked() bool {
+	return !p.shieldBlockedEnd.IsZero() && time.Now().Before(p.shieldBlockedEnd)
+}
+
+// ShieldBlockedUsingDamagedShield reports whether the most recent shield block damaged the shield.
+func (p *Player) ShieldBlockedUsingDamagedShield() bool {
+	return !p.shieldDamagedEnd.IsZero() && time.Now().Before(p.shieldDamagedEnd)
+}
+
+// shieldInEitherHand returns the shield stack and whether it is in the off-hand.
+func (p *Player) shieldInEitherHand() (item.Stack, bool, bool) {
+	mainHand, offHand := p.HeldItems()
+	if _, ok := offHand.Item().(item.Shield); ok {
+		return offHand, true, true
+	}
+	if _, ok := mainHand.Item().(item.Shield); ok {
+		return mainHand, false, true
+	}
+	return item.Stack{}, false, false
+}
+
+// updateShieldBlockingState synchronises the Bedrock blocking state with the player's
+// crouch state, held shield and five-tick raise delay.
 func (p *Player) updateShieldBlockingState() {
-	_, offHand := p.HeldItems()
-	_, hasShield := offHand.Item().(item.Shield)
+	_, _, hasShield := p.shieldInEitherHand()
+	now := time.Now()
 	active := hasShield && p.sneaking && !p.sneakingSince.IsZero() &&
-		time.Since(p.sneakingSince) >= shieldRaiseDelay && time.Now().After(p.shieldReenableAt)
+		now.Sub(p.sneakingSince) >= shieldRaiseDelay &&
+		now.After(p.shieldReenableAt) && p.GameMode().AllowsInteraction()
 	if active == p.shieldBlocking {
 		return
 	}
 	p.shieldBlocking = active
+	p.shieldTransitionEnd = now.Add(shieldTransitionDuration)
 	p.updateState()
 }
 
-// interruptShieldBlocking temporarily lowers the shield after a melee attack.
-func (p *Player) interruptShieldBlocking() {
-	_, offHand := p.HeldItems()
-	if _, hasShield := offHand.Item().(item.Shield); !hasShield {
-		return
+// tickShieldState expires transient shield metadata flags and updates the blocking state.
+func (p *Player) tickShieldState() {
+	p.updateShieldBlockingState()
+	now := time.Now()
+	changed := false
+	for _, until := range []*time.Time{&p.shieldTransitionEnd, &p.shieldBlockedEnd, &p.shieldDamagedEnd} {
+		if !until.IsZero() && !now.Before(*until) {
+			*until = time.Time{}
+			changed = true
+		}
 	}
-	p.shieldReenableAt = time.Now().Add(6 * (time.Second / 20))
-	if p.shieldBlocking {
-		p.shieldBlocking = false
+	if changed {
 		p.updateState()
 	}
 }
 
-// blocksWithShield blocks a directional melee or projectile attack if the player
-// has raised a shield by sneaking with it in the off-hand.
+// interruptShieldBlocking temporarily lowers the shield after the player attacks.
+func (p *Player) interruptShieldBlocking() {
+	if !p.sneaking {
+		return
+	}
+	if _, _, hasShield := p.shieldInEitherHand(); !hasShield {
+		return
+	}
+	p.shieldReenableAt = time.Now().Add(shieldAttackInterruptDuration)
+	if p.shieldBlocking {
+		p.shieldBlocking = false
+		p.shieldTransitionEnd = time.Now().Add(shieldTransitionDuration)
+		p.updateState()
+	}
+}
+
+// blocksWithShield blocks a directional melee or projectile attack if the player has raised a shield.
 func (p *Player) blocksWithShield(blockedDamage, attackDamage float64, src world.DamageSource) bool {
-	if blockedDamage <= 0 || !p.shieldBlocking {
+	if blockedDamage <= 0 || !src.ReducedByArmour() || !p.shieldBlocking {
 		return false
 	}
-
-	mainHand, offHand := p.HeldItems()
-	if _, ok := offHand.Item().(item.Shield); !ok {
+	shield, inOffHand, hasShield := p.shieldInEitherHand()
+	if !hasShield {
 		return false
 	}
-
 	origin, attacker, ok := shieldAttackOrigin(src)
 	if !ok || !shieldCovers(p.Rotation(), p.Position(), origin) {
 		return false
 	}
 
+	mainHand, offHand := p.HeldItems()
+	beforeDurability := shield.Durability()
 	if damage := shieldDurabilityDamage(attackDamage); damage > 0 {
-		p.SetHeldItems(mainHand, p.damageItem(offHand, damage))
+		damaged := p.damageItem(shield, damage)
+		if inOffHand {
+			offHand = damaged
+		} else {
+			mainHand = damaged
+		}
+		p.SetHeldItems(mainHand, offHand)
+		if damaged.Durability() < beforeDurability {
+			p.shieldDamagedEnd = time.Now().Add(shieldBlockFlagDuration)
+		}
 	}
-
+	now := time.Now()
+	p.shieldBlockedEnd = now.Add(shieldBlockFlagDuration)
 	p.tx.PlaySound(p.Position(), sound.Custom{Name: "item.shield.block", Volume: 0.7, Pitch: 1})
 	if living, ok := attacker.(entity.Living); ok {
 		living.KnockBack(p.Position(), 0.5, 0.25)
 	}
+	p.updateState()
 	return true
 }
 

@@ -61,10 +61,13 @@ type playerData struct {
 	sneaking, sprinting, swimming, gliding, crawling, flying,
 	invisible, immobile, onGround, usingItem bool
 
-	sneakingSince    time.Time
-	shieldBlocking   bool
-	shieldReenableAt time.Time
-	sleeping         bool
+	sneakingSince       time.Time
+	shieldBlocking      bool
+	shieldReenableAt    time.Time
+	shieldTransitionEnd time.Time
+	shieldBlockedEnd    time.Time
+	shieldDamagedEnd    time.Time
+	sleeping            bool
 	sleepPos         cube.Pos
 
 	usingSince time.Time
@@ -1505,6 +1508,7 @@ func (p *Player) HeldItems() (mainHand, offHand item.Stack) {
 func (p *Player) SetHeldItems(mainHand, offHand item.Stack) {
 	_ = p.inv.SetItem(int(*p.heldSlot), mainHand)
 	_ = p.offHand.SetItem(0, offHand)
+	p.updateShieldBlockingState()
 }
 
 // SetHeldSlot updates the held slot of the player to the slot provided. The
@@ -1530,6 +1534,7 @@ func (p *Player) SetHeldSlot(to int) error {
 	}
 	*p.heldSlot = uint32(to)
 	p.usingItem = false
+	p.updateShieldBlockingState()
 
 	for _, viewer := range p.viewers() {
 		viewer.ViewEntityItems(p)
@@ -1549,6 +1554,7 @@ func (p *Player) EnderChestInventory() *inventory.Inventory {
 func (p *Player) SetGameMode(mode world.GameMode) {
 	previous := p.GameMode()
 	p.gameMode = mode
+	p.updateShieldBlockingState()
 
 	if !mode.AllowsFlying() {
 		p.StopFlying()
@@ -1940,8 +1946,8 @@ func (p *Player) AttackEntity(e world.Entity) bool {
 	if p.Handler().HandleAttackEntity(ctx, e, &force, &height, &critical); ctx.Cancelled() {
 		return false
 	}
-	p.SwingArm()
 	p.interruptShieldBlocking()
+	p.SwingArm()
 
 	if !isLiving {
 		if !entity.DamageableEntity(e) {
@@ -2704,10 +2710,10 @@ func (p *Player) Latency() time.Duration {
 
 // Tick ticks the entity, performing actions such as checking if the player is still breaking a block.
 func (p *Player) Tick(tx *world.Tx, current int64) {
-	p.updateShieldBlockingState()
 	if p.Dead() {
 		return
 	}
+	p.tickShieldState()
 	if _, ok := p.tx.Liquid(cube.PosFromVec3(p.Position())); !ok {
 		p.StopSwimming()
 		if _, ok := p.Armour().Helmet().Item().(item.TurtleShell); ok {

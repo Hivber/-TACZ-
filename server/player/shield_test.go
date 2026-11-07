@@ -40,12 +40,41 @@ func TestShieldRaiseDelayAndDurabilityThreshold(t *testing.T) {
 	}{
 		{attack: 2, want: 0},
 		{attack: 2.99, want: 0},
-		{attack: 3, want: 3},
+		{attack: 3, want: 4},
 		{attack: 3.1, want: 4},
 		{attack: 7.5, want: 8},
 	} {
 		if got := shieldDurabilityDamage(test.attack); got != test.want {
 			t.Errorf("shieldDurabilityDamage(%v) = %d, want %d", test.attack, got, test.want)
 		}
+	}
+}
+
+func TestShieldDurabilityDamageMatchesNukkitRule(t *testing.T) {
+	for _, test := range []struct {
+		damage float64
+		want int
+	}{
+		{damage: 0, want: 0},
+		{damage: 2.99, want: 0},
+		{damage: 3, want: 4},
+		{damage: 3.1, want: 4},
+		{damage: 7.5, want: 8},
+	} {
+		if got := shieldDurabilityDamage(test.damage); got != test.want {
+			t.Errorf("shieldDurabilityDamage(%v) = %d, want %d", test.damage, got, test.want)
+		}
+	}
+}
+
+func TestShieldMetadataFlagDurations(t *testing.T) {
+	if shieldTransitionDuration != 2*time.Second/20 {
+		t.Fatalf("shield transition duration = %v, want 2 ticks", shieldTransitionDuration)
+	}
+	if shieldBlockFlagDuration != 5*time.Second/20 {
+		t.Fatalf("shield block flag duration = %v, want 5 ticks", shieldBlockFlagDuration)
+	}
+	if shieldAttackInterruptDuration != 6*time.Second/20 {
+		t.Fatalf("shield attack interrupt = %v, want 6 ticks", shieldAttackInterruptDuration)
 	}
 }

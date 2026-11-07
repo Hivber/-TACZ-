@@ -14,12 +14,13 @@ projectile, riding or container behaviour.
 
 ## Dedicated gameplay implementations added
 
-- **Shield:** an off-hand shield blocks frontal melee attacks and ordinary
-  projectile damage while the player is sneaking. The shield loses durability
-  when it blocks a hit. Environmental damage is not blocked. This is the first
-  server-side blocking implementation; mounted activation, axe disabling,
-  explosion-specific exceptions, and all projectile edge cases are not yet
-  implemented.
+- **Shield:** a shield in either hand raises after five crouching ticks,
+  synchronises Bedrock blocking, transition and blocked-hit metadata, blocks
+  frontal melee and projectile damage, and knocks back melee attackers. Hits
+  below 3 damage do not consume durability; larger hits consume
+  `int(damage)+1` durability, following the current PowerNukkitX reference.
+  Axe disabling, projectile deflection, banner patterns, mounted activation
+  and additional explosion/projectile exceptions remain unimplemented.
 - **Trident:** melee attacks deal 9 damage and the item has 251 durability,
   losing durability on attacks. Throwing, Loyalty return, Riptide propulsion,
   Channeling lightning and Impaling-specific damage are not yet implemented.
@@ -45,13 +46,3 @@ vanilla identifiers can therefore remain visible before their full behaviour is
 implemented, but visibility must not be confused with gameplay support.
 
 
-### Shield behaviour update
-
-Shield activation now has the Bedrock five-tick (250 ms) raise delay. It
-only blocks frontal melee and projectile damage after that delay, plays the
-shield-block sound, and knocks back melee attackers. Hits below 3 damage do
-not consume durability; larger blocked hits consume durability equal to the
-rounded-up damage amount. Planks are accepted by the shield repair interface.
-
-Not yet implemented for shields: axe disable/stun, projectile deflection,
-banner patterns, mounted activation and explosion-specific behaviour.

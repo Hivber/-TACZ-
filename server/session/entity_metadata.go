@@ -47,8 +47,24 @@ func (s *Session) addSpecificMetadata(e any, m protocol.EntityMetadata) {
 	if sn, ok := e.(sneaker); ok && sn.Sneaking() {
 		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagSneaking)
 	}
-	if b, ok := e.(interface{ ShieldBlocking() bool }); ok && b.ShieldBlocking() {
-		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBlocking)
+	if shield, ok := e.(interface {
+		ShieldBlocking() bool
+		ShieldTransitionBlocking() bool
+		ShieldBlocked() bool
+		ShieldBlockedUsingDamagedShield() bool
+	}); ok {
+		if shield.ShieldBlocking() {
+			m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBlocking)
+		}
+		if shield.ShieldTransitionBlocking() {
+			m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagTransitionBlocking)
+		}
+		if shield.ShieldBlocked() {
+			m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBlockedUsingShield)
+		}
+		if shield.ShieldBlockedUsingDamagedShield() {
+			m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBlockedUsingDamagedShield)
+		}
 	}
 	if sp, ok := e.(sprinter); ok && sp.Sprinting() {
 		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagSprinting)
