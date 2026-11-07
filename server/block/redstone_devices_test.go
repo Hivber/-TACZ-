@@ -157,6 +157,19 @@ func TestLecternBedrockComparatorOutput(t *testing.T) {
 	}
 }
 
+func TestEndPortalFrameComparatorOutput(t *testing.T) {
+	for _, direction := range cube.Directions() {
+		frame := EndPortalFrame{Facing: direction}
+		if got := frame.ComparatorOutput(cube.Pos{}, nil); got != 0 {
+			t.Errorf("empty end portal frame facing %v output = %d, want 0", direction, got)
+		}
+		frame.Eye = true
+		if got := frame.ComparatorOutput(cube.Pos{}, nil); got != 15 {
+			t.Errorf("filled end portal frame facing %v output = %d, want 15", direction, got)
+		}
+	}
+}
+
 func TestComparatorModes(t *testing.T) {
 	tests := []struct {
 		input, side int

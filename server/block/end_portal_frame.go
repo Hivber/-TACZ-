@@ -53,6 +53,14 @@ func (f EndPortalFrame) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, t
 	return placed(ctx)
 }
 
+// ComparatorOutput returns a full signal when the frame contains an Eye of Ender.
+func (f EndPortalFrame) ComparatorOutput(cube.Pos, *world.Tx) int {
+	if f.Eye {
+		return 15
+	}
+	return 0
+}
+
 // EndPortalFrameState returns the frame's eye and facing state.
 func (f EndPortalFrame) EndPortalFrameState() (eye bool, facing cube.Direction) {
 	return f.Eye, f.Facing
