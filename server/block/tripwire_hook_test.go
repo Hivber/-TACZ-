@@ -73,8 +73,12 @@ func TestTripwireLineEntityActivationAndRelease(t *testing.T) {
 			t.Fatal("opposed hooks did not attach across a complete tripwire line")
 		}
 		for x := 1; x <= 3; x++ {
-			if !tx.Block(cube.Pos{x, 64, 0}).(String).Attached {
+			wire := tx.Block(cube.Pos{x, 64, 0}).(String)
+			if !wire.Attached {
 				t.Fatalf("tripwire segment at x=%d was not marked attached", x)
+			}
+			if got := wire.Connections.Uint8(); got != 10 {
+				t.Fatalf("tripwire segment at x=%d connections = %04b, want east/west connections", x, got)
 			}
 		}
 
