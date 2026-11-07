@@ -27,7 +27,6 @@ type WoodFenceGate struct {
 	Lowered bool
 }
 
-
 var (
 	_ world.RedstonePowerConsumer    = WoodFenceGate{}
 	_ world.RedstonePowerPostUpdater = WoodFenceGate{}

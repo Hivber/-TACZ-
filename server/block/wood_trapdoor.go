@@ -28,7 +28,6 @@ type WoodTrapdoor struct {
 	Top bool
 }
 
-
 var (
 	_ world.RedstonePowerConsumer    = WoodTrapdoor{}
 	_ world.RedstonePowerPostUpdater = WoodTrapdoor{}
