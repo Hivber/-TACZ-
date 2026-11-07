@@ -61,11 +61,11 @@ type playerData struct {
 	sneaking, sprinting, swimming, gliding, crawling, flying,
 	invisible, immobile, onGround, usingItem bool
 
-	sneakingSince       time.Time
-	shieldBlocking      bool
-	shieldReenableAt    time.Time
-	sleeping            bool
-	sleepPos      cube.Pos
+	sneakingSince    time.Time
+	shieldBlocking   bool
+	shieldReenableAt time.Time
+	sleeping         bool
+	sleepPos         cube.Pos
 
 	usingSince time.Time
 
