@@ -75,6 +75,7 @@ type tickPerformance struct {
 	sampleCount               int
 	sampleIndex               int
 	stages                    [tickStageCount]tickStagePerformance
+	stageRecorded             [tickStageCount]bool
 	queueWait                 tickStagePerformance
 	neighbourUpdatesProcessed int
 	windowStart               time.Time
@@ -93,13 +94,24 @@ type tickStagePerformance struct {
 }
 
 func (m *tickPerformance) beginTick() {
+	clear(m.stageRecorded[:])
 	for i := range m.stages {
 		m.stages[i].last = 0
 	}
 }
 
 func (m *tickPerformance) recordStage(stage TickStage, duration time.Duration) {
+	m.stageRecorded[stage] = true
 	m.stages[stage].record(duration)
+}
+
+// recordUnrecordedStages adds zero-duration samples for stages skipped by an early tick return.
+func (m *tickPerformance) recordUnrecordedStages() {
+	for stage := TickStageLightning; stage < TickStageOther; stage++ {
+		if !m.stageRecorded[stage] {
+			m.recordStage(stage, 0)
+		}
+	}
 }
 
 func (m *tickPerformance) recordQueueWait(duration time.Duration) {
@@ -197,6 +209,7 @@ func (m *tickPerformance) recentMax() time.Duration {
 func (w *World) recordTickPerformance(start time.Time) {
 	now := time.Now()
 	duration := now.Sub(start)
+	w.performance.recordUnrecordedStages()
 	var stageDuration time.Duration
 	for i := TickStageLightning; i < TickStageOther; i++ {
 		stageDuration += w.performance.stages[i].last
