@@ -306,9 +306,6 @@ func removeCommandNBTPath(root map[string]any, raw string) error {
 	if _, exists := compound[last.key]; !exists {
 		return fmt.Errorf("NBT path %q was not found", raw)
 	}
-	if last.key == "id" {
-		return fmt.Errorf("the block entity id cannot be removed")
-	}
 	delete(compound, last.key)
 	return nil
 }
