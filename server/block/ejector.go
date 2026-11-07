@@ -7,16 +7,44 @@ import (
 	"sync"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
-	"github.com/df-mc/dragonfly/server/block/cube/trace"
-	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/internal/nbtconv"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/inventory"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/go-gl/mathgl/mgl64"
 )
+
+
+// DispenserItemBehavior creates an entity or otherwise handles one item ejected by a dispenser.
+// The entity package registers built-in projectile and item-entity behaviours during initialisation.
+type DispenserItemBehavior func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool
+
+var dispenserItemBehaviorRegistry = struct {
+	sync.RWMutex
+	behaviours map[string]DispenserItemBehavior
+}{behaviours: make(map[string]DispenserItemBehavior)}
+
+// RegisterDispenserItemBehavior registers the behaviour for an item identifier.
+// Registration is concurrency-safe and replaces any previous handler for the same identifier.
+func RegisterDispenserItemBehavior(identifier string, behaviour DispenserItemBehavior) {
+	if identifier == "" || behaviour == nil {
+		panic("dispenser item behaviour requires an identifier and a non-nil handler")
+	}
+	dispenserItemBehaviorRegistry.Lock()
+	dispenserItemBehaviorRegistry.behaviours[identifier] = behaviour
+	dispenserItemBehaviorRegistry.Unlock()
+}
+
+func runDispenserItemBehavior(identifier string, tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	dispenserItemBehaviorRegistry.RLock()
+	behaviour := dispenserItemBehaviorRegistry.behaviours[identifier]
+	dispenserItemBehaviorRegistry.RUnlock()
+	if behaviour == nil {
+		return false
+	}
+	return behaviour(tx, opts, stack)
+}
 
 // Dispenser is a redstone-activated container that ejects one item from a random non-empty slot.
 type Dispenser struct {
@@ -317,7 +345,10 @@ func (e ejector) dispense(pos cube.Pos, tx *world.Tx, dropper bool) {
 		tx.SetBlockEntity(pos, Dispenser{e})
 		return
 	}
-	e.dispenseItemEntity(pos, tx, one)
+	if !e.dispenseItemEntity(pos, tx, one) {
+		tx.PlaySound(pos.Vec3Centre(), sound.Click{})
+		return
+	}
 	_ = e.inventory.SetItem(slot, stack.Grow(-1))
 	if dropper {
 		tx.SetBlockEntity(pos, Dropper{e})
@@ -380,7 +411,7 @@ func ejectorDispensePosition(pos cube.Pos, face cube.Face) mgl64.Vec3 {
 	return origin
 }
 
-func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack) {
+func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack) bool {
 	face := ejectorFaceVector(e.Facing)
 	origin := ejectorDispensePosition(pos, e.Facing)
 	offset := rand.Float64()*0.1 + 0.2
@@ -389,8 +420,8 @@ func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack
 		0.2 + rand.NormFloat64()*0.045,
 		face[2]*offset + rand.NormFloat64()*0.045,
 	}
-	tx.AddEntity(entity.NewItem(world.EntitySpawnOpts{Position: origin, Velocity: velocity}, stack))
-	tx.PlaySound(pos.Vec3Centre(), sound.Click{})
+	opts := world.EntitySpawnOpts{Position: origin, Velocity: velocity}
+	return runDispenserItemBehavior("minecraft:item", tx, opts, stack)
 }
 
 func (e ejector) dispenseProjectile(pos cube.Pos, tx *world.Tx, stack item.Stack) bool {
@@ -402,65 +433,8 @@ func (e ejector) dispenseProjectile(pos cube.Pos, tx *world.Tx, stack item.Stack
 		rand.NormFloat64() * 0.015,
 	})
 	opts := world.EntitySpawnOpts{Position: ejectorDispensePosition(pos, e.Facing), Velocity: velocity}
-
-	switch projectile := stack.Item().(type) {
-	case item.Arrow:
-		conf := entity.ProjectileBehaviourConfig{
-			Gravity:               0.05,
-			Drag:                  0.01,
-			Damage:                2,
-			Potion:                projectile.Tip,
-			Sound:                 sound.ArrowHit{},
-			SurviveBlockCollision: true,
-			PickupItem:            item.NewStack(projectile, 1),
-		}
-		tx.AddEntity(opts.New(entity.ArrowType, conf))
-	case item.Egg:
-		conf := entity.ProjectileBehaviourConfig{
-			Gravity:       0.03,
-			Drag:          0.01,
-			Damage:        -1,
-			Particle:      particle.EggSmash{},
-			ParticleCount: 6,
-			Hit:           ejectorEggHit,
-		}
-		tx.AddEntity(opts.New(entity.EggType, conf))
-	case item.Snowball:
-		conf := entity.ProjectileBehaviourConfig{
-			Gravity:       0.03,
-			Drag:          0.01,
-			Damage:        -1,
-			Particle:      particle.SnowballPoof{},
-			ParticleCount: 6,
-		}
-		tx.AddEntity(opts.New(entity.SnowballType, conf))
-	case item.Firework:
-		tx.AddEntity(entity.NewFirework(opts, projectile))
-	default:
-		return false
-	}
-	tx.PlaySound(pos.Vec3Centre(), sound.BowShoot{})
-	return true
-}
-
-func ejectorEggHit(_ *entity.Ent, tx *world.Tx, target trace.Result) {
-	if rand.IntN(8) != 0 {
-		return
-	}
-	count := 1
-	if rand.IntN(32) == 0 {
-		count = 4
-	}
-	create := tx.World().EntityRegistry().Config().Mob
-	if create == nil {
-		return
-	}
-	position := target.Position().Add(mgl64.Vec3{0, 0.25, 0})
-	for range count {
-		if handle := create(world.EntitySpawnOpts{Position: position}, "minecraft:chicken"); handle != nil {
-			tx.AddEntity(handle)
-		}
-	}
+	identifier, _ := stack.Item().EncodeItem()
+	return runDispenserItemBehavior(identifier, tx, opts, stack)
 }
 
 // allDispensers returns all six facing directions and both triggered states.
