@@ -63,7 +63,7 @@ type playerData struct {
 
 	sneakingSince time.Time
 	sleeping      bool
-	sleepPos cube.Pos
+	sleepPos      cube.Pos
 
 	usingSince time.Time
 

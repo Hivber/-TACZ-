@@ -30,7 +30,6 @@ func TestShieldCoversOnlyFrontHemisphere(t *testing.T) {
 	}
 }
 
-
 func TestShieldRaiseDelayAndDurabilityThreshold(t *testing.T) {
 	if shieldRaiseDelay != 250*time.Millisecond {
 		t.Fatalf("shield raise delay = %v, want 250ms", shieldRaiseDelay)
