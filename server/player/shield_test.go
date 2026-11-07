@@ -53,7 +53,7 @@ func TestShieldRaiseDelayAndDurabilityThreshold(t *testing.T) {
 func TestShieldDurabilityDamageMatchesNukkitRule(t *testing.T) {
 	for _, test := range []struct {
 		damage float64
-		want int
+		want   int
 	}{
 		{damage: 0, want: 0},
 		{damage: 2.99, want: 0},

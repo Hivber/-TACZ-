@@ -68,7 +68,7 @@ type playerData struct {
 	shieldBlockedEnd    time.Time
 	shieldDamagedEnd    time.Time
 	sleeping            bool
-	sleepPos         cube.Pos
+	sleepPos            cube.Pos
 
 	usingSince time.Time
 

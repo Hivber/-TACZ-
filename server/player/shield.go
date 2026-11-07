@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	shieldRaiseDelay = 5 * time.Second / 20
-	shieldTransitionDuration = 2 * time.Second / 20
-	shieldBlockFlagDuration = 5 * time.Second / 20
+	shieldRaiseDelay              = 5 * time.Second / 20
+	shieldTransitionDuration      = 2 * time.Second / 20
+	shieldBlockFlagDuration       = 5 * time.Second / 20
 	shieldAttackInterruptDuration = 6 * time.Second / 20
 )
 
