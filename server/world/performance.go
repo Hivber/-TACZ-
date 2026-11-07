@@ -214,11 +214,11 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 	for i := range stages {
 		stage := &m.stages[i]
 		stages[i] = TickStageSnapshot{
-			Name: tickStageNames[i],
-			Last: stage.last,
+			Name:    tickStageNames[i],
+			Last:    stage.last,
 			Average: stage.average,
-			P95: stage.percentile95(),
-			Count: stage.sampleCount,
+			P95:     stage.percentile95(),
+			Count:   stage.sampleCount,
 		}
 	}
 	return PerformanceSnapshot{

@@ -36,7 +36,6 @@ func TestTickPerformanceEmptyPercentile(t *testing.T) {
 	}
 }
 
-
 func TestTickStageRollingMetrics(t *testing.T) {
 	var stage tickStagePerformance
 	stage.record(500 * time.Millisecond)
