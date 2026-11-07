@@ -84,7 +84,7 @@ var (
 	_ world.RedstoneStrongPowerSource = PressurePlate{}
 	_ world.RedstoneWeakBlockPowerer  = PressurePlate{}
 	_ EntityStepper                   = PressurePlate{}
-	_ world.ScheduledTicker            = PressurePlate{}
+	_ world.ScheduledTicker           = PressurePlate{}
 )
 
 func (p PressurePlate) RedstonePower(cube.Pos, *world.Tx, cube.Face) int {
