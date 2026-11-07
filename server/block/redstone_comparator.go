@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	_ world.RedstonePowerSource   = RedstoneComparator{}
+	_ world.RedstonePowerSource       = RedstoneComparator{}
 	_ world.RedstoneStrongPowerSource = RedstoneComparator{}
-	_ world.ScheduledTicker       = RedstoneComparator{}
-	_ world.NeighbourUpdateTicker = RedstoneComparator{}
-	_ world.TickerBlock           = RedstoneComparator{}
+	_ world.ScheduledTicker           = RedstoneComparator{}
+	_ world.NeighbourUpdateTicker     = RedstoneComparator{}
+	_ world.TickerBlock               = RedstoneComparator{}
 )
 
 // RedstoneComparator compares the redstone input at its rear with the strongest
@@ -35,8 +35,8 @@ type RedstoneComparator struct {
 	output int
 }
 
-// comparatorInputOverride is implemented by blocks that expose a direct
-// comparator output instead of relying on container fullness.
+// ComparatorInput is implemented by blocks that expose a direct comparator
+// output instead of relying on container fullness.
 type ComparatorInput interface {
 	ComparatorOutput(pos cube.Pos, tx *world.Tx) int
 }
