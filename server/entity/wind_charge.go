@@ -76,19 +76,23 @@ func windChargeHit(projectile *Ent, tx *world.Tx, target trace.Result) {
 // activateWindChargeBlock applies the supported Bedrock wind-charge block
 // interactions. Decorated pots are handled by the generic ProjectileHitter path.
 func activateWindChargeBlock(pos cube.Pos, face cube.Face, projectile *Ent, tx *world.Tx) {
-	b := tx.Block(pos)
-	switch b.(type) {
-	case block.WoodDoor, block.CopperDoor,
-		block.WoodTrapdoor, block.CopperTrapdoor,
-		block.WoodFenceGate, block.Lever:
-		if activatable, ok := b.(block.Activatable); ok {
-			user := windChargeBlockUser{position: projectile.Position(), rotation: projectile.Rotation()}
-			activatable.Activate(pos, face, tx, user, &item.UseContext{})
-		}
+	user := windChargeBlockUser{position: projectile.Position(), rotation: projectile.Rotation()}
+	ctx := &item.UseContext{}
+	switch b := tx.Block(pos).(type) {
+	case block.WoodDoor:
+		b.Activate(pos, face, tx, user, ctx)
+	case block.CopperDoor:
+		b.Activate(pos, face, tx, user, ctx)
+	case block.WoodTrapdoor:
+		b.Activate(pos, face, tx, user, ctx)
+	case block.CopperTrapdoor:
+		b.Activate(pos, face, tx, user, ctx)
+	case block.WoodFenceGate:
+		b.Activate(pos, face, tx, user, ctx)
+	case block.Lever:
+		b.Activate(pos, face, tx, user, ctx)
 	case block.Candle:
-		if candle, ok := b.(block.Candle); ok {
-			candle.Ignite(pos, tx, projectile)
-		}
+		b.Ignite(pos, tx, projectile)
 	}
 }
 
@@ -126,12 +130,22 @@ type windChargeBlockUser struct {
 	rotation cube.Rotation
 }
 
-func (u windChargeBlockUser) H() *world.EntityHandle       { return nil }
-func (u windChargeBlockUser) Close() error                 { return nil }
-func (u windChargeBlockUser) Position() mgl64.Vec3         { return u.position }
-func (u windChargeBlockUser) Rotation() cube.Rotation      { return u.rotation }
-func (windChargeBlockUser) HeldItems() (item.Stack, item.Stack) { return item.Stack{}, item.Stack{} }
+func (u windChargeBlockUser) H() *world.EntityHandle { return nil }
+
+func (u windChargeBlockUser) Close() error { return nil }
+
+func (u windChargeBlockUser) Position() mgl64.Vec3 { return u.position }
+
+func (u windChargeBlockUser) Rotation() cube.Rotation { return u.rotation }
+
+func (windChargeBlockUser) HeldItems() (item.Stack, item.Stack) {
+	return item.Stack{}, item.Stack{}
+}
+
 func (windChargeBlockUser) SetHeldItems(item.Stack, item.Stack) {}
-func (windChargeBlockUser) UsingItem() bool                 { return false }
-func (windChargeBlockUser) ReleaseItem()                    {}
-func (windChargeBlockUser) UseItem()                        {}
+
+func (windChargeBlockUser) UsingItem() bool { return false }
+
+func (windChargeBlockUser) ReleaseItem() {}
+
+func (windChargeBlockUser) UseItem() {}
