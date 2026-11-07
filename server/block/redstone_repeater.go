@@ -2,7 +2,6 @@ package block
 
 import (
 	"math/rand"
-	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
@@ -184,5 +183,3 @@ func allRedstoneRepeaters() (all []world.Block) {
 	return
 }
 
-// Ensure the helper duration remains tied to the redstone clock conversion.
-var _ = time.Second

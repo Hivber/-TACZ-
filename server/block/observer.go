@@ -2,7 +2,6 @@ package block
 
 import (
 	"math/rand"
-	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
@@ -97,7 +96,3 @@ func allObservers() (all []world.Block) {
 	return
 }
 
-// observerPulseDuration is kept explicit for documentation and regression tests.
-const observerPulseDuration = 2
-
-var _ = time.Second
