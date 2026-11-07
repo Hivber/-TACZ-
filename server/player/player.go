@@ -61,8 +61,10 @@ type playerData struct {
 	sneaking, sprinting, swimming, gliding, crawling, flying,
 	invisible, immobile, onGround, usingItem bool
 
-	sneakingSince time.Time
-	sleeping      bool
+	sneakingSince       time.Time
+	shieldBlocking      bool
+	shieldReenableAt    time.Time
+	sleeping            bool
 	sleepPos      cube.Pos
 
 	usingSince time.Time
@@ -1158,6 +1160,7 @@ func (p *Player) StartSneaking() {
 	p.sneaking = true
 	p.sneakingSince = time.Now()
 	p.updateState()
+	p.updateShieldBlockingState()
 }
 
 // Sneaking checks if the player is currently sneaking.
@@ -1178,6 +1181,7 @@ func (p *Player) StopSneaking() {
 	p.sneaking = false
 	p.sneakingSince = time.Time{}
 	p.updateState()
+	p.updateShieldBlockingState()
 }
 
 // StartSwimming makes the player start swimming if it is not currently doing so. If the player is sneaking
@@ -1937,6 +1941,7 @@ func (p *Player) AttackEntity(e world.Entity) bool {
 		return false
 	}
 	p.SwingArm()
+	p.interruptShieldBlocking()
 
 	if !isLiving {
 		if !entity.DamageableEntity(e) {
@@ -2699,6 +2704,7 @@ func (p *Player) Latency() time.Duration {
 
 // Tick ticks the entity, performing actions such as checking if the player is still breaking a block.
 func (p *Player) Tick(tx *world.Tx, current int64) {
+	p.updateShieldBlockingState()
 	if p.Dead() {
 		return
 	}

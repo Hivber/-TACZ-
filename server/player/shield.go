@@ -14,10 +14,43 @@ import (
 
 const shieldRaiseDelay = 5 * time.Second / 20
 
+// ShieldBlocking reports whether the player is currently raising a shield.
+// It is consumed by the session metadata encoder to synchronise the Bedrock BLOCKING flag.
+func (p *Player) ShieldBlocking() bool {
+	return p.shieldBlocking
+}
+
+// updateShieldBlockingState synchronises the shield's raised state with the player's
+// crouch state and held off-hand item. It is called from player input transitions and ticks.
+func (p *Player) updateShieldBlockingState() {
+	_, offHand := p.HeldItems()
+	_, hasShield := offHand.Item().(item.Shield)
+	active := hasShield && p.sneaking && !p.sneakingSince.IsZero() &&
+		time.Since(p.sneakingSince) >= shieldRaiseDelay && time.Now().After(p.shieldReenableAt)
+	if active == p.shieldBlocking {
+		return
+	}
+	p.shieldBlocking = active
+	p.updateState()
+}
+
+// interruptShieldBlocking temporarily lowers the shield after a melee attack.
+func (p *Player) interruptShieldBlocking() {
+	_, offHand := p.HeldItems()
+	if _, hasShield := offHand.Item().(item.Shield); !hasShield {
+		return
+	}
+	p.shieldReenableAt = time.Now().Add(6 * (time.Second / 20))
+	if p.shieldBlocking {
+		p.shieldBlocking = false
+		p.updateState()
+	}
+}
+
 // blocksWithShield blocks a directional melee or projectile attack if the player
 // has raised a shield by sneaking with it in the off-hand.
 func (p *Player) blocksWithShield(blockedDamage, attackDamage float64, src world.DamageSource) bool {
-	if blockedDamage <= 0 || !p.sneaking || p.sneakingSince.IsZero() || time.Since(p.sneakingSince) < shieldRaiseDelay {
+	if blockedDamage <= 0 || !p.shieldBlocking {
 		return false
 	}
 

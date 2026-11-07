@@ -47,6 +47,9 @@ func (s *Session) addSpecificMetadata(e any, m protocol.EntityMetadata) {
 	if sn, ok := e.(sneaker); ok && sn.Sneaking() {
 		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagSneaking)
 	}
+	if b, ok := e.(interface{ ShieldBlocking() bool }); ok && b.ShieldBlocking() {
+		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagBlocking)
+	}
 	if sp, ok := e.(sprinter); ok && sp.Sprinting() {
 		m.SetFlag(protocol.EntityDataKeyFlags, protocol.EntityDataFlagSprinting)
 	}
