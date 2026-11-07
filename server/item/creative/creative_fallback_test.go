@@ -29,11 +29,6 @@ func TestCreativeCatalogueResolvesKnownVanillaItemsWithoutDedicatedImplementatio
 		"minecraft:ominous_bottle",
 	}
 	found := make(map[string]struct{}, len(want))
-	for _, data := range catalogue.Items {
-		if _, expected := slices.Contains(want, data.Name), false; expected {
-			continue
-		}
-	}
 	for _, name := range want {
 		var entry *creativeItemEntry
 		for i := range catalogue.Items {
