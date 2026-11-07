@@ -24,7 +24,11 @@ func (t ticker) tickLoop(w *World) {
 	for {
 		select {
 		case <-tc.C:
-			<-w.exec(t.tick)
+			queuedAt := time.Now()
+			<-w.exec(func(tx *Tx) {
+				w.performance.recordQueueWait(time.Since(queuedAt))
+				t.tick(tx)
+			})
 		case <-w.closing:
 			// World is being closed: Stop ticking and get rid of a task.
 			w.running.Done()
@@ -125,9 +129,11 @@ func (t ticker) tick(tx *Tx) {
 
 // performNeighbourUpdates performs all block updates that came as a result of a neighbouring block being changed.
 func (t ticker) performNeighbourUpdates(tx *Tx) {
-	updates := slices.Clone(tx.World().neighbourUpdates)
-	clear(tx.World().neighbourUpdates)
-	tx.World().neighbourUpdates = tx.World().neighbourUpdates[:0]
+	w := tx.World()
+	updates := w.neighbourUpdates
+	w.neighbourUpdates = w.neighbourUpdateBuffer[:0]
+	w.neighbourUpdateBuffer = updates[:0]
+	w.performance.neighbourUpdatesProcessed = len(updates)
 
 	for _, update := range updates {
 		pos, changedNeighbour := update.pos, update.neighbour
@@ -140,6 +146,7 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 			}
 		}
 	}
+	w.performance.pendingNeighbourUpdates = len(w.neighbourUpdates)
 }
 
 // tickBlocksRandomly executes random block ticks in loaded chunks within range of loaders.

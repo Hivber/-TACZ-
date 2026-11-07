@@ -33,3 +33,10 @@ This first diagnostic pass does not yet measure OS process CPU percentage, netwo
 The `/perf` output also shows exponential-moving-average and recent-window P95 durations for entity updates, scheduled block updates, random/block-entity ticks, neighbour updates, redstone, lightning and remaining unclassified work.
 
 The overall tick line distinguishes the maximum among the latest 100 ticks from the lifetime maximum. A historical spike remains visible without being confused with current performance. These timings do not change simulation order or disable game mechanics.
+
+
+## Queue and redstone workload diagnostics
+
+The latest `/perf` output includes world-transaction queue wait, processed/pending neighbour updates, redstone dirty positions, compiled graph nodes/edges and the number of dirty-position candidates scanned while selecting redstone update contexts.
+
+Neighbour updates now use two reusable buffers. Work queued while neighbour callbacks are running is still deferred to the next tick, preserving the previous processing boundary while avoiding a per-tick slice clone.

@@ -114,6 +114,10 @@ type RedstoneNonConductive interface {
 // and lets consumers and actions schedule any delayed or directional changes themselves.
 type redstoneEngine struct {
 	currentTick       int64
+	lastDirtyPositions int
+	lastGraphNodes int
+	lastGraphEdges int
+	lastContextScanPositions uint64
 	dirty             map[cube.Pos]redstoneDirty
 	power             map[cube.Pos]int
 	output            map[cube.Pos]int
@@ -272,7 +276,13 @@ func (e *redstoneEngine) forget(pos cube.Pos) {
 
 // tick evaluates all dirty redstone positions for the current world tick.
 func (e *redstoneEngine) tick(tx *Tx, tick int64) {
-	if e == nil || len(e.dirty) == 0 {
+	if e == nil {
+		return
+	}
+	e.lastDirtyPositions = len(e.dirty)
+	e.lastGraphNodes, e.lastGraphEdges = 0, 0
+	e.lastContextScanPositions = 0
+	if len(e.dirty) == 0 {
 		return
 	}
 	e.currentTick = tick
@@ -283,6 +293,7 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 	slices.SortFunc(candidates, compareBlockPos)
 
 	graph := e.compile(tx, candidates)
+	e.lastGraphNodes, e.lastGraphEdges = len(graph.nodes), len(graph.edges)
 	cancelledSources, checkedSources := e.updateGraphSources(tx, graph, dirty)
 	previousSuppressed := e.suppressedSources
 	e.suppressedSources = cancelledSources
@@ -292,7 +303,7 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 
 	powers := e.graphPower(tx, graph)
 	for i, node := range graph.nodes {
-		d := redstoneDirtyContext(dirty, node.pos)
+		d := e.dirtyContext(dirty, node.pos)
 		if node.sink {
 			e.update(tx, node.pos, d, powers[i])
 		}
@@ -301,11 +312,19 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 		if _, ok := checkedSources[node.pos]; ok {
 			continue
 		}
-		d := redstoneDirtyContext(dirty, node.pos)
+		d := e.dirtyContext(dirty, node.pos)
 		if node.source {
 			e.updateSource(tx, node.pos, d)
 		}
 	}
+}
+
+// dirtyContext records the amount of candidate scanning needed to select the update context.
+func (e *redstoneEngine) dirtyContext(dirty map[cube.Pos]redstoneDirty, pos cube.Pos) redstoneDirty {
+	if _, ok := dirty[pos]; !ok {
+		e.lastContextScanPositions += uint64(len(dirty))
+	}
+	return redstoneDirtyContext(dirty, pos)
 }
 
 // redstoneDirtyContext returns the direct dirty context for pos, or the nearest dirty context that pulled pos into
@@ -529,7 +548,7 @@ func (e *redstoneEngine) updateGraphSources(tx *Tx, graph redstoneGraph, dirty m
 		}
 		checked[node.pos] = struct{}{}
 
-		d := redstoneDirtyContext(dirty, node.pos)
+		d := e.dirtyContext(dirty, node.pos)
 		if !e.updateSource(tx, node.pos, d) {
 			if cancelled == nil {
 				cancelled = make(map[cube.Pos]int)

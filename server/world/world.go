@@ -84,7 +84,8 @@ type World struct {
 	// be removed from the map.
 	scheduledUpdates *scheduledTickQueue
 	redstone         *redstoneEngine
-	neighbourUpdates []neighbourUpdate
+	neighbourUpdates       []neighbourUpdate
+	neighbourUpdateBuffer []neighbourUpdate
 
 	viewerMu sync.Mutex
 	viewers  map[*Loader]Viewer
