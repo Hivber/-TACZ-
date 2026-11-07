@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/inventory"
 )
 
 func TestRedstoneRepeaterStates(t *testing.T) {
@@ -61,5 +63,77 @@ func TestRepeaterOnlyPowersItsOutputDirection(t *testing.T) {
 		if got := repeater.RedstonePower(cube.Pos{}, nil, direction.Opposite().Face()); got != 0 {
 			t.Fatalf("repeater facing %v outputs backwards: %d", direction, got)
 		}
+	}
+}
+
+func TestComparatorInventorySignal(t *testing.T) {
+	inv := inventory.New(9, nil)
+	for slot := 0; slot < 5; slot++ {
+		if err := inv.SetItem(slot, item.NewStack(item.Stick{}, 64)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := comparatorContainerSignal(inv); got != 8 {
+		t.Fatalf("half-filled inventory comparator signal = %d, want 8", got)
+	}
+	if got := comparatorContainerSignal(inventory.New(9, nil)); got != 0 {
+		t.Fatalf("empty inventory comparator signal = %d, want 0", got)
+	}
+	partial := inventory.New(9, nil)
+	if err := partial.SetItem(0, item.NewStack(item.Stick{}, 32)); err != nil {
+		t.Fatal(err)
+	}
+	if got := comparatorContainerSignal(partial); got != 1 {
+		t.Fatalf("partially filled single slot comparator signal = %d, want 1", got)
+	}
+}
+
+func TestComparatorModes(t *testing.T) {
+	tests := []struct {
+		input, side int
+		subtract    bool
+		want        int
+	}{
+		{input: 12, side: 5, want: 12},
+		{input: 4, side: 5, want: 0},
+		{input: 12, side: 5, subtract: true, want: 7},
+		{input: 4, side: 5, subtract: true, want: 0},
+		{input: 15, side: 15, want: 15},
+	}
+	for _, test := range tests {
+		if got := comparatorOutput(test.input, test.side, test.subtract); got != test.want {
+			t.Errorf("comparatorOutput(%d,%d,%v) = %d, want %d", test.input, test.side, test.subtract, got, test.want)
+		}
+	}
+}
+
+func TestComparatorStatesAndNBT(t *testing.T) {
+	states := allRedstoneComparators()
+	if len(states) != 16 {
+		t.Fatalf("comparator states = %d, want 16", len(states))
+	}
+	seen := make(map[[2]uint64]struct{}, len(states))
+	for _, state := range states {
+		comparator := state.(RedstoneComparator)
+		name, properties := comparator.EncodeBlock()
+		if name != "minecraft:unpowered_comparator" && name != "minecraft:powered_comparator" {
+			t.Fatalf("unexpected comparator block name %q", name)
+		}
+		if properties["minecraft:cardinal_direction"] != comparator.Direction.String() ||
+			properties["output_subtract_bit"] != comparator.Subtract ||
+			properties["output_lit_bit"] != comparator.Powered {
+			t.Fatalf("comparator properties do not match state: %+v -> %v", comparator, properties)
+		}
+		base, encodedState := comparator.Hash()
+		key := [2]uint64{base, encodedState}
+		if _, exists := seen[key]; exists {
+			t.Fatalf("duplicate comparator state hash: %+v", comparator)
+		}
+		seen[key] = struct{}{}
+	}
+	original := RedstoneComparator{Direction: cube.East, Subtract: true, Powered: true, output: 13}
+	decoded := original.DecodeNBT(original.EncodeNBT()).(RedstoneComparator)
+	if decoded.output != 13 || !decoded.Powered || !decoded.Subtract || decoded.Direction != cube.East {
+		t.Fatalf("comparator NBT round trip mismatch: %+v", decoded)
 	}
 }
