@@ -43,6 +43,14 @@ func (e *movementTestEntity) OnFireDuration() time.Duration {
 	return e.fire
 }
 
+func (e *movementTestEntity) SetOnFire(duration time.Duration) {
+	e.fire = max(duration, 0)
+}
+
+func (e *movementTestEntity) Extinguish() {
+	e.fire = 0
+}
+
 func newMovementTestEntity(pos mgl64.Vec3, fire time.Duration) *movementTestEntity {
 	handle := (world.EntitySpawnOpts{Position: pos}).New(movementTestEntityType{}, movementTestEntityConfig{})
 	return &movementTestEntity{handle: handle, pos: pos, fire: fire}
