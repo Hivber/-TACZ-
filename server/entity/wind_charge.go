@@ -23,13 +23,13 @@ func NewWindCharge(opts world.EntitySpawnOpts, owner world.Entity) *world.Entity
 }
 
 var windChargeConf = ProjectileBehaviourConfig{
-	Gravity: 0,
-	Drag:    0,
-	Damage:  0.5,
-	Sound:   sound.Custom{Name: "wind_charge.burst", Volume: 1, Pitch: 1},
-	Particle: particle.HugeExplosion{},
+	Gravity:       0,
+	Drag:          0,
+	Damage:        0.5,
+	Sound:         sound.Custom{Name: "wind_charge.burst", Volume: 1, Pitch: 1},
+	Particle:      particle.HugeExplosion{},
 	ParticleCount: 1,
-	Hit: windChargeHit,
+	Hit:           windChargeHit,
 }
 
 // WindChargeType is the entity type of a player-thrown wind charge.
