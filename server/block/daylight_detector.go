@@ -196,7 +196,7 @@ func daylightDetectorCelestialAngle(worldTime int64, tickDelta float64) float64 
 	if dayTime < 0 {
 		dayTime += 24000
 	}
-	angle := (float64(dayTime) + tickDelta) / 24000 - 0.25
+	angle := (float64(dayTime)+tickDelta)/24000 - 0.25
 	if angle < 0 {
 		angle++
 	}
