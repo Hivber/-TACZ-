@@ -3,11 +3,16 @@ package creative
 import (
 	"testing"
 
-	"github.com/df-mc/dragonfly/server/world"
+	"github.com/sandertv/gophertunnel/minecraft/nbt"
 )
 
-func TestCreativeInventoryIncludesKnownVanillaItemsWithoutDedicatedImplementations(t *testing.T) {
-	registerCreativeItems()
+func TestCreativeCatalogueResolvesKnownVanillaItemsWithoutDedicatedImplementations(t *testing.T) {
+	var catalogue struct {
+		Items []creativeItemEntry `nbt:"items"`
+	}
+	if err := nbt.Unmarshal(creativeItemData, &catalogue); err != nil {
+		t.Fatalf("decode embedded creative catalogue: %v", err)
+	}
 
 	want := []string{
 		"minecraft:shield",
@@ -24,23 +29,34 @@ func TestCreativeInventoryIncludesKnownVanillaItemsWithoutDedicatedImplementatio
 		"minecraft:ominous_bottle",
 	}
 	found := make(map[string]struct{}, len(want))
-	for _, entry := range Items() {
-		if it := entry.Stack.Item(); it != nil {
-			name, _ := it.EncodeItem()
-			found[name] = struct{}{}
+	for _, data := range catalogue.Items {
+		if _, expected := slices.Contains(want, data.Name), false; expected {
+			continue
 		}
 	}
 	for _, name := range want {
-		if _, ok := found[name]; !ok {
-			t.Errorf("vanilla creative item %q is still missing", name)
+		var entry *creativeItemEntry
+		for i := range catalogue.Items {
+			if catalogue.Items[i].Name == name && len(catalogue.Items[i].BlockProperties) == 0 {
+				entry = &catalogue.Items[i]
+				break
+			}
 		}
-		it, ok := world.ItemByName(name, 0)
-		if !ok {
-			t.Errorf("vanilla item %q cannot be resolved through ItemByName", name)
+		if entry == nil {
+			t.Errorf("vanilla creative catalogue does not contain item %q", name)
 			continue
 		}
-		if got, _ := it.EncodeItem(); got != name {
-			t.Errorf("ItemByName(%q) encoded as %q", name, got)
+		stack, ok := itemStackFromEntry(*entry)
+		if !ok {
+			t.Errorf("vanilla creative entry %q could not be resolved", name)
+			continue
 		}
+		if got, _ := stack.Item().EncodeItem(); got != name {
+			t.Errorf("creative item %q resolved as %q", name, got)
+		}
+		found[name] = struct{}{}
+	}
+	if len(found) != len(want) {
+		t.Fatalf("resolved %d of %d expected vanilla items", len(found), len(want))
 	}
 }
