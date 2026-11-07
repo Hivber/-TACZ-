@@ -215,6 +215,29 @@ func TestDecoratedPotComparatorOutput(t *testing.T) {
 	}
 }
 
+func TestItemFrameComparatorOutput(t *testing.T) {
+	tests := []struct {
+		name     string
+		item     item.Stack
+		rotation int
+		want     int
+	}{
+		{name: "empty frame", want: 0},
+		{name: "initial rotation", item: item.NewStack(item.Stick{}, 1), want: 1},
+		{name: "half rotation", item: item.NewStack(item.Stick{}, 1), rotation: 4, want: 5},
+		{name: "final rotation", item: item.NewStack(item.Stick{}, 1), rotation: 7, want: 8},
+		{name: "rotation wraps", item: item.NewStack(item.Stick{}, 1), rotation: 8, want: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			frame := ItemFrame{Item: test.item, Rotations: test.rotation}
+			if got := frame.ComparatorOutput(cube.Pos{}, nil); got != test.want {
+				t.Fatalf("item frame comparator output = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestComparatorModes(t *testing.T) {
 	tests := []struct {
 		input, side int

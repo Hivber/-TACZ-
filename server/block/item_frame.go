@@ -146,6 +146,26 @@ func (i ItemFrame) Pick() item.Stack {
 	return i.Item.Grow(-i.Item.Count() + 1)
 }
 
+// ComparatorOutput returns the item frame's rotation signal when it is mounted
+// on the side of a full block. Bedrock comparators read the frame through that
+// supporting block, rather than from a frame placed directly behind them.
+func (i ItemFrame) ComparatorOutput(pos cube.Pos, tx *world.Tx) int {
+	if i.Item.Empty() {
+		return 0
+	}
+	rotation := i.Rotations % 8
+	if rotation < 0 {
+		rotation += 8
+	}
+	if tx != nil {
+		supportPos := pos.Side(i.Facing)
+		if !comparatorFullCube(supportPos, tx.Block(supportPos), tx) {
+			return 0
+		}
+	}
+	return rotation + 1
+}
+
 // SideClosed ...
 func (ItemFrame) SideClosed(cube.Pos, cube.Pos, *world.Tx) bool {
 	return false

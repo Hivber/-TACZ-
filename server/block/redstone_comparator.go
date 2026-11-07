@@ -86,6 +86,11 @@ func comparatorContainerSignal(inv *inventory.Inventory) int {
 
 func comparatorBlockInput(pos cube.Pos, tx *world.Tx) (int, bool) {
 	b := tx.Block(pos)
+	// Item frames are only readable through their supporting full block, not
+	// when the frame itself is directly behind the comparator.
+	if _, ok := b.(ItemFrame); ok {
+		return 0, false
+	}
 	if override, ok := b.(ComparatorInput); ok {
 		return world.ClampRedstonePower(override.ComparatorOutput(pos, tx)), true
 	}
@@ -118,7 +123,11 @@ func (c RedstoneComparator) inputStrength(pos cube.Pos, tx *world.Tx) int {
 	power := tx.RedstonePowerFrom(pos, inputFace)
 	inputBlock := tx.Block(inputPos)
 	if power < 15 && comparatorFullCube(inputPos, inputBlock, tx) {
-		if signal, ok := comparatorBlockInput(inputPos.Side(inputFace), tx); ok {
+		measuredPos := inputPos.Side(inputFace)
+		if frame, ok := tx.Block(measuredPos).(ItemFrame); ok && frame.Facing == inputFace.Opposite() {
+			return frame.ComparatorOutput(measuredPos, tx)
+		}
+		if signal, ok := comparatorBlockInput(measuredPos, tx); ok {
 			return signal
 		}
 	}
