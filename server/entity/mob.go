@@ -231,7 +231,7 @@ func (b *mobBehaviour) moveToward(m *Mob, delta mgl64.Vec3) {
 	m.data.Rot = cube.Rotation{mgl64.RadToDeg(math.Atan2(direction[0], direction[2])), 0}
 }
 
-func (m *Mob) Health() float64 { return m.mobState().health.Health() }
+func (m *Mob) Health() float64    { return m.mobState().health.Health() }
 func (m *Mob) MaxHealth() float64 { return m.mobState().health.MaxHealth() }
 func (m *Mob) SetMaxHealth(v float64) {
 	m.mobState().health.SetMaxHealth(v)

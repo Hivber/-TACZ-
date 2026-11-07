@@ -24,7 +24,7 @@ var eggConf = ProjectileBehaviourConfig{
 	Damage:        -1,
 	Particle:      particle.EggSmash{},
 	ParticleCount: 6,
-	Hit:          eggHit,
+	Hit:           eggHit,
 }
 
 // eggHit implements the vanilla chicken-hatching chance of a thrown egg.
