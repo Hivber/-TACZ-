@@ -48,3 +48,27 @@ vanilla identifiers can therefore remain visible before their full behaviour is
 implemented, but visibility must not be confused with gameplay support.
 
 
+
+
+## Initial mob runtime and spawning
+
+The first living-entity set is registered as real server entities: pigs, cows,
+sheep, chickens, zombies and skeletons. They have health, damage handling,
+basic movement and wandering, hostile melee targeting, death and basic item
+drops.
+
+The Overworld performs bounded natural-spawn attempts every 200 world ticks.
+The first pass respects `doMobSpawning`, world difficulty, surface light,
+loaded chunks and per-player mob caps. It currently spawns common animals on
+grass in bright conditions and zombies/skeletons in sufficiently dark night
+conditions.
+
+Dedicated spawn eggs are enabled for those six mob types. Using one on a block
+spawns the corresponding entity and consumes one egg. Thrown ordinary eggs
+hatch chickens with the vanilla 1/8 chance; on a successful hatch, there is a
+1/32 chance to spawn four chicks.
+
+This is not full vanilla mob parity yet. Biome-specific spawn tables, group
+weights, despawning, breeding, taming, full pathfinding, ranged skeleton AI,
+creeper behaviour, Nether/End spawns and the remaining vanilla mob types
+remain future work.
