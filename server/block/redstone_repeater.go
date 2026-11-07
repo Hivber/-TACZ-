@@ -182,4 +182,3 @@ func allRedstoneRepeaters() (all []world.Block) {
 	}
 	return
 }
-

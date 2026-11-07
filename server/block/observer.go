@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	_ world.RedstonePowerSource   = Observer{}
+	_ world.RedstonePowerSource       = Observer{}
 	_ world.RedstoneStrongPowerSource = Observer{}
-	_ world.ScheduledTicker       = Observer{}
-	_ world.NeighbourUpdateTicker = Observer{}
+	_ world.ScheduledTicker           = Observer{}
+	_ world.NeighbourUpdateTicker     = Observer{}
 )
 
 // Observer watches the block on its facing side. A change there causes a
@@ -95,4 +95,3 @@ func allObservers() (all []world.Block) {
 	}
 	return
 }
-
