@@ -27,7 +27,7 @@ func TestDaylightDetectorStates(t *testing.T) {
 		if got := properties["redstone_signal"]; got != int32(detector.Power) {
 			t.Fatalf("encoded redstone_signal = %v, want %d", got, detector.Power)
 		}
-		if got := detector.EncodeItem(); got != "minecraft:daylight_detector" {
+		if got, _ := detector.EncodeItem(); got != "minecraft:daylight_detector" {
 			t.Fatalf("encoded item = %q, want minecraft:daylight_detector", got)
 		}
 		base, value := detector.Hash()
