@@ -38,6 +38,10 @@ type Hopper struct {
 	viewers   map[ContainerViewer]struct{}
 }
 
+var (
+	_ world.RedstonePowerConsumer = Hopper{}
+)
+
 // NewHopper creates a new initialised hopper. The inventory is properly initialised.
 func NewHopper() Hopper {
 	m := new(sync.RWMutex)
@@ -131,6 +135,16 @@ func (h Hopper) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, tx *world
 
 	place(tx, pos, h, user, ctx)
 	return placed(ctx)
+}
+
+// RedstonePowerUpdate locks the hopper while any redstone power is applied.
+func (h Hopper) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
+	powered := power > 0
+	if h.Powered == powered {
+		return h, false
+	}
+	h.Powered = powered
+	return h, true
 }
 
 // Tick ...
