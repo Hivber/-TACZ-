@@ -123,7 +123,6 @@ func newMobBehaviour(kind mobKind) *mobBehaviour {
 	}
 }
 
-
 func (b *mobBehaviour) Apply(data *world.EntityData) {
 	data.Data = b
 }
@@ -236,7 +235,7 @@ func (m *Mob) Health() float64 { return m.mobState().health.Health() }
 func (m *Mob) MaxHealth() float64 { return m.mobState().health.MaxHealth() }
 func (m *Mob) SetMaxHealth(v float64) {
 	m.mobState().health.SetMaxHealth(v)
-	m.Ent.updateState()
+	m.updateState()
 }
 func (m *Mob) Dead() bool { return m.mobState().dead || m.Health() <= 0 }
 
@@ -267,7 +266,7 @@ func (m *Mob) Hurt(damage float64, src world.DamageSource) (float64, bool) {
 	for _, viewer := range m.tx.Viewers(m.Position()) {
 		viewer.ViewEntityAction(m, HurtAction{})
 	}
-	m.Ent.updateState()
+	m.updateState()
 	if m.Dead() {
 		m.die()
 	}
@@ -305,7 +304,7 @@ func (m *Mob) Heal(amount float64, _ world.HealingSource) float64 {
 		return 0
 	}
 	m.mobState().health.AddHealth(amount)
-	m.Ent.updateState()
+	m.updateState()
 	return m.Health() - before
 }
 
