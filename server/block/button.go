@@ -83,6 +83,7 @@ var (
 	_ world.RedstoneStrongPowerSource = Button{}
 	_ world.ScheduledTicker           = Button{}
 	_ world.NeighbourUpdateTicker     = Button{}
+	_ ProjectileHitter                = Button{}
 )
 
 // RedstonePower weakly powers adjacent redstone components while the button is pressed.
@@ -145,10 +146,55 @@ func (Button) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, _ item.User, _ *
 	return true
 }
 
-// ScheduledTick releases a pressed button after its pulse duration.
+// ProjectileHit lets arrows activate wooden buttons. Stone buttons deliberately
+// ignore projectiles, matching Bedrock's wooden-button interaction.
+func (b Button) ProjectileHit(pos cube.Pos, tx *world.Tx, e world.Entity, _ cube.Face) {
+	if b.Kind < ButtonOak || e.H().Type().EncodeEntity() != "minecraft:arrow" {
+		return
+	}
+	current, ok := tx.Block(pos).(Button)
+	if !ok || current.Kind < ButtonOak || current.Powered {
+		return
+	}
+	current.Powered = true
+	tx.SetBlock(pos, current, nil)
+	tx.PlaySound(pos.Vec3Centre(), sound.PowerOn{})
+	tx.ScheduleBlockUpdate(pos, current, buttonArrowCheckInterval)
+}
+
+const buttonArrowCheckInterval = time.Second / 4
+
+// buttonArrowInside reports whether an arrow is still intersecting the button.
+// The search box is deliberately bounded to the button's surrounding blocks.
+func buttonArrowInside(pos cube.Pos, button Button, tx *world.Tx) bool {
+	searchBox := cube.Box(
+		float64(pos[0])-1, float64(pos[1])-1, float64(pos[2])-1,
+		float64(pos[0])+2, float64(pos[1])+2, float64(pos[2])+2,
+	)
+	buttonBoxes := button.Model().BBox(pos, tx)
+	for e := range tx.EntitiesWithin(searchBox) {
+		if e.H().Type().EncodeEntity() != "minecraft:arrow" {
+			continue
+		}
+		arrowBox := e.H().Type().BBox(e).Translate(e.Position())
+		for _, buttonBox := range buttonBoxes {
+			if arrowBox.IntersectsWith(buttonBox.Translate(pos.Vec3())) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ScheduledTick releases a pressed button after its pulse duration. A wooden
+// button remains powered while an arrow is still stuck against its collision box.
 func (b Button) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 	current, ok := tx.Block(pos).(Button)
 	if !ok || !current.Powered {
+		return
+	}
+	if current.Kind >= ButtonOak && buttonArrowInside(pos, current, tx) {
+		tx.ScheduleBlockUpdate(pos, current, buttonArrowCheckInterval)
 		return
 	}
 	current.Powered = false
