@@ -146,7 +146,6 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 			}
 		}
 	}
-	w.performance.pendingNeighbourUpdates = len(w.neighbourUpdates)
 }
 
 // tickBlocksRandomly executes random block ticks in loaded chunks within range of loaders.
