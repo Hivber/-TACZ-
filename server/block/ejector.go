@@ -15,7 +15,6 @@ import (
 	"github.com/go-gl/mathgl/mgl64"
 )
 
-
 // DispenserItemBehavior creates an entity or otherwise handles one item ejected by a dispenser.
 // The entity package registers built-in projectile and item-entity behaviours during initialisation.
 type DispenserItemBehavior func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool
@@ -193,7 +192,7 @@ func (e ejector) redstonePowerUpdate(power int) (ejector, bool) {
 
 // RedstonePowerUpdate tracks whether the dispenser is currently powered.
 func (d Dispenser) RedstonePowerUpdate(_ cube.Pos, _ *world.Tx, power int) (world.Block, bool) {
-	e, changed := d.ejector.redstonePowerUpdate(power)
+	e, changed := d.redstonePowerUpdate(power)
 	d.ejector = e
 	return d, changed
 }
@@ -222,14 +221,14 @@ func (d Dropper) RedstonePowerPostUpdate(pos cube.Pos, tx *world.Tx, _, after wo
 // ScheduledTick performs the delayed dispenser operation.
 func (d Dispenser) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 	if current, ok := tx.Block(pos).(Dispenser); ok {
-		current.ejector.dispense(pos, tx, false)
+		current.dispense(pos, tx, false)
 	}
 }
 
 // ScheduledTick performs the delayed dropper operation.
 func (d Dropper) ScheduledTick(pos cube.Pos, tx *world.Tx, _ *rand.Rand) {
 	if current, ok := tx.Block(pos).(Dropper); ok {
-		current.ejector.dispense(pos, tx, true)
+		current.dispense(pos, tx, true)
 	}
 }
 
@@ -257,7 +256,7 @@ func (d Dropper) UseOnBlock(pos cube.Pos, face cube.Face, _ mgl64.Vec3, tx *worl
 	return placed(ctx)
 }
 
-func (d Dispenser) BreakInfo() BreakInfo { return d.ejector.breakInfo(d) }
+func (d Dispenser) BreakInfo() BreakInfo { return d.breakInfo(d) }
 func (d Dropper) BreakInfo() BreakInfo   { return d.ejector.breakInfo(d) }
 
 func (Dispenser) EncodeItem() (string, int16) { return "minecraft:dispenser", 0 }
@@ -277,14 +276,14 @@ func (d Dropper) EncodeBlock() (string, map[string]any) {
 	}
 }
 
-func (d Dispenser) EncodeNBT() map[string]any { return d.ejector.encodeNBT("Dispenser") }
+func (d Dispenser) EncodeNBT() map[string]any { return d.encodeNBT("Dispenser") }
 
 func (d Dispenser) DecodeNBT(data map[string]any) any {
-	d.ejector = d.ejector.decodeNBT(data)
+	d.ejector = d.decodeNBT(data)
 	return d
 }
 
-func (d Dropper) EncodeNBT() map[string]any { return d.ejector.encodeNBT("Dropper") }
+func (d Dropper) EncodeNBT() map[string]any { return d.encodeNBT("Dropper") }
 
 func (d Dropper) DecodeNBT(data map[string]any) any {
 	d.ejector = d.ejector.decodeNBT(data)
@@ -292,7 +291,7 @@ func (d Dropper) DecodeNBT(data map[string]any) any {
 }
 
 func (d Dispenser) WithName(a ...any) world.Item {
-	d.ejector = d.ejector.withName(a...)
+	d.ejector = d.withName(a...)
 	return d
 }
 
@@ -303,7 +302,7 @@ func (d Dropper) WithName(a ...any) world.Item {
 
 // ComparatorOutput exposes the fullness of the dispenser inventory to comparators.
 func (d Dispenser) ComparatorOutput(pos cube.Pos, tx *world.Tx) int {
-	return d.ejector.ComparatorOutput(pos, tx)
+	return d.ComparatorOutput(pos, tx)
 }
 
 // ComparatorOutput exposes the fullness of the dropper inventory to comparators.
