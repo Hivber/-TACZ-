@@ -1,7 +1,6 @@
 package player
 
 import (
-	"math"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -142,7 +141,7 @@ func shieldDurabilityDamage(damage float64) int {
 	if damage < 3 {
 		return 0
 	}
-	return int(math.Ceil(damage))
+	return int(damage) + 1
 }
 
 // shieldAttackOrigin returns the position and entity responsible for an attack
