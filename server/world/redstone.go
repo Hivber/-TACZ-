@@ -306,15 +306,13 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 		if !node.sink {
 			continue
 		}
-		d := e.dirtyContext(dirty, node.pos)
-		e.update(tx, node.pos, d, powers[i])
+		e.update(tx, node.pos, dirty, powers[i])
 	}
 	for _, node := range graph.nodes {
 		if _, ok := checkedSources[node.pos]; ok || !node.source {
 			continue
 		}
-		d := e.dirtyContext(dirty, node.pos)
-		e.updateSource(tx, node.pos, d)
+		e.updateSource(tx, node.pos, dirty)
 	}
 }
 
@@ -483,7 +481,7 @@ func (e *redstoneEngine) compileRegion(tx *Tx, pos cube.Pos, seen map[cube.Pos]s
 }
 
 // update applies a computed input power to a consumer or action block.
-func (e *redstoneEngine) update(tx *Tx, pos cube.Pos, d redstoneDirty, newPower int) {
+func (e *redstoneEngine) update(tx *Tx, pos cube.Pos, dirty map[cube.Pos]redstoneDirty, newPower int) {
 	b := tx.Block(pos)
 	oldPower, newPower := e.power[pos], ClampRedstonePower(newPower)
 
@@ -493,13 +491,20 @@ func (e *redstoneEngine) update(tx *Tx, pos cube.Pos, d redstoneDirty, newPower 
 	}
 	action, hasAction := b.(RedstonePowerAction)
 	contextAction, hasContextAction := b.(RedstonePowerContextAction)
-
-	update := d.redstoneUpdate(pos, b, oldPower, newPower, e.currentTick)
-	if blockChanged {
-		update.After = after
-	}
 	shouldRunAction := hasContextAction || (hasAction && oldPower != newPower)
+
+	var (
+		d      redstoneDirty
+		update RedstoneUpdate
+	)
 	if oldPower != newPower || blockChanged || shouldRunAction {
+		// Resolving the nearest dirty context can be expensive. Do it only when
+		// the update will actually be sent to handlers or action blocks.
+		d = e.dirtyContext(dirty, pos)
+		update = d.redstoneUpdate(pos, b, oldPower, newPower, e.currentTick)
+		if blockChanged {
+			update.After = after
+		}
 		if !e.redstoneUpdateAllowed(tx, update) {
 			return
 		}
@@ -547,8 +552,7 @@ func (e *redstoneEngine) updateGraphSources(tx *Tx, graph redstoneGraph, dirty m
 		}
 		checked[node.pos] = struct{}{}
 
-		d := e.dirtyContext(dirty, node.pos)
-		if !e.updateSource(tx, node.pos, d) {
+		if !e.updateSource(tx, node.pos, dirty) {
 			if cancelled == nil {
 				cancelled = make(map[cube.Pos]int)
 			}
@@ -559,12 +563,13 @@ func (e *redstoneEngine) updateGraphSources(tx *Tx, graph redstoneGraph, dirty m
 }
 
 // updateSource updates cached output power for a source and reports whether it was allowed.
-func (e *redstoneEngine) updateSource(tx *Tx, pos cube.Pos, d redstoneDirty) bool {
+func (e *redstoneEngine) updateSource(tx *Tx, pos cube.Pos, dirty map[cube.Pos]redstoneDirty) bool {
 	b := tx.Block(pos)
 	oldPower, newPower := e.output[pos], e.sourcePower(pos, tx)
 	if oldPower == newPower {
 		return true
 	}
+	d := e.dirtyContext(dirty, pos)
 	update := d.redstoneUpdate(pos, b, oldPower, newPower, e.currentTick)
 	if !e.redstoneUpdateAllowed(tx, update) {
 		return false
