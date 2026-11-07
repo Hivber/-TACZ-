@@ -210,6 +210,7 @@ func init() {
 	registerAll(allLeaves())
 	registerAll(allLecterns())
 	registerAll(allLevers())
+	registerAll(allButtons())
 	registerAll(allPressurePlates())
 	registerAll(allLight())
 	registerAll(allLitPumpkins())
@@ -372,6 +373,9 @@ func init() {
 	world.RegisterItem(Lapis{})
 	world.RegisterItem(Lectern{})
 	world.RegisterItem(Lever{})
+	for kind := 0; kind < buttonKindCount; kind++ {
+		world.RegisterItem(Button{Kind: kind})
+	}
 	for kind := 0; kind < pressurePlateKindCount; kind++ {
 		world.RegisterItem(PressurePlate{Kind: kind})
 	}
