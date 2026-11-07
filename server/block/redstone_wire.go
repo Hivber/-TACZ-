@@ -387,9 +387,9 @@ func redstoneWireDirectConnection(src world.BlockSource, pos cube.Pos, face cube
 	switch b.(type) {
 	case RedstoneWire, world.RedstonePowerSource, world.RedstoneStrongPowerSource, world.RedstonePowerRelayer:
 		return true
-	case Jukebox, Lectern:
-		// The game connects wire to these as the redstone components they
-		// are, which dragonfly does not implement for them yet.
+	case Jukebox:
+		// Jukeboxes remain a redstone connection point even though their
+		// playback power output is not implemented yet.
 		return true
 	}
 	return redstoneWireNonSolidComponent(pos, b, src, face)
