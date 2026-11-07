@@ -76,7 +76,6 @@ type tickPerformance struct {
 	stages      [tickStageCount]tickStagePerformance
 	queueWait   tickStagePerformance
 	neighbourUpdatesProcessed int
-	pendingNeighbourUpdates int
 	windowStart time.Time
 	windowTicks uint64
 	tps         float64
@@ -218,8 +217,6 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 	w.viewerMu.Lock()
 	activeLoaders := len(w.viewers)
 	w.viewerMu.Unlock()
-	m.neighbourUpdatesProcessed = w.performance.neighbourUpdatesProcessed
-
 	queueDepth, queueCapacity := 0, 0
 	if w.chunkWorkers != nil {
 		queueDepth = len(w.chunkWorkers.queue)
