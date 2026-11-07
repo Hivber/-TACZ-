@@ -166,18 +166,18 @@ func NewNaturalMob(opts world.EntitySpawnOpts, name string) *world.EntityHandle 
 
 type mobBehaviour struct {
 	BaseBehaviour
-	kind            mobKind
-	health          *HealthManager
-	effects         *EffectManager
-	movement        *MovementComputer
-	immuneUntil     time.Time
-	lastDamage      float64
-	attackCooldown  int
-	target          *world.EntityHandle
-	wanderTarget    mgl64.Vec3
-	wanderTicks     int
-	dead            bool
-	naturalSpawn    bool
+	kind           mobKind
+	health         *HealthManager
+	effects        *EffectManager
+	movement       *MovementComputer
+	immuneUntil    time.Time
+	lastDamage     float64
+	attackCooldown int
+	target         *world.EntityHandle
+	wanderTarget   mgl64.Vec3
+	wanderTicks    int
+	dead           bool
+	naturalSpawn   bool
 }
 
 func newMobBehaviour(kind mobKind, natural bool) *mobBehaviour {
@@ -573,9 +573,10 @@ func SpawnNaturalMobs(tx *world.Tx) {
 		if nearestPlayerDistanceSquared(mob.Position(), tx) > 128*128 {
 			continue
 		}
-		if mob.kind.spawnCategory == mobSpawnMonster {
+		switch mob.kind.spawnCategory {
+		case mobSpawnMonster:
 			monsters++
-		} else if mob.kind.spawnCategory == mobSpawnAnimal {
+		case mobSpawnAnimal:
 			animals++
 		}
 	}
@@ -613,7 +614,7 @@ func SpawnNaturalMobs(tx *world.Tx) {
 				continue
 			}
 			kind, ok := chooseNaturalMob(category, biome, light)
-			if !ok || (kind.grassRequired && isGrassBlock(ground) == false) {
+			if !ok || (kind.grassRequired && !isGrassBlock(ground)) {
 				continue
 			}
 
