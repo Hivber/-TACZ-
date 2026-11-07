@@ -11,9 +11,9 @@ func TestParseCommandSNBT(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]any{
-		"Lock": "vault",
-		"Items": []any{map[string]any{"Slot": int8(0), "Count": int8(2), "id": "minecraft:stone"}},
-		"Damage": int16(3),
+		"Lock":    "vault",
+		"Items":   []any{map[string]any{"Slot": int8(0), "Count": int8(2), "id": "minecraft:stone"}},
+		"Damage":  int16(3),
 		"Enabled": true,
 	}
 	if !reflect.DeepEqual(value, want) {
