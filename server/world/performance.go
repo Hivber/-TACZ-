@@ -53,7 +53,6 @@ type PerformanceSnapshot struct {
 	RedstoneGraphEdges           int
 	RedstoneContextScanPositions uint64
 }
-}
 
 // TickStageSnapshot describes the recent cost of one stage of world ticking.
 type TickStageSnapshot struct {
@@ -81,7 +80,6 @@ type tickPerformance struct {
 	windowStart               time.Time
 	windowTicks               uint64
 	tps                       float64
-}
 }
 
 type tickStagePerformance struct {

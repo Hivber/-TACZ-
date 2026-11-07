@@ -125,7 +125,6 @@ type redstoneEngine struct {
 	suppressedSources        map[cube.Pos]int
 	torchBurnout             map[cube.Pos]redstoneTorchBurnout
 }
-}
 
 // redstoneDirty records why a position needs redstone evaluation.
 type redstoneDirty struct {
