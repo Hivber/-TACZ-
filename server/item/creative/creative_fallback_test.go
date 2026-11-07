@@ -65,15 +65,15 @@ func TestCreativeCatalogueUsesDedicatedShieldAndTridentImplementations(t *testin
 	}
 
 	for name, check := range map[string]func(item.Stack) bool{
-		"minecraft:shield"             func(s item.Stack) bool { _, ok := s.Item().(item.Shield); return ok },
-		"minecraft:trident"            func(s item.Stack) bool { _, ok := s.Item().(item.Trident); return ok },
-		"minecraft:wind_charge"        func(s item.Stack) bool { _, ok := s.Item().(item.WindCharge); return ok },
-		"minecraft:pig_spawn_egg"      func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
-		"minecraft:cow_spawn_egg"      func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
-		"minecraft:sheep_spawn_egg"    func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
-		"minecraft:chicken_spawn_egg"  func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
-		"minecraft:zombie_spawn_egg"   func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
-		"minecraft:skeleton_spawn_egg" func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:shield":             func(s item.Stack) bool { _, ok := s.Item().(item.Shield); return ok },
+		"minecraft:trident":            func(s item.Stack) bool { _, ok := s.Item().(item.Trident); return ok },
+		"minecraft:wind_charge":        func(s item.Stack) bool { _, ok := s.Item().(item.WindCharge); return ok },
+		"minecraft:pig_spawn_egg":      func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:cow_spawn_egg":      func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:sheep_spawn_egg":    func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:chicken_spawn_egg":  func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:zombie_spawn_egg":   func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
+		"minecraft:skeleton_spawn_egg": func(s item.Stack) bool { _, ok := s.Item().(item.SpawnEgg); return ok },
 	} {
 		t.Run(name, func(t *testing.T) {
 			for _, entry := range catalogue.Items {
