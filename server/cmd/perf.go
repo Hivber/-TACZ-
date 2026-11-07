@@ -21,7 +21,9 @@ func (perfCommand) Run(_ Source, out *Output, tx *world.Tx) {
 
 	const mib = 1024 * 1024
 	out.Printf(
-		"Process: goroutines=%d, heap_alloc=%.1f MiB, heap_inuse=%.1f MiB, GC_cycles=%d, GC_pause_total=%.1f ms, GC_CPU=%.2f%%.",
+		"Process: CPUs=%d, GOMAXPROCS=%d, goroutines=%d, heap_alloc=%.1f MiB, heap_inuse=%.1f MiB, GC_cycles=%d, GC_pause_total=%.1f ms, GC_CPU=%.2f%%.",
+		runtime.NumCPU(),
+		runtime.GOMAXPROCS(0),
 		runtime.NumGoroutine(),
 		float64(memory.HeapAlloc)/mib,
 		float64(memory.HeapInuse)/mib,

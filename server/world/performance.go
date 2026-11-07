@@ -63,9 +63,12 @@ func (m *tickPerformance) record(now time.Time, duration time.Duration) {
 	}
 
 	if m.windowStart.IsZero() {
+		// Start the rate window at the first observed tick. Only later ticks
+		// count toward the elapsed interval, avoiding a one-tick startup bias.
 		m.windowStart = now
+	} else {
+		m.windowTicks++
 	}
-	m.windowTicks++
 	if elapsed := now.Sub(m.windowStart); elapsed >= time.Second {
 		m.tps = float64(m.windowTicks) / elapsed.Seconds()
 		m.windowStart = now
