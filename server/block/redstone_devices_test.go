@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
-	"github.com/df-mc/dragonfly/server/world"
 )
 
 func TestRedstoneRepeaterStates(t *testing.T) {
@@ -12,7 +11,7 @@ func TestRedstoneRepeaterStates(t *testing.T) {
 	if len(states) != 32 {
 		t.Fatalf("repeater states = %d, want 32", len(states))
 	}
-	seen := make(map[uint64]struct{}, len(states))
+	seen := make(map[[2]uint64]struct{}, len(states))
 	for _, state := range states {
 		repeater := state.(RedstoneRepeater)
 		name, properties := repeater.EncodeBlock()
@@ -28,10 +27,12 @@ func TestRedstoneRepeaterStates(t *testing.T) {
 		if _, hasPoweredBit := properties["powered_bit"]; hasPoweredBit {
 			t.Fatal("repeater powered state must be represented by the powered/unpowered block identifier")
 		}
-		if _, exists := seen[world.DefaultBlockRegistry.BlockHash(repeater)]; exists {
+		base, encodedState := repeater.Hash()
+		key := [2]uint64{base, encodedState}
+		if _, exists := seen[key]; exists {
 			t.Fatalf("duplicate repeater block hash for %+v", repeater)
 		}
-		seen[world.DefaultBlockRegistry.BlockHash(repeater)] = struct{}{}
+		seen[key] = struct{}{}
 	}
 }
 
