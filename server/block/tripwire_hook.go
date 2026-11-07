@@ -187,11 +187,14 @@ func updateTripwireHookLine(pos cube.Pos, hook TripwireHook, tx *world.Tx) {
 	}
 	for _, wirePos := range line {
 		wire, ok := tx.Block(wirePos).(String)
-		if !ok || wire.Attached == attached {
+		if !ok {
 			continue
 		}
-		wire.Attached = attached
-		wire.Connections = calculateConnections(wire, tx, wirePos)
+		connections := calculateConnections(wire, tx, wirePos)
+		if wire.Attached == attached && wire.Connections == connections {
+			continue
+		}
+		wire.Attached, wire.Connections = attached, connections
 		tx.SetBlock(wirePos, wire, nil)
 	}
 }
