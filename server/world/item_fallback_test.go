@@ -4,11 +4,9 @@ import "testing"
 
 func TestItemByNameReturnsFallbackForKnownVanillaItems(t *testing.T) {
 	names := []string{
-		"minecraft:shield",
 		"minecraft:fishing_rod",
 		"minecraft:saddle",
 		"minecraft:filled_map",
-		"minecraft:trident",
 		"minecraft:brush",
 		"minecraft:wind_charge",
 		"minecraft:bundle",

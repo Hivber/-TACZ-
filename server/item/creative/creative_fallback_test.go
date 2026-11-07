@@ -3,6 +3,7 @@ package creative
 import (
 	"testing"
 
+	"github.com/df-mc/dragonfly/server/item"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 )
 
@@ -16,10 +17,8 @@ func TestCreativeCatalogueResolvesKnownVanillaItemsWithoutDedicatedImplementatio
 	}
 
 	want := []string{
-		"minecraft:shield",
 		"minecraft:fishing_rod",
 		"minecraft:saddle",
-		"minecraft:trident",
 		"minecraft:brush",
 		"minecraft:wind_charge",
 		"minecraft:bundle",
@@ -54,5 +53,36 @@ func TestCreativeCatalogueResolvesKnownVanillaItemsWithoutDedicatedImplementatio
 	}
 	if len(found) != len(want) {
 		t.Fatalf("resolved %d of %d expected vanilla items", len(found), len(want))
+	}
+}
+
+func TestCreativeCatalogueUsesDedicatedShieldAndTridentImplementations(t *testing.T) {
+	var catalogue struct {
+		Items []creativeItemEntry `nbt:"items"`
+	}
+	if err := nbt.Unmarshal(creativeItemData, &catalogue); err != nil {
+		t.Fatalf("decode embedded creative catalogue: %v", err)
+	}
+
+	for name, check := range map[string]func(item.Stack) bool{
+		"minecraft:shield":  func(s item.Stack) bool { _, ok := s.Item().(item.Shield); return ok },
+		"minecraft:trident": func(s item.Stack) bool { _, ok := s.Item().(item.Trident); return ok },
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, entry := range catalogue.Items {
+				if entry.Name != name || len(entry.BlockProperties) != 0 {
+					continue
+				}
+				stack, ok := itemStackFromEntry(entry)
+				if !ok {
+					t.Fatalf("creative item %q could not be resolved", name)
+				}
+				if !check(stack) {
+					t.Fatalf("creative item %q resolved to %T, want dedicated gameplay implementation", name, stack.Item())
+				}
+				return
+			}
+			t.Fatalf("creative catalogue does not contain %q", name)
+		})
 	}
 }
