@@ -1,10 +1,12 @@
 package entity
 
 import (
+	"math"
+
+	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
-	"math"
 )
 
 // MovementComputer is used to compute movement of an entity. When constructed, the Gravity of the entity
@@ -68,10 +70,43 @@ func (c *MovementComputer) TickMovement(e world.Entity, pos, vel mgl64.Vec3, rot
 	velBefore := vel
 	vel = c.applyHorizontalForces(tx, pos, c.applyVerticalForces(vel))
 	dPos, vel := c.CheckCollision(tx, e, pos, vel)
+	newPos := pos.Add(dPos)
+	c.updateBlockInteractions(tx, e, newPos)
 
 	return &Movement{v: viewers, e: e,
-		pos: pos.Add(dPos), vel: vel, dpos: dPos, dvel: vel.Sub(velBefore),
+		pos: newPos, vel: vel, dpos: dPos, dvel: vel.Sub(velBefore),
 		rot: rot, onGround: c.onGround,
+	}
+}
+
+// updateBlockInteractions calls the block callbacks for entities that are
+// inside blocks or standing on top of them. These callbacks drive vanilla
+// behaviour such as pressure plates, redstone ore and lit candle cakes.
+func (c *MovementComputer) updateBlockInteractions(tx *world.Tx, e world.Entity, pos mgl64.Vec3) {
+	entityBox := e.H().Type().BBox(e).Translate(pos)
+	minPos, maxPos := entityBox.Min(), entityBox.Max()
+	const epsilon = 0.00001
+	maxBlock := cube.PosFromVec3(maxPos.Sub(mgl64.Vec3{epsilon, epsilon, epsilon}))
+
+	for blockPos := range cube.Range3D(cube.PosFromVec3(minPos), maxBlock) {
+		if insider, ok := tx.Block(blockPos).(block.EntityInsider); ok {
+			insider.EntityInside(blockPos, tx, e)
+		}
+	}
+
+	if !c.onGround {
+		return
+	}
+	supportY := int(math.Floor(minPos[1] - epsilon))
+	minX, minZ := int(math.Floor(minPos[0])), int(math.Floor(minPos[2]))
+	maxX, maxZ := int(math.Floor(maxPos[0]-epsilon)), int(math.Floor(maxPos[2]-epsilon))
+	for x := minX; x <= maxX; x++ {
+		for z := minZ; z <= maxZ; z++ {
+			blockPos := cube.Pos{x, supportY, z}
+			if stepper, ok := tx.Block(blockPos).(block.EntityStepper); ok {
+				stepper.EntityStepOn(blockPos, tx, e)
+			}
+		}
 	}
 }
 
