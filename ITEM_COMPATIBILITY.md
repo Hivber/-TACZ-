@@ -23,11 +23,17 @@ projectile, riding or container behaviour.
 - **Trident:** melee attacks deal 9 damage and the item has 251 durability,
   losing durability on attacks. Throwing, Loyalty return, Riptide propulsion,
   Channeling lightning and Impaling-specific damage are not yet implemented.
+- **Wind charge:** can be thrown as a server-side projectile, deals 1 point of
+  direct hit damage, and creates a 2.4-block wind burst that launches nearby
+  living entities. It has a 64-item stack limit and a 10-tick use cooldown.
+  Full Bedrock block interactions (doors, gates, buttons, levers, bells, candles
+  and decorated pots), projectile deflection, liquid attenuation and fall-damage
+  baseline handling remain unimplemented.
 
 ## Remaining fallback items
 
 The initial creative compatibility set still includes items such as fishing
-rod, saddle, filled map, brush, wind charge, bundle, wooden spear, breeze rod,
+rod, saddle, filled map, brush, bundle, wooden spear, breeze rod,
 trial keys, ominous trial key and ominous bottle. These remain identity-preserving
 fallbacks until their required server systems are implemented. For example,
 fishing requires a hook entity and loot cycle, archaeology requires brushable

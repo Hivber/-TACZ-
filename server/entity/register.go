@@ -26,6 +26,7 @@ var DefaultRegistry = conf.New([]world.EntityType{
 	SplashPotionType,
 	TNTType,
 	TextType,
+	WindChargeType,
 })
 
 var conf = world.EntityRegistryConfig{
@@ -33,6 +34,7 @@ var conf = world.EntityRegistryConfig{
 	Egg:                NewEgg,
 	EndCrystal:         NewEndCrystal,
 	Snowball:           NewSnowball,
+	WindCharge:         NewWindCharge,
 	BottleOfEnchanting: NewBottleOfEnchanting,
 	EnderPearl:         NewEnderPearl,
 	FallingBlock:       NewFallingBlock,
