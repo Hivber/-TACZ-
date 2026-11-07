@@ -205,11 +205,11 @@ func (u tripwireShearsTestUser) HeldItems() (item.Stack, item.Stack) {
 
 func TestTripwireBreakPulseAndShearsSuppression(t *testing.T) {
 	for _, test := range []struct {
-		name       string
-		tool       item.Tool
-		held       item.Stack
-		wantPulse  bool
-		wantDrops  int
+		name      string
+		tool      item.Tool
+		held      item.Stack
+		wantPulse bool
+		wantDrops int
 	}{
 		{name: "ordinary break", tool: item.ToolNone{}, held: item.NewStack(item.Stick{}, 1), wantPulse: true, wantDrops: 1},
 		{name: "shears break", tool: item.Shears{}, held: item.NewStack(item.Shears{}, 1), wantPulse: false, wantDrops: 0},
