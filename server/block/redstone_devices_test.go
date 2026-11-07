@@ -117,6 +117,46 @@ func TestJukeboxComparatorSignal(t *testing.T) {
 	}
 }
 
+func TestLecternBedrockComparatorOutput(t *testing.T) {
+	tests := []struct {
+		name     string
+		pages    int
+		page     int
+		written  bool
+		want     int
+	}{
+		{name: "empty lectern", want: 0},
+		{name: "one page", pages: 1, want: 15},
+		{name: "two pages", pages: 2, page: 1, want: 15},
+		{name: "three pages", pages: 3, page: 2, want: 15},
+		{name: "four pages first spread", pages: 4, page: 0, want: 1},
+		{name: "four pages second spread", pages: 4, page: 2, want: 15},
+		{name: "eight pages first spread", pages: 8, page: 0, want: 1},
+		{name: "eight pages second spread", pages: 8, page: 2, want: 5},
+		{name: "eight pages third spread", pages: 8, page: 4, want: 10},
+		{name: "eight pages final spread", pages: 8, page: 6, want: 15},
+		{name: "nine pages final full spread", pages: 9, page: 6, want: 15},
+		{name: "nine pages trailing odd page", pages: 9, page: 8, want: 15},
+		{name: "written book", pages: 8, page: 4, written: true, want: 10},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lectern := Lectern{Page: test.page}
+			if test.pages > 0 {
+				pages := make([]string, test.pages)
+				if test.written {
+					lectern.Book = item.NewStack(item.WrittenBook{Pages: pages}, 1)
+				} else {
+					lectern.Book = item.NewStack(item.BookAndQuill{Pages: pages}, 1)
+				}
+			}
+			if got := lectern.ComparatorOutput(cube.Pos{}, nil); got != test.want {
+				t.Fatalf("lectern comparator output = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestComparatorModes(t *testing.T) {
 	tests := []struct {
 		input, side int

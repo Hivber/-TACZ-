@@ -127,6 +127,31 @@ func (l Lectern) TurnPage(pos cube.Pos, tx *world.Tx, page int) error {
 	return nil
 }
 
+// ComparatorOutput returns the book-position signal using Bedrock Edition's two-page spread.
+func (l Lectern) ComparatorOutput(cube.Pos, *world.Tx) int {
+	if l.Book.Empty() {
+		return 0
+	}
+	book, ok := l.Book.Item().(readableBook)
+	if !ok {
+		return 0
+	}
+	pages := book.TotalPages()
+	if pages <= 3 {
+		return 15
+	}
+
+	// Bedrock displays two pages at once. Only the highest even page in the
+	// spread contributes, so odd trailing pages do not create another step.
+	maxSpread := pages / 2
+	currentSpread := l.Page/2 + 1
+	currentSpread = min(max(currentSpread, 1), maxSpread)
+	if maxSpread <= 1 {
+		return 15
+	}
+	return 1 + 14*(currentSpread-1)/(maxSpread-1)
+}
+
 // EncodeNBT ...
 func (l Lectern) EncodeNBT() map[string]any {
 	m := map[string]any{
