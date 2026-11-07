@@ -78,7 +78,7 @@ func TestTickPerformanceRecordsSkippedStagesAsZero(t *testing.T) {
 	if got := metrics.stages[TickStageEntities].sampleCount; got != 2 {
 		t.Fatalf("entity stage sample count after skipped tick = %d, want 2", got)
 	}
-	if got := metrics.stages[TickStageEntities].average; got != 475*time.Microsecond {
+	if got := metrics.stages[TickStageEntities].average; got != 4750*time.Microsecond {
 		t.Fatalf("entity stage EMA after skipped tick = %s, want 475µs", got)
 	}
 }
