@@ -61,7 +61,8 @@ type playerData struct {
 	sneaking, sprinting, swimming, gliding, crawling, flying,
 	invisible, immobile, onGround, usingItem bool
 
-	sleeping bool
+	sneakingSince time.Time
+	sleeping      bool
 	sleepPos cube.Pos
 
 	usingSince time.Time
@@ -655,10 +656,8 @@ func (p *Player) Hurt(dmg float64, src world.DamageSource) (float64, bool) {
 	if p.Handler().HandleHurt(ctx, &damageLeft, immune, &immunity, src); ctx.Cancelled() {
 		return 0, false
 	}
-	if p.blocksWithShield(damageLeft, src) {
-		hand, shield := p.HeldItems()
-		shieldDamage := max(1, int(math.Ceil(dmg)))
-		p.SetHeldItems(hand, p.damageItem(shield, shieldDamage))
+	if p.blocksWithShield(damageLeft, dmg, src) {
+		p.setAttackImmunity(immunity, totalDamage)
 		return 0, false
 	}
 	p.setAttackImmunity(immunity, totalDamage)
@@ -744,40 +743,6 @@ func (p *Player) applyTotemEffects() {
 // blocksWithShield reports whether the player blocks a physical attack with an off-hand shield.
 // Bedrock shields are activated by sneaking and protect against melee attacks and ordinary projectiles
 // coming from the front of the player.
-func (p *Player) blocksWithShield(dmg float64, src world.DamageSource) bool {
-	if dmg <= 0 || !p.sneaking {
-		return false
-	}
-	_, offHand := p.HeldItems()
-	if _, ok := offHand.Item().(item.Shield); !ok {
-		return false
-	}
-
-	var source world.Entity
-	switch damage := src.(type) {
-	case entity.AttackDamageSource:
-		source = damage.Attacker
-	case entity.ProjectileDamageSource:
-		source = damage.Projectile
-	default:
-		// Fall, drowning, fire, magic and other environmental damage cannot be blocked by a shield here.
-		return false
-	}
-	if source == nil {
-		return false
-	}
-	return shieldCovers(p.Rotation(), p.Position(), source.Position())
-}
-
-// shieldCovers reports whether sourcePosition is within the horizontal forward hemisphere of position.
-func shieldCovers(rotation cube.Rotation, position, sourcePosition mgl64.Vec3) bool {
-	facing := rotation.Vec3()
-	facing[1] = 0
-	toSource := sourcePosition.Sub(position)
-	toSource[1] = 0
-	return facing.Dot(toSource) > 0
-}
-
 // FinalDamageFrom resolves the final damage received by the player if it is attacked by the source passed
 // with the damage passed. FinalDamageFrom takes into account things such as the armour worn and the
 // enchantments on the individual pieces.
@@ -1191,6 +1156,7 @@ func (p *Player) StartSneaking() {
 		p.StopSprinting()
 	}
 	p.sneaking = true
+	p.sneakingSince = time.Now()
 	p.updateState()
 }
 
@@ -1210,6 +1176,7 @@ func (p *Player) StopSneaking() {
 		return
 	}
 	p.sneaking = false
+	p.sneakingSince = time.Time{}
 	p.updateState()
 }
 

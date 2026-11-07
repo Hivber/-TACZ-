@@ -37,3 +37,15 @@ and item-stack UI support.
 The creative catalogue is sourced from the checked-in Bedrock item data. New
 vanilla identifiers can therefore remain visible before their full behaviour is
 implemented, but visibility must not be confused with gameplay support.
+
+
+### Shield behaviour update
+
+Shield activation now has the Bedrock five-tick (250 ms) raise delay. It
+only blocks frontal melee and projectile damage after that delay, plays the
+shield-block sound, and knocks back melee attackers. Hits below 3 damage do
+not consume durability; larger blocked hits consume durability equal to the
+rounded-up damage amount. Planks are accepted by the shield repair interface.
+
+Not yet implemented for shields: axe disable/stun, projectile deflection,
+banner patterns, mounted activation and explosion-specific behaviour.

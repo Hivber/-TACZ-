@@ -2,6 +2,7 @@ package player
 
 import (
 	"testing"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/go-gl/mathgl/mgl64"
@@ -26,5 +27,26 @@ func TestShieldCoversOnlyFrontHemisphere(t *testing.T) {
 				t.Fatalf("shieldCovers() = %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+
+func TestShieldRaiseDelayAndDurabilityThreshold(t *testing.T) {
+	if shieldRaiseDelay != 250*time.Millisecond {
+		t.Fatalf("shield raise delay = %v, want 250ms", shieldRaiseDelay)
+	}
+	for _, test := range []struct {
+		attack float64
+		want   int
+	}{
+		{attack: 2, want: 0},
+		{attack: 2.99, want: 0},
+		{attack: 3, want: 3},
+		{attack: 3.1, want: 4},
+		{attack: 7.5, want: 8},
+	} {
+		if got := shieldDurabilityDamage(test.attack); got != test.want {
+			t.Errorf("shieldDurabilityDamage(%v) = %d, want %d", test.attack, got, test.want)
+		}
 	}
 }

@@ -1,5 +1,7 @@
 package item
 
+import "strings"
+
 // Shield is an off-hand defensive item. In Bedrock Edition, crouching while
 // holding a shield in the off-hand activates its frontal blocking behaviour.
 type Shield struct{}
@@ -19,6 +21,15 @@ func (Shield) DurabilityInfo() DurabilityInfo {
 		MaxDurability: 336,
 		BrokenItem:    simpleItem(Stack{}),
 	}
+}
+
+// RepairableBy reports whether planks can be used to repair the shield.
+func (Shield) RepairableBy(s Stack) bool {
+	if s.Empty() {
+		return false
+	}
+	name, _ := s.Item().EncodeItem()
+	return strings.HasSuffix(name, "_planks")
 }
 
 // EncodeItem ...
