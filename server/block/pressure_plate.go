@@ -78,7 +78,7 @@ type PressurePlate struct {
 
 	// Kind identifies the material and behaviour of the pressure plate.
 	Kind int
-	// Power is the current redstone signal strength, in the range 0-15.
+	// Power is the Bedrock redstone_signal state: 0/1 for ordinary plates and 0-15 for weighted plates.
 	Power int
 }
 
@@ -97,7 +97,7 @@ func (p PressurePlate) RedstonePower(cube.Pos, *world.Tx, cube.Face) int {
 // RedstoneStrongPower returns strong power only towards the block below the pressure plate.
 func (p PressurePlate) RedstoneStrongPower(_ cube.Pos, _ *world.Tx, face cube.Face) int {
 	if face == cube.FaceDown {
-		return p.Power
+		return pressurePlateSignal(p.Kind, p.Power)
 	}
 	return 0
 }
