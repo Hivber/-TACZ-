@@ -170,6 +170,28 @@ func TestEndPortalFrameComparatorOutput(t *testing.T) {
 	}
 }
 
+func TestDecoratedPotComparatorOutput(t *testing.T) {
+	tests := []struct {
+		name string
+		item item.Stack
+		want int
+	}{
+		{name: "empty pot", want: 0},
+		{name: "one eighth of a stack", item: item.NewStack(item.Stick{}, 8), want: 2},
+		{name: "half stack", item: item.NewStack(item.Stick{}, 32), want: 8},
+		{name: "full stack", item: item.NewStack(item.Stick{}, 64), want: 15},
+		{name: "unstackable item", item: item.NewStack(item.MusicDisc{DiscType: sound.Disc13()}, 1), want: 15},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			pot := DecoratedPot{Item: test.item}
+			if got := pot.ComparatorOutput(cube.Pos{}, nil); got != test.want {
+				t.Fatalf("decorated pot comparator output = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestComparatorModes(t *testing.T) {
 	tests := []struct {
 		input, side int

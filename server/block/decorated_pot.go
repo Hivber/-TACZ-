@@ -120,6 +120,18 @@ func (p DecoratedPot) Activate(pos cube.Pos, _ cube.Face, tx *world.Tx, u item.U
 	return true
 }
 
+// ComparatorOutput returns the fullness signal of the decorated pot's single storage slot.
+func (p DecoratedPot) ComparatorOutput(cube.Pos, *world.Tx) int {
+	if p.Item.Empty() {
+		return 0
+	}
+	maxCount := p.Item.MaxCount()
+	if maxCount <= 0 {
+		return 0
+	}
+	return min(15, 1+14*p.Item.Count()/maxCount)
+}
+
 // BreakInfo ...
 func (p DecoratedPot) BreakInfo() BreakInfo {
 	return newBreakInfo(0, alwaysHarvestable, nothingEffective, oneOf(DecoratedPot{Decorations: p.Decorations})).withBreakHandler(func(pos cube.Pos, tx *world.Tx, u item.User) {
