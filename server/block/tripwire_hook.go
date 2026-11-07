@@ -2,6 +2,7 @@ package block
 
 import (
 	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/block/model"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
@@ -30,6 +31,11 @@ var (
 	_ world.RedstoneWeakBlockPowerer  = TripwireHook{}
 	_ world.NeighbourUpdateTicker     = TripwireHook{}
 )
+
+// Model returns the wall-mounted collision box of the tripwire hook.
+func (h TripwireHook) Model() world.BlockModel {
+	return model.TripwireHook{Facing: h.Facing}
+}
 
 // RedstonePower emits weak power while a connected tripwire is activated.
 func (h TripwireHook) RedstonePower(cube.Pos, *world.Tx, cube.Face) int {

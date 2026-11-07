@@ -157,3 +157,38 @@ func TestDisarmedOrBrokenTripwireDetachesHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTripwireHookModelHasWallMountedCollision(t *testing.T) {
+	for _, facing := range cube.Directions() {
+		model := TripwireHook{Facing: facing}.Model()
+		boxes := model.BBox(cube.Pos{}, nil)
+		if len(boxes) != 1 {
+			t.Fatalf("tripwire hook facing %v has %d collision boxes, want 1", facing, len(boxes))
+		}
+		box := boxes[0]
+		min, max := box.Min(), box.Max()
+		switch facing {
+		case cube.North:
+			if min[2] < 14.0/16 || max[2] != 1 {
+				t.Fatalf("north-facing hook collision = %v to %v, want against south wall", min, max)
+			}
+		case cube.South:
+			if min[2] != 0 || max[2] > 2.0/16 {
+				t.Fatalf("south-facing hook collision = %v to %v, want against north wall", min, max)
+			}
+		case cube.West:
+			if min[0] < 14.0/16 || max[0] != 1 {
+				t.Fatalf("west-facing hook collision = %v to %v, want against east wall", min, max)
+			}
+		case cube.East:
+			if min[0] != 0 || max[0] > 2.0/16 {
+				t.Fatalf("east-facing hook collision = %v to %v, want against west wall", min, max)
+			}
+		}
+		for _, face := range cube.Faces() {
+			if model.FaceSolid(cube.Pos{}, face, nil) {
+				t.Fatalf("tripwire hook facing %v reports solid face %v", facing, face)
+			}
+		}
+	}
+}
