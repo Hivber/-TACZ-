@@ -1114,7 +1114,6 @@ func (redstoneSolidModel) FaceSolid(cube.Pos, cube.Face, BlockSource) bool {
 	return true
 }
 
-
 func TestRedstoneUnchangedUpdatesSkipDirtyContextLookup(t *testing.T) {
 	sourcePos := cube.Pos{0, 64, 0}
 	consumerPos := cube.Pos{1, 64, 0}
