@@ -75,6 +75,9 @@ type World struct {
 
 	r *rand.Rand
 
+	// performance contains low-overhead tick metrics. It is only read and written on the world owner.
+	performance tickPerformance
+
 	// scheduledUpdates is a map of tick time values indexed by the block
 	// position at which an update is scheduled. If the current tick exceeds the
 	// tick value passed, the block update will be performed and the entry will

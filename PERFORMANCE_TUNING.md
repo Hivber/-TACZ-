@@ -13,3 +13,16 @@ Chunk radius is a view-distance limit, not a simulation-distance change. Random 
 An existing `config.toml` is not rewritten automatically. The runtime will cap `MaximumChunkRadius` at 16 for safety, but set it to 10 for the recommended balanced profile. The new `ChunkLoadWorkers` key defaults to 2 when absent.
 
 If performance still drops after these changes, record the server log's CPU/memory usage and whether the slowdown occurs while exploring new terrain or while standing in an already generated area. Those two cases have different bottlenecks.
+
+
+## Live diagnostics
+
+Operators can run `/perf` in-game to inspect the process and the current world:
+
+- Process: Goroutine count, Go heap allocation/in-use memory, cumulative GC cycles and pause time, and GC CPU fraction.
+- World: tick invocations per second, total ticks, latest/EMA/P95/maximum tick duration.
+- Workload: loaded chunks, in-flight chunk requests, queued chunk loads, worker count, loaded entities, active loaders, simulation distance and random tick speed.
+
+The P95 tick time is calculated from the most recent 100 tick samples. The average is an exponential moving average. Metrics are sampled on demand except for the small fixed-size tick-duration recorder; no profiling server or public network endpoint is opened.
+
+This first diagnostic pass does not yet measure OS process CPU percentage, network bytes, per-stage tick costs, or end-to-end chunk generation latency. Use Go CPU/heap profiles and repeatable load tests before selecting deeper optimisations. A high tick duration suggests world logic; a growing chunk queue suggests generation or storage cannot keep up; high heap/GC values suggest allocation pressure. These are investigation clues, not automatic proof of a specific bottleneck.

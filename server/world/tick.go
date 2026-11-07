@@ -44,8 +44,10 @@ func (w *World) AdvanceTick() {
 // tick performs a tick on the World and updates the time, weather, blocks and
 // entities that require updates.
 func (t ticker) tick(tx *Tx) {
-	viewers, loaders := tx.World().allViewers()
+	started := time.Now()
 	w := tx.World()
+	defer w.recordTickPerformance(started)
+	viewers, loaders := w.allViewers()
 
 	w.set.Lock()
 	if s := w.set.Spawn; s[1] > tx.Range()[1] && w.Dimension() == Overworld {
