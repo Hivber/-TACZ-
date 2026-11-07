@@ -97,7 +97,7 @@ func TestPressurePlateEntityStepAndRelease(t *testing.T) {
 }
 
 func TestPressurePlatePowerOutputFaces(t *testing.T) {
-	plate := PressurePlate{Kind: PressurePlateOak, Power: 11}
+	plate := PressurePlate{Kind: PressurePlateLightWeighted, Power: 11}
 	for _, face := range cube.Faces() {
 		if got := plate.RedstonePower(cube.Pos{}, nil, face); got != 11 {
 			t.Errorf("weak output on face %v = %d, want 11", face, got)
