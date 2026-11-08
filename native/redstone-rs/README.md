@@ -22,6 +22,16 @@ cargo build --release --target aarch64-linux-android --manifest-path native/reds
 CGO_ENABLED=1 GOOS=android GOARCH=arm64 CC=clang go test -tags dragonfly_rust ./server/world
 ```
 
-The Go build tag is opt-in. A normal `go build` continues to use pure Go. Benchmark both implementations on the
-same device and workload before enabling the Rust tag in a production server; the FFI wrapper batches an entire
-graph in one call and copies its flat arrays to avoid per-node crossings.
+The Go build tag is opt-in. A normal `go build` continues to use pure Go. Compare both backends on the same device
+and workload with the same Go benchmark (first Go, then Rust):
+
+```sh
+go test -run '^
+ -bench 'BenchmarkPropagateRedstoneGraph|BenchmarkRedstoneDirtyContext' -benchmem ./server/world
+CGO_ENABLED=1 go test -tags dragonfly_rust -run '^
+ -bench 'BenchmarkPropagateRedstoneGraph|BenchmarkRedstoneDirtyContext' -benchmem ./server/world
+```
+
+Also compare the complete server workload and `/perf` results; a faster isolated kernel does not guarantee a higher
+server TPS. The FFI wrapper batches an entire graph in one call and copies its flat arrays to avoid per-node crossings.
+Do not enable the Rust tag in production unless it wins on the target Android device without increasing total Tick time.
