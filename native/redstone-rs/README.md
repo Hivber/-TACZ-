@@ -33,3 +33,12 @@ CGO_ENABLED=1 go test -tags dragonfly_rust -run TestPropagateRedstoneGraph -benc
 Also compare the complete server workload and `/perf` results; a faster isolated kernel does not guarantee a higher
 server TPS. The FFI wrapper batches an entire graph in one call and copies its flat arrays to avoid per-node crossings.
 Do not enable the Rust tag in production unless it wins on the target Android device without increasing total Tick time.
+
+## Current benchmark note
+
+On the GitHub Actions x86_64 runner (Intel Xeon Platinum 8370C, Go 1.26.0), the 4,096-node / 8,190-edge propagation benchmark measured:
+
+- Go: 43.6–47.0 µs/op, 106,496 B/op, 3 allocs/op.
+- Rust via cgo: 68.2–75.7 µs/op, 151,552 B/op, 4 allocs/op.
+
+This synthetic result shows the current FFI conversion overhead outweighs the Rust kernel benefit on that host. Keep Go as the production default. The Rust backend is experimental and should only be enabled if target-device benchmarks (especially Android ARM64) show a real end-to-end improvement.
