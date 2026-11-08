@@ -85,8 +85,8 @@ func TestDeadMobStateSurvivesNBT(t *testing.T) {
 	ZombieType.DecodeNBT(map[string]any{
 		"Health":       float32(0),
 		"NaturalSpawn": true,
-		"Dead":          true,
-		"DeathTicks":    int32(9),
+		"Dead":         true,
+		"DeathTicks":   int32(9),
 	}, data)
 
 	state, ok := data.Data.(*mobBehaviour)
