@@ -36,7 +36,6 @@ func TestNormaliseChunkLoadWorkers(t *testing.T) {
 	}
 }
 
-
 func TestDefaultConfigOptionalFeaturesDisabled(t *testing.T) {
 	conf := DefaultConfig()
 	if conf.Features.JavaCompatibilityCommands {
