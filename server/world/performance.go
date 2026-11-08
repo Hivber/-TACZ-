@@ -276,10 +276,10 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 		NeighbourUpdatesSkippedUnloaded: m.neighbourUpdatesSkippedUnloaded,
 		NeighbourBlockCallbacks:         m.neighbourBlockCallbacks,
 		NeighbourLiquidCallbacks:        m.neighbourLiquidCallbacks,
-		PendingNeighbourUpdates:      len(w.neighbourUpdates),
-		RedstoneDirtyPositions:       w.redstone.lastDirtyPositions,
-		RedstoneGraphNodes:           w.redstone.lastGraphNodes,
-		RedstoneGraphEdges:           w.redstone.lastGraphEdges,
-		RedstoneContextScanPositions: w.redstone.lastContextScanPositions,
+		PendingNeighbourUpdates:         len(w.neighbourUpdates),
+		RedstoneDirtyPositions:          w.redstone.lastDirtyPositions,
+		RedstoneGraphNodes:              w.redstone.lastGraphNodes,
+		RedstoneGraphEdges:              w.redstone.lastGraphEdges,
+		RedstoneContextScanPositions:    w.redstone.lastContextScanPositions,
 	}
 }
