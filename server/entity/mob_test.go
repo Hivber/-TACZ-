@@ -79,3 +79,32 @@ func TestNaturalMobIsMarkedForDespawnPersistence(t *testing.T) {
 		t.Fatal("spawn-egg mob behaviour must not be marked as naturally spawned")
 	}
 }
+
+func TestDeadMobStateSurvivesNBT(t *testing.T) {
+	data := &world.EntityData{}
+	ZombieType.DecodeNBT(map[string]any{
+		"Health":       float32(0),
+		"NaturalSpawn": true,
+		"Dead":          true,
+		"DeathTicks":    int32(9),
+	}, data)
+
+	state, ok := data.Data.(*mobBehaviour)
+	if !ok {
+		t.Fatal("decoded mob data does not contain mob behaviour")
+	}
+	if !state.dead {
+		t.Fatal("dead state was not restored")
+	}
+	if state.health.Health() != 0 {
+		t.Fatalf("restored health = %v, want 0", state.health.Health())
+	}
+	if state.deathTicks != 9 {
+		t.Fatalf("restored death ticks = %d, want 9", state.deathTicks)
+	}
+
+	encoded := ZombieType.EncodeNBT(data)
+	if encoded["Dead"] != true || encoded["DeathTicks"] != int32(9) {
+		t.Fatalf("encoded death state = %#v", encoded)
+	}
+}

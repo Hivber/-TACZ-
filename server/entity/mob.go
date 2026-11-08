@@ -104,11 +104,23 @@ func (t mobType) BBox(world.Entity) cube.BBox {
 
 func (t mobType) DecodeNBT(nbt map[string]any, data *world.EntityData) {
 	b := newMobBehaviour(t.kind, false)
-	if health, ok := nbt["Health"].(float32); ok && health > 0 {
+	if health, ok := nbt["Health"].(float32); ok {
 		b.health = NewHealthManager(float64(health), t.kind.maxHP)
 	}
 	if natural, ok := nbt["NaturalSpawn"].(bool); ok {
 		b.naturalSpawn = natural
+	}
+	if dead, ok := nbt["Dead"].(bool); ok {
+		b.dead = dead
+	}
+	if ticks, ok := nbt["DeathTicks"].(int32); ok {
+		b.deathTicks = int(ticks)
+	}
+	if b.health.Health() <= 0 {
+		b.dead = true
+	}
+	if b.dead && b.deathTicks <= 0 {
+		b.deathTicks = mobDeathAnimationTicks
 	}
 	data.Data = b
 }
@@ -121,6 +133,8 @@ func (t mobType) EncodeNBT(data *world.EntityData) map[string]any {
 	return map[string]any{
 		"Health":       float32(b.health.Health()),
 		"NaturalSpawn": b.naturalSpawn,
+		"Dead":          b.dead,
+		"DeathTicks":    int32(b.deathTicks),
 	}
 }
 
@@ -177,6 +191,8 @@ type mobBehaviour struct {
 	wanderTarget   mgl64.Vec3
 	wanderTicks    int
 	dead           bool
+	deathTicks     int
+	deathActionSent bool
 	naturalSpawn   bool
 }
 
@@ -207,9 +223,22 @@ func (b *mobBehaviour) Tick(e *Ent, tx *world.Tx) *Movement {
 
 // Tick advances mob effects, basic goal-based movement, melee/ranged attacks,
 // daylight burning and natural despawning.
+const mobDeathAnimationTicks = 22
+
 func (m *Mob) Tick(tx *world.Tx, current int64) {
 	b := m.mobState()
 	if b.dead {
+		if !b.deathActionSent {
+			for _, viewer := range tx.Viewers(m.Position()) {
+				viewer.ViewEntityAction(m, DeathAction{})
+			}
+			b.deathActionSent = true
+		}
+		if b.deathTicks > 0 {
+			b.deathTicks--
+			return
+		}
+		m.dropLoot()
 		_ = m.Close()
 		return
 	}
@@ -455,18 +484,27 @@ func (m *Mob) die() {
 		return
 	}
 	b.dead = true
+	b.deathTicks = mobDeathAnimationTicks
+	b.deathActionSent = true
+	m.data.Vel = mgl64.Vec3{}
 	for _, viewer := range m.tx.Viewers(m.Position()) {
 		viewer.ViewEntityAction(m, DeathAction{})
 	}
 	m.tx.PlaySound(m.Position(), sound.Custom{Name: b.kind.id + ".death", Volume: 1, Pitch: 1})
-	if m.tx.World().GameRuleBool("domobloot", true) && b.kind.lootItem != nil {
-		create := m.tx.World().EntityRegistry().Config().Item
-		if create != nil {
-			opts := world.EntitySpawnOpts{Position: m.Position().Add(mgl64.Vec3{0, 0.25})}
-			m.tx.AddEntity(create(opts, item.NewStack(b.kind.lootItem, 1)))
-		}
+}
+
+// dropLoot creates the mob's drops after its death animation has completed.
+func (m *Mob) dropLoot() {
+	b := m.mobState()
+	if !m.tx.World().GameRuleBool("domobloot", true) || b.kind.lootItem == nil {
+		return
 	}
-	_ = m.Close()
+	create := m.tx.World().EntityRegistry().Config().Item
+	if create == nil {
+		return
+	}
+	opts := world.EntitySpawnOpts{Position: m.Position().Add(mgl64.Vec3{0, 0.25})}
+	m.tx.AddEntity(create(opts, item.NewStack(b.kind.lootItem, 1)))
 }
 
 func (m *Mob) Heal(amount float64, _ world.HealingSource) float64 {
