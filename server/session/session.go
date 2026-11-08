@@ -38,9 +38,9 @@ type Session struct {
 	conf           Config
 	once, connOnce sync.Once
 
-	ent      *world.EntityHandle
-	conn     Conn
-	handlers map[uint32]packetHandler
+	ent              *world.EntityHandle
+	conn             Conn
+	handlers         map[uint32]packetHandler
 	packets          chan packet.Packet
 	incomingPackets  chan packet.Packet
 	packetWorkerDone chan struct{}
