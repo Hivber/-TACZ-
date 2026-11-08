@@ -44,22 +44,22 @@ type Session struct {
 	currentScoreboard atomic.Pointer[string]
 	currentLines      atomic.Pointer[[]string]
 
-	outPackets             atomic.Uint64
-	entityMovementPackets  atomic.Uint64
-	entityVelocityPackets  atomic.Uint64
-	entitySpawnPackets     atomic.Uint64
-	entityRemovePackets    atomic.Uint64
-	chunkPackets           atomic.Uint64
-	blockUpdatePackets     atomic.Uint64
-	cacheResponsePackets   atomic.Uint64
-	cacheHits              atomic.Uint64
-	cacheMisses            atomic.Uint64
+	outPackets            atomic.Uint64
+	entityMovementPackets atomic.Uint64
+	entityVelocityPackets atomic.Uint64
+	entitySpawnPackets    atomic.Uint64
+	entityRemovePackets   atomic.Uint64
+	chunkPackets          atomic.Uint64
+	blockUpdatePackets    atomic.Uint64
+	cacheResponsePackets  atomic.Uint64
+	cacheHits             atomic.Uint64
+	cacheMisses           atomic.Uint64
 	// encodedChunkPartCacheHits counts reused section encodings.
 	encodedChunkPartCacheHits atomic.Uint64
 	// encodedChunkPartCacheMisses counts newly encoded sections.
 	encodedChunkPartCacheMisses atomic.Uint64
 	// subChunkRequests counts incoming client sub-chunk requests.
-	subChunkRequests atomic.Uint64
+	subChunkRequests       atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
 	performanceSampleMu    sync.Mutex
 	performanceSampleAt    time.Time
@@ -117,8 +117,8 @@ type Session struct {
 
 	recipes map[uint32]recipe.Recipe
 
-	blobMu                sync.Mutex
-	blobs                 map[uint64][]byte
+	blobMu sync.Mutex
+	blobs  map[uint64][]byte
 	// encodedChunkParts is a bounded per-session cache of immutable network encodings.
 	encodedChunkParts map[encodedChunkPartKey][]byte
 	// encodedChunkPartOrder stores FIFO eviction order for the encoded section cache.
@@ -231,8 +231,8 @@ func (conf Config) New(conn Conn) *Session {
 		entities:               map[uint64]*world.EntityHandle{},
 		hiddenEntities:         map[uuid.UUID]struct{}{},
 		blobs:                  map[uint64][]byte{},
-		encodedChunkParts:     make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
-		encodedChunkPartOrder: make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
+		encodedChunkParts:      make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
+		encodedChunkPartOrder:  make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
 		chunkRadius:            int32(r),
 		maxChunkRadius:         int32(conf.MaxChunkRadius),
 		emoteChatMuted:         conf.EmoteChatMuted,
