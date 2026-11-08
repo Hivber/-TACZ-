@@ -180,20 +180,20 @@ func NewNaturalMob(opts world.EntitySpawnOpts, name string) *world.EntityHandle 
 
 type mobBehaviour struct {
 	BaseBehaviour
-	kind           mobKind
-	health         *HealthManager
-	effects        *EffectManager
-	movement       *MovementComputer
-	immuneUntil    time.Time
-	lastDamage     float64
-	attackCooldown int
-	target         *world.EntityHandle
-	wanderTarget   mgl64.Vec3
-	wanderTicks    int
-	dead           bool
-	deathTicks     int
+	kind            mobKind
+	health          *HealthManager
+	effects         *EffectManager
+	movement        *MovementComputer
+	immuneUntil     time.Time
+	lastDamage      float64
+	attackCooldown  int
+	target          *world.EntityHandle
+	wanderTarget    mgl64.Vec3
+	wanderTicks     int
+	dead            bool
+	deathTicks      int
 	deathActionSent bool
-	naturalSpawn   bool
+	naturalSpawn    bool
 }
 
 func newMobBehaviour(kind mobKind, natural bool) *mobBehaviour {
