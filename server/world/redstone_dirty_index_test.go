@@ -107,10 +107,19 @@ func TestShouldBuildRedstoneDirtyIndex(t *testing.T) {
 		want              bool
 	}{
 		{dirty: 63, candidates: 256, want: false},
-		{dirty: 64, candidates: 127, want: false},
-		{dirty: 64, candidates: 128, want: true},
+		{dirty: 64, candidates: 159, want: false},
+		{dirty: 64, candidates: 160, want: true},
+		{dirty: 127, candidates: 160, want: true},
+		{dirty: 128, candidates: 99, want: false},
+		{dirty: 128, candidates: 100, want: true},
+		{dirty: 511, candidates: 100, want: true},
+		{dirty: 512, candidates: 63, want: false},
+		{dirty: 512, candidates: 64, want: true},
+		{dirty: 2047, candidates: 64, want: true},
+		{dirty: 2048, candidates: 79, want: false},
+		{dirty: 2048, candidates: 80, want: true},
 		{dirty: 4096, candidates: 2, want: false},
-		{dirty: 4096, candidates: 128, want: true},
+		{dirty: 4096, candidates: 80, want: true},
 	} {
 		if got := shouldBuildRedstoneDirtyIndex(test.dirty, test.candidates); got != test.want {
 			t.Fatalf("shouldBuildRedstoneDirtyIndex(%d, %d) = %v, want %v", test.dirty, test.candidates, got, test.want)

@@ -7,10 +7,24 @@ import (
 )
 
 const redstoneDirtyIndexThreshold = 64
-const redstoneDirtyIndexLookupThreshold = 128
+
+// redstoneDirtyIndexMinLookups estimates the break-even number of non-direct
+// context lookups from the checked-in index-build and query benchmarks.
+func redstoneDirtyIndexMinLookups(dirtyCount int) int {
+	switch {
+	case dirtyCount < 128:
+		return 160
+	case dirtyCount < 512:
+		return 100
+	case dirtyCount < 2048:
+		return 64
+	default:
+		return 80
+	}
+}
 
 func shouldBuildRedstoneDirtyIndex(dirtyCount, contextCandidates int) bool {
-	return dirtyCount >= redstoneDirtyIndexThreshold && contextCandidates >= redstoneDirtyIndexLookupThreshold
+	return dirtyCount >= redstoneDirtyIndexThreshold && contextCandidates >= redstoneDirtyIndexMinLookups(dirtyCount)
 }
 
 type redstoneDirtyIndexNode struct {
