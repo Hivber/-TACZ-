@@ -36,8 +36,9 @@ jobs:
           cargo build --release --manifest-path native/redstone-rs/Cargo.toml
 
       - name: Test optional Rust backend
-        run: CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world
-
+        run: |
+          CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world
+          CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world -run=^$ -bench=^BenchmarkPropagateRedstoneGraph$ -benchmem -count=3
   deploy:
     name: Deploy
     needs: build
