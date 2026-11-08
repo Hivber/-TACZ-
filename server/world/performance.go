@@ -69,23 +69,23 @@ type TickStageSnapshot struct {
 // tickPerformance is updated by the world's owner and deliberately avoids
 // locks and allocations on the normal tick path.
 type tickPerformance struct {
-	total                     uint64
-	last                      time.Duration
-	average                   time.Duration
-	max                       time.Duration
-	samples                   [performanceTickSamples]time.Duration
-	sampleCount               int
-	sampleIndex               int
-	stages                    [tickStageCount]tickStagePerformance
-	stageRecorded             [tickStageCount]bool
-	queueWait                 tickStagePerformance
+	total                           uint64
+	last                            time.Duration
+	average                         time.Duration
+	max                             time.Duration
+	samples                         [performanceTickSamples]time.Duration
+	sampleCount                     int
+	sampleIndex                     int
+	stages                          [tickStageCount]tickStagePerformance
+	stageRecorded                   [tickStageCount]bool
+	queueWait                       tickStagePerformance
 	neighbourUpdatesProcessed       int
 	neighbourUpdatesSkippedUnloaded int
 	neighbourBlockCallbacks         int
 	neighbourLiquidCallbacks        int
-	windowStart               time.Time
-	windowTicks               uint64
-	tps                       float64
+	windowStart                     time.Time
+	windowTicks                     uint64
+	tps                             float64
 }
 
 type tickStagePerformance struct {
