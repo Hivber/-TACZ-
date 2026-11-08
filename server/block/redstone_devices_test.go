@@ -9,6 +9,16 @@ import (
 	"github.com/df-mc/dragonfly/server/world/sound"
 )
 
+func TestRedstoneRepeaterZeroValueUsesRegisteredDefaultState(t *testing.T) {
+	zero := RedstoneRepeater{}
+	defaultState := RedstoneRepeater{Direction: cube.North, Delay: 1}
+	zeroBase, zeroState := zero.Hash()
+	defaultBase, defaultHash := defaultState.Hash()
+	if zeroBase != defaultBase || zeroState != defaultHash {
+		t.Fatalf("zero-value repeater hash = (%d, %d), want registered default (%d, %d)", zeroBase, zeroState, defaultBase, defaultHash)
+	}
+}
+
 func TestRedstoneRepeaterStates(t *testing.T) {
 	states := allRedstoneRepeaters()
 	if len(states) != 32 {

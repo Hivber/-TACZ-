@@ -985,7 +985,10 @@ func (r RedstoneOre) Hash() (uint64, uint64) {
 }
 
 func (r RedstoneRepeater) Hash() (uint64, uint64) {
-	return hashRedstoneRepeater, uint64(r.Direction) | uint64(r.Delay)<<2 | uint64(boolByte(r.Powered))<<10
+	// Delay zero is the zero-value used by the registered item and creative
+	// catalogue. EncodeBlock normalises it to delay one, so the hash must use
+	// the same canonical value or BlockRuntimeID cannot resolve that item.
+	return hashRedstoneRepeater, uint64(r.Direction) | uint64(r.effectiveDelay()-1)<<2 | uint64(boolByte(r.Powered))<<10
 }
 
 func (t RedstoneTorch) Hash() (uint64, uint64) {
