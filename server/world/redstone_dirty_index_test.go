@@ -21,7 +21,12 @@ func TestRedstoneDirtyIndexMatchesLinearNearest(t *testing.T) {
 		for i := 0; i < 200; i++ {
 			pos := cube.Pos{i*17%401 - 200, i*31%181 - 90, i*43%503 - 251}
 			want := redstoneDirtyContext(dirty, pos)
-			got, _ := index.nearest(pos)
+			var got redstoneDirty
+			if index == nil {
+				got = redstoneDirtyContext(dirty, pos)
+			} else {
+				got, _ = index.nearest(pos)
+			}
 			if got != want {
 				t.Fatalf("size %d, query %v: indexed context %+v, linear context %+v", size, pos, got, want)
 			}
@@ -36,8 +41,7 @@ func TestRedstoneDirtyIndexTieBreaksByBlockPosition(t *testing.T) {
 		left:  {changed: left, hasChanged: true},
 		right: {changed: right, hasChanged: true},
 	}
-	index := &redstoneDirtyIndex{root: -1}
-	index = newRedstoneDirtyIndex(expandDirtyForIndexTest(dirty))
+	index := newRedstoneDirtyIndex(expandDirtyForIndexTest(dirty))
 	got, _ := index.nearest(cube.Pos{0, 64, 0})
 	want := redstoneDirtyContext(expandDirtyForIndexTest(dirty), cube.Pos{0, 64, 0})
 	if got != want || got.changed != left {

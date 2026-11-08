@@ -124,7 +124,7 @@ type redstoneEngine struct {
 	evaluating               map[cube.Pos]struct{}
 	suppressedSources        map[cube.Pos]int
 	torchBurnout             map[cube.Pos]redstoneTorchBurnout
-	dirtyContextIndex       *redstoneDirtyIndex
+	dirtyContextIndex        *redstoneDirtyIndex
 }
 
 // redstoneDirty records why a position needs redstone evaluation.
