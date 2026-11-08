@@ -24,7 +24,7 @@ func TestNormaliseChunkLoadWorkers(t *testing.T) {
 		configured int
 		want       int
 	}{
-		{configured: 0, want: 2},
+		{configured: 0, want: 1},
 		{configured: 1, want: 1},
 		{configured: 4, want: 4},
 		{configured: 32, want: maximumChunkLoadWorkers},

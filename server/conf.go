@@ -463,7 +463,7 @@ func loadGenerator(dim world.Dimension, name string, seed int64) world.Generator
 // DefaultConfig returns a configuration with the default values filled out.
 const (
 	// defaultChunkRadius is the recommended client view-distance cap for a balanced server.
-	defaultChunkRadius = 10
+	defaultChunkRadius = 8
 	// maximumChunkRadius prevents a single client from requesting an excessive number of chunks.
 	maximumChunkRadius = 16
 	// maximumChunkLoadWorkers bounds background generation so it cannot starve world ticks.
@@ -485,7 +485,7 @@ func normaliseChunkRadius(configured int, log *slog.Logger) int {
 
 func normaliseChunkLoadWorkers(configured int) int {
 	if configured <= 0 {
-		return 2
+		return 1
 	}
 	return min(configured, maximumChunkLoadWorkers)
 }
