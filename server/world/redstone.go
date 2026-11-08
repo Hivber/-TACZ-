@@ -126,6 +126,7 @@ type redstoneEngine struct {
 	torchBurnout             map[cube.Pos]redstoneTorchBurnout
 	dirtyContextIndex        *redstoneDirtyIndex
 	dirtyContextIndexBuilt   bool
+	dirtyContextIndexAllowed bool
 }
 
 // redstoneDirty records why a position needs redstone evaluation.
@@ -292,9 +293,11 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 	clear(e.dirty)
 	e.dirtyContextIndex = nil
 	e.dirtyContextIndexBuilt = false
+	e.dirtyContextIndexAllowed = false
 	defer func() {
 		e.dirtyContextIndex = nil
 		e.dirtyContextIndexBuilt = false
+		e.dirtyContextIndexAllowed = false
 	}()
 
 	candidates := slices.Collect(maps.Keys(dirty))
@@ -302,6 +305,13 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 
 	graph := e.compile(tx, candidates)
 	e.lastGraphNodes, e.lastGraphEdges = len(graph.nodes), len(graph.edges)
+	contextCandidates := 0
+	for _, node := range graph.nodes {
+		if node.sink || node.source {
+			contextCandidates++
+		}
+	}
+	e.dirtyContextIndexAllowed = shouldBuildRedstoneDirtyIndex(len(dirty), contextCandidates)
 	cancelledSources, checkedSources := e.updateGraphSources(tx, graph, dirty)
 	previousSuppressed := e.suppressedSources
 	e.suppressedSources = cancelledSources
@@ -330,10 +340,12 @@ func (e *redstoneEngine) dirtyContext(dirty map[cube.Pos]redstoneDirty, pos cube
 		return d
 	}
 	if !e.dirtyContextIndexBuilt {
-		// Build the spatial index only if a non-direct context lookup is needed.
-		// Many ticks have dirty positions but no graph node requiring this fallback.
-		e.dirtyContextIndex = newRedstoneDirtyIndex(dirty)
 		e.dirtyContextIndexBuilt = true
+		if e.dirtyContextIndexAllowed {
+			// Index construction has a measurable cost. Only build it when the compiled
+			// graph contains enough possible source/sink callbacks to amortise that cost.
+			e.dirtyContextIndex = newRedstoneDirtyIndex(dirty)
+		}
 	}
 	if e.dirtyContextIndex != nil {
 		d, visited := e.dirtyContextIndex.nearest(pos)

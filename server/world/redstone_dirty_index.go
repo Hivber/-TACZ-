@@ -7,6 +7,11 @@ import (
 )
 
 const redstoneDirtyIndexThreshold = 64
+const redstoneDirtyIndexLookupThreshold = 128
+
+func shouldBuildRedstoneDirtyIndex(dirtyCount, contextCandidates int) bool {
+	return dirtyCount >= redstoneDirtyIndexThreshold && contextCandidates >= redstoneDirtyIndexLookupThreshold
+}
 
 type redstoneDirtyIndexNode struct {
 	pos   cube.Pos

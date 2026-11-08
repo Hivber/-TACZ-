@@ -100,3 +100,20 @@ func BenchmarkRedstoneDirtyContext(b *testing.B) {
 		})
 	}
 }
+
+func TestShouldBuildRedstoneDirtyIndex(t *testing.T) {
+	for _, test := range []struct {
+		dirty, candidates int
+		want              bool
+	}{
+		{dirty: 63, candidates: 256, want: false},
+		{dirty: 64, candidates: 127, want: false},
+		{dirty: 64, candidates: 128, want: true},
+		{dirty: 4096, candidates: 2, want: false},
+		{dirty: 4096, candidates: 128, want: true},
+	} {
+		if got := shouldBuildRedstoneDirtyIndex(test.dirty, test.candidates); got != test.want {
+			t.Fatalf("shouldBuildRedstoneDirtyIndex(%d, %d) = %v, want %v", test.dirty, test.candidates, got, test.want)
+		}
+	}
+}
