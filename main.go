@@ -28,6 +28,7 @@ func main() {
 
 	srv := conf.New()
 	srv.CloseOnProgramEnd()
+	startPprofServer(slog.Default())
 
 	operators, err := loadOperatorStore("operators.json", conf.OwnerXUID)
 	if err != nil {
