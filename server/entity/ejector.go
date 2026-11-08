@@ -69,7 +69,7 @@ func init() {
 			int(math.Floor(opts.Position[1])),
 			int(math.Floor(opts.Position[2])),
 		}
-		isAir := func(pos cube.Pos) block.DispenserItemBehaviorResult {
+		isAir := func(pos cube.Pos) bool {
 			name, _ := tx.Block(pos).EncodeBlock()
 			return name == "minecraft:air"
 		}
