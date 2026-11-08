@@ -35,6 +35,9 @@ jobs:
           cargo test --manifest-path native/redstone-rs/Cargo.toml
           cargo build --release --manifest-path native/redstone-rs/Cargo.toml
 
+      - name: Benchmark Go redstone backend
+        run: go test ./server/world -run=TestPropagateRedstoneGraphMatchesGoReference -bench=BenchmarkPropagateRedstoneGraph -benchmem -count=3
+
       - name: Test optional Rust backend
         run: |
           CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world
