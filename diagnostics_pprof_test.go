@@ -4,8 +4,8 @@ import "testing"
 
 func TestValidatePprofAddress(t *testing.T) {
 	tests := []struct {
-		name string
-		addr string
+		name    string
+		addr    string
 		wantErr bool
 	}{
 		{name: "ipv4 loopback", addr: "127.0.0.1:6060"},
