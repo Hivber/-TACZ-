@@ -46,11 +46,11 @@ type PerformanceSnapshot struct {
 	RandomTickSpeed              int
 	Stages                       [tickStageCount]TickStageSnapshot
 	QueueWait                    TickStageSnapshot
-	NeighbourUpdatesProcessed    int
+	NeighbourUpdatesProcessed       int
 	NeighbourUpdatesSkippedUnloaded int
-	NeighbourBlockCallbacks      int
-	NeighbourLiquidCallbacks     int
-	PendingNeighbourUpdates      int
+	NeighbourBlockCallbacks         int
+	NeighbourLiquidCallbacks        int
+	PendingNeighbourUpdates         int
 	RedstoneDirtyPositions       int
 	RedstoneGraphNodes           int
 	RedstoneGraphEdges           int
