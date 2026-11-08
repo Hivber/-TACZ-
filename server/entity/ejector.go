@@ -1,10 +1,14 @@
 package entity
 
 import (
+	"math"
+
 	"github.com/df-mc/dragonfly/server/block"
+	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
+	"github.com/go-gl/mathgl/mgl64"
 )
 
 // init connects the block package's dispenser hook to entity constructors without creating an import cycle.
@@ -49,6 +53,42 @@ func init() {
 		}
 		tx.AddEntity(NewFirework(opts, firework))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
+		return true
+	})
+	block.RegisterDispenserItemBehavior("minecraft:spawn_egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+		egg, ok := stack.Item().(item.SpawnEgg)
+		if !ok || egg.Mob == "" {
+			return false
+		}
+		create := tx.World().EntityRegistry().Config().Mob
+		if create == nil {
+			return false
+		}
+		spawnPos := cube.Pos{
+			int(math.Floor(opts.Position[0])),
+			int(math.Floor(opts.Position[1])),
+			int(math.Floor(opts.Position[2])),
+		}
+		isAir := func(pos cube.Pos) bool {
+			name, _ := tx.Block(pos).EncodeBlock()
+			return name == "minecraft:air"
+		}
+		if !isAir(spawnPos) || !isAir(spawnPos.Side(cube.FaceUp)) {
+			return false
+		}
+		spawnOpts := world.EntitySpawnOpts{
+			Position: mgl64.Vec3{
+				float64(spawnPos[0]) + 0.5,
+				float64(spawnPos[1]),
+				float64(spawnPos[2]) + 0.5,
+			},
+		}
+		handle := create(spawnOpts, egg.Mob)
+		if handle == nil {
+			return false
+		}
+		tx.AddEntity(handle)
+		tx.PlaySound(opts.Position, sound.Click{})
 		return true
 	})
 }

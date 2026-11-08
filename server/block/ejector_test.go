@@ -3,6 +3,8 @@ package block
 import (
 	"testing"
 
+	"github.com/df-mc/dragonfly/server/world"
+
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/inventory"
@@ -140,5 +142,21 @@ func TestEjectorFacingVectors(t *testing.T) {
 				t.Errorf("face %v axis %d = %v, want %v", test.face, axis, got[axis], test.want[axis])
 			}
 		}
+	}
+}
+
+func TestDispenserSpawnEggBehaviourFallback(t *testing.T) {
+	behaviour := func(*world.Tx, world.EntitySpawnOpts, item.Stack) bool { return true }
+	RegisterDispenserItemBehavior("minecraft:spawn_egg", behaviour)
+	defer func() {
+		dispenserItemBehaviorRegistry.Lock()
+		delete(dispenserItemBehaviorRegistry.behaviours, "minecraft:spawn_egg")
+		dispenserItemBehaviorRegistry.Unlock()
+	}()
+	if got := lookupDispenserItemBehavior("minecraft:pig_spawn_egg"); got == nil {
+		t.Fatal("specific spawn egg did not resolve the generic spawn egg behaviour")
+	}
+	if got := lookupDispenserItemBehavior("minecraft:arrow"); got != nil {
+		t.Fatal("unregistered item unexpectedly resolved a dispenser behaviour")
 	}
 }

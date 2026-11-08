@@ -35,14 +35,19 @@ func RegisterDispenserItemBehavior(identifier string, behaviour DispenserItemBeh
 	dispenserItemBehaviorRegistry.Unlock()
 }
 
-func runDispenserItemBehavior(identifier string, tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+func lookupDispenserItemBehavior(identifier string) DispenserItemBehavior {
 	dispenserItemBehaviorRegistry.RLock()
 	behaviour := dispenserItemBehaviorRegistry.behaviours[identifier]
-	dispenserItemBehaviorRegistry.RUnlock()
-	if behaviour == nil {
-		return false
+	if behaviour == nil && strings.HasSuffix(identifier, "_spawn_egg") {
+		behaviour = dispenserItemBehaviorRegistry.behaviours["minecraft:spawn_egg"]
 	}
-	return behaviour(tx, opts, stack)
+	dispenserItemBehaviorRegistry.RUnlock()
+	return behaviour
+}
+
+func runDispenserItemBehavior(identifier string, tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	behaviour := lookupDispenserItemBehavior(identifier)
+	return behaviour != nil && behaviour(tx, opts, stack)
 }
 
 // Dispenser is a redstone-activated container that ejects one item from a random non-empty slot.
@@ -410,6 +415,7 @@ func ejectorDispensePosition(pos cube.Pos, face cube.Face) mgl64.Vec3 {
 	return origin
 }
 
+// dispenseItemEntity uses the entity package's registered item entity behaviour.
 func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack) bool {
 	face := ejectorFaceVector(e.Facing)
 	origin := ejectorDispensePosition(pos, e.Facing)
@@ -451,5 +457,4 @@ func allDroppers() (all []world.Block) {
 		all = append(all, Dropper{ejector: ejector{Facing: facing}})
 		all = append(all, Dropper{ejector: ejector{Facing: facing, Triggered: true}})
 	}
-	return
 }
