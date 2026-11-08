@@ -9,8 +9,8 @@ func TestPropagateRedstoneGraph(t *testing.T) {
 	edges := []redstoneEdge{
 		{from: 0, to: 1, weight: 1},
 		{from: 1, to: 2, weight: 1},
-		{from: 2, to: 3, weight: 0},
 		{from: 1, to: 4, weight: 2},
+		{from: 2, to: 3, weight: 0},
 		{from: 4, to: 0, weight: 1},
 	}
 	got := propagateRedstoneGraph(relayers, edges, []int{15, 0, 0, 0, 0})
