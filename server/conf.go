@@ -26,8 +26,17 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/resource"
 )
 
+// FeatureFlags controls non-vanilla extensions. Core Bedrock gameplay and protocol behaviour are always enabled by default.
+type FeatureFlags struct {
+	JavaCompatibilityCommands bool
+	PerformanceDiagnostics bool
+	Pprof bool
+	PprofAddress string
+}
+
 // Config contains options for starting a Minecraft server.
 type Config struct {
+	Features FeatureFlags
 	// Log is the Logger to use for logging information. If nil, Log is set to
 	// slog.Default(). Errors reported by the underlying network are only logged
 	// if Log has at least debug level.
@@ -316,7 +325,8 @@ type UserConfig struct {
 		// Required is a boolean to force the client to load the resource pack
 		// on join. If they do not accept, they'll have to leave the server.
 		Required bool
-	}
+	}	// Features controls optional extensions; vanilla Bedrock features remain enabled.
+	Features FeatureFlags
 }
 
 // Config converts a UserConfig to a Config, so that it may be used for creating
@@ -326,6 +336,7 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 	var err error
 	conf := Config{
 		Log:                     log,
+		Features:                uc.Features,
 		Name:                    uc.Server.Name,
 		ResourcesRequired:       uc.Resources.Required,
 		AuthDisabled:            !uc.Server.AuthEnabled,
@@ -335,6 +346,9 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 		MaxChunkRadius:          normaliseChunkRadius(uc.Players.MaximumChunkRadius, log),
 		ChunkLoadWorkers:        normaliseChunkLoadWorkers(uc.World.ChunkLoadWorkers),
 		DisableResourceBuilding: !uc.Resources.AutoBuildPack,
+	}
+	if conf.Features.PprofAddress == "" {
+		conf.Features.PprofAddress = "127.0.0.1:6060"
 	}
 	generatorName := strings.ToLower(strings.TrimSpace(uc.World.Generator))
 	if generatorName == "" {
@@ -515,6 +529,7 @@ func DefaultConfig() UserConfig {
 	c.Resources.AutoBuildPack = true
 	c.Resources.Folder = "resources"
 	c.Resources.Required = false
+	c.Features.PprofAddress = "127.0.0.1:6060"
 	return c
 }
 
