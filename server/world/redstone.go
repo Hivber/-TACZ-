@@ -780,6 +780,8 @@ func (e *redstoneEngine) sourcePower(pos cube.Pos, tx *Tx) int {
 }
 
 // graphPower computes propagated graph power for every graph node.
+// graphPower computes propagated input power for every graph node. World reads and block callbacks
+// remain on the Go world owner; only the numeric propagation is delegated to the pure slice-based helper.
 func (e *redstoneEngine) graphPower(tx *Tx, graph redstoneGraph) []int {
 	powers := make([]int, len(graph.nodes))
 	if len(graph.nodes) == 0 {
@@ -788,41 +790,24 @@ func (e *redstoneEngine) graphPower(tx *Tx, graph redstoneGraph) []int {
 
 	index := make(map[cube.Pos]int, len(graph.nodes))
 	sources := make([]RedstonePowerSource, len(graph.nodes))
-	relayers := make([]RedstonePowerRelayer, len(graph.nodes))
-	edges := make([][]redstoneEdge, len(graph.nodes))
+	relayers := make([]bool, len(graph.nodes))
 	for i, node := range graph.nodes {
 		index[node.pos] = i
 		if b, ok := tx.World().blockLoaded(node.pos); ok {
 			sources[i], _ = b.(RedstonePowerSource)
-			relayers[i], _ = b.(RedstonePowerRelayer)
+			_, relayers[i] = b.(RedstonePowerRelayer)
+			if node.sink && !relayers[i] {
+				powers[i] = ClampRedstonePower(e.conductedActivationPower(node.pos, tx))
+			} else {
+				powers[i] = ClampRedstonePower(e.conductedStrongPower(node.pos, tx))
+			}
 		}
-	}
-	for _, edge := range graph.edges {
-		edges[edge.from] = append(edges[edge.from], edge)
-	}
-
-	queue := make([]int, 0, len(graph.nodes))
-	push := func(i, power int) {
-		power = ClampRedstonePower(power)
-		if power <= powers[i] {
-			return
-		}
-		powers[i] = power
-		queue = append(queue, i)
-	}
-
-	for i, node := range graph.nodes {
-		if node.sink && relayers[i] == nil {
-			push(i, e.conductedActivationPower(node.pos, tx))
-			continue
-		}
-		push(i, e.conductedStrongPower(node.pos, tx))
 	}
 
 	for i, source := range sources {
 		// Relayers such as redstone wire store their previous output as RedstonePower.
 		// They must be recomputed from real sources, not used as seeds themselves.
-		if source == nil || relayers[i] != nil {
+		if source == nil || relayers[i] {
 			continue
 		}
 		pos := graph.nodes[i].pos
@@ -832,17 +817,51 @@ func (e *redstoneEngine) graphPower(tx *Tx, graph redstoneGraph) []int {
 				continue
 			}
 			power := ClampRedstonePower(e.redstonePower(source, pos, tx, face))
-			push(j, power)
+			powers[j] = max(powers[j], power)
 		}
 	}
+	return propagateRedstoneGraph(relayers, graph.edges, powers)
+}
 
+// propagateRedstoneGraph performs the numeric, side-effect-free part of redstone propagation.
+// Edges must be sorted by from-node (compileEdges provides this ordering). The function only
+// reads and writes flat slices, making it suitable for benchmarking and a future Rust backend.
+func propagateRedstoneGraph(relayers []bool, edges []redstoneEdge, powers []int) []int {
+	if len(relayers) == 0 {
+		return powers
+	}
+	// Build a compact CSR-style edge index. This avoids allocating one slice header and
+	// backing array per graph node as the previous [][]redstoneEdge representation did.
+	starts := make([]int, len(relayers)+1)
+	for _, edge := range edges {
+		starts[edge.from+1]++
+	}
+	for i := 1; i < len(starts); i++ {
+		starts[i] += starts[i-1]
+	}
+
+	queue := make([]int, 0, len(relayers))
+	for i, power := range powers {
+		if ClampRedstonePower(power) > 0 {
+			powers[i] = ClampRedstonePower(power)
+			queue = append(queue, i)
+		} else {
+			powers[i] = 0
+		}
+	}
 	for head := 0; head < len(queue); head++ {
 		i := queue[head]
-		if relayers[i] == nil {
+		if !relayers[i] {
 			continue
 		}
-		for _, edge := range edges[i] {
-			push(edge.to, powers[i]-edge.weight)
+		for edgeIndex := starts[i]; edgeIndex < starts[i+1]; edgeIndex++ {
+			edge := edges[edgeIndex]
+			power := ClampRedstonePower(powers[i] - edge.weight)
+			if power <= powers[edge.to] {
+				continue
+			}
+			powers[edge.to] = power
+			queue = append(queue, edge.to)
 		}
 	}
 	return powers
