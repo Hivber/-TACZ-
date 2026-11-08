@@ -12,7 +12,6 @@ import "C"
 
 import (
 	"runtime"
-	"unsafe"
 )
 
 // propagateRedstoneGraph uses one batched FFI call. All world access and state mutation remain in Go.
@@ -62,5 +61,3 @@ func propagateRedstoneGraph(relayers []bool, edges []redstoneEdge, powers []int)
 	return powers
 }
 
-// Keep unsafe imported in the C ABI package to make pointer provenance explicit to the compiler.
-var _ unsafe.Pointer

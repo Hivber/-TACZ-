@@ -7,7 +7,7 @@ pub struct DragonflyRedstoneEdge {
     pub weight: i32,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn dragonfly_redstone_propagate(
     relayers_ptr: *const u8,
     node_count: usize,
@@ -85,17 +85,39 @@ mod tests {
     fn propagates_signal_over_relayers_and_stops_at_endpoints() {
         let relayers = [1, 1, 0, 0, 1];
         let edges = [
-            DragonflyRedstoneEdge { from: 0, to: 1, weight: 1 },
-            DragonflyRedstoneEdge { from: 1, to: 2, weight: 1 },
-            DragonflyRedstoneEdge { from: 1, to: 4, weight: 2 },
-            DragonflyRedstoneEdge { from: 2, to: 3, weight: 0 },
-            DragonflyRedstoneEdge { from: 4, to: 0, weight: 1 },
+            DragonflyRedstoneEdge {
+                from: 0,
+                to: 1,
+                weight: 1,
+            },
+            DragonflyRedstoneEdge {
+                from: 1,
+                to: 2,
+                weight: 1,
+            },
+            DragonflyRedstoneEdge {
+                from: 1,
+                to: 4,
+                weight: 2,
+            },
+            DragonflyRedstoneEdge {
+                from: 2,
+                to: 3,
+                weight: 0,
+            },
+            DragonflyRedstoneEdge {
+                from: 4,
+                to: 0,
+                weight: 1,
+            },
         ];
         let mut powers = [15, 0, 0, 0, 0];
         let status = unsafe {
             dragonfly_redstone_propagate(
-                relayers.as_ptr(), relayers.len(),
-                edges.as_ptr(), edges.len(),
+                relayers.as_ptr(),
+                relayers.len(),
+                edges.as_ptr(),
+                edges.len(),
                 powers.as_mut_ptr(),
             )
         };
@@ -107,8 +129,16 @@ mod tests {
     fn rejects_unsorted_edges() {
         let relayers = [1, 1];
         let edges = [
-            DragonflyRedstoneEdge { from: 1, to: 0, weight: 1 },
-            DragonflyRedstoneEdge { from: 0, to: 1, weight: 1 },
+            DragonflyRedstoneEdge {
+                from: 1,
+                to: 0,
+                weight: 1,
+            },
+            DragonflyRedstoneEdge {
+                from: 0,
+                to: 1,
+                weight: 1,
+            },
         ];
         let mut powers = [15, 0];
         let status = unsafe {
