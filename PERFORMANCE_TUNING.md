@@ -52,7 +52,7 @@ Redstone source and consumer updates now resolve their nearest dirty context onl
 
 ## Optional Go pprof endpoint
 
-Set `ZP_PPROF_ADDR=127.0.0.1:6060` before starting the server to enable Go runtime profiling. The endpoint is deliberately restricted to loopback addresses (`localhost`, `127.0.0.1` or `[::1]`); wildcard, LAN and public bind addresses are rejected. Leave the variable unset to keep profiling disabled.
+Set `[Features] Pprof = true` and `PprofAddress = "127.0.0.1:6060"` in `config.toml` to enable Go runtime profiling. The endpoint is deliberately restricted to loopback addresses (`localhost`, `127.0.0.1` or `[::1]`); wildcard, LAN and public bind addresses are rejected. `Pprof = false` keeps profiling disabled.
 
 Useful commands from the same device:
 
