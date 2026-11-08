@@ -125,6 +125,7 @@ type redstoneEngine struct {
 	suppressedSources        map[cube.Pos]int
 	torchBurnout             map[cube.Pos]redstoneTorchBurnout
 	dirtyContextIndex        *redstoneDirtyIndex
+	dirtyContextIndexBuilt   bool
 }
 
 // redstoneDirty records why a position needs redstone evaluation.
@@ -289,9 +290,12 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 	e.currentTick = tick
 	dirty := maps.Clone(e.dirty)
 	clear(e.dirty)
-	// Index large dirty sets once per tick so graph nodes can resolve their nearest update context without scanning the full map.
-	e.dirtyContextIndex = newRedstoneDirtyIndex(dirty)
-	defer func() { e.dirtyContextIndex = nil }()
+	e.dirtyContextIndex = nil
+	e.dirtyContextIndexBuilt = false
+	defer func() {
+		e.dirtyContextIndex = nil
+		e.dirtyContextIndexBuilt = false
+	}()
 
 	candidates := slices.Collect(maps.Keys(dirty))
 	slices.SortFunc(candidates, compareBlockPos)
@@ -324,6 +328,12 @@ func (e *redstoneEngine) tick(tx *Tx, tick int64) {
 func (e *redstoneEngine) dirtyContext(dirty map[cube.Pos]redstoneDirty, pos cube.Pos) redstoneDirty {
 	if d, ok := dirty[pos]; ok {
 		return d
+	}
+	if !e.dirtyContextIndexBuilt {
+		// Build the spatial index only if a non-direct context lookup is needed.
+		// Many ticks have dirty positions but no graph node requiring this fallback.
+		e.dirtyContextIndex = newRedstoneDirtyIndex(dirty)
+		e.dirtyContextIndexBuilt = true
 	}
 	if e.dirtyContextIndex != nil {
 		d, visited := e.dirtyContextIndex.nearest(pos)

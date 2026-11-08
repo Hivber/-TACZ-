@@ -57,6 +57,24 @@ func expandDirtyForIndexTest(dirty map[cube.Pos]redstoneDirty) map[cube.Pos]reds
 	return dirty
 }
 
+
+func BenchmarkRedstoneDirtyIndexBuild(b *testing.B) {
+	for _, size := range []int{64, 256, 1024, 4096} {
+		dirty := make(map[cube.Pos]redstoneDirty, size)
+		for i := 0; i < size; i++ {
+			pos := cube.Pos{i * 3, (i * 7) % 128, i * 5}
+			dirty[pos] = redstoneDirty{changed: pos, hasChanged: true}
+		}
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = newRedstoneDirtyIndex(dirty)
+			}
+		})
+	}
+}
+
 func BenchmarkRedstoneDirtyContext(b *testing.B) {
 	for _, size := range []int{64, 256, 1024, 4096} {
 		dirty := make(map[cube.Pos]redstoneDirty, size)
