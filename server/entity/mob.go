@@ -131,10 +131,10 @@ func (t mobType) EncodeNBT(data *world.EntityData) map[string]any {
 		return map[string]any{}
 	}
 	return map[string]any{
-		"Health":        float32(b.health.Health()),
-		"NaturalSpawn":  b.naturalSpawn,
-		"Dead":          b.dead,
-		"DeathTicks":    int32(b.deathTicks),
+		"Health":       float32(b.health.Health()),
+		"NaturalSpawn": b.naturalSpawn,
+		"Dead":         b.dead,
+		"DeathTicks":   int32(b.deathTicks),
 	}
 }
 
