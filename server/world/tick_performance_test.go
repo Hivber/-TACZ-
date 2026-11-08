@@ -1,6 +1,10 @@
 package world
 
-import (\n\t"testing"\n\t"github.com/df-mc/dragonfly/server/block/cube"\n)
+import (
+	"testing"
+
+	"github.com/df-mc/dragonfly/server/block/cube"
+)
 
 func TestSimulationChunkPositions(t *testing.T) {
 	loader := &Loader{pos: ChunkPos{-3, 7}}
