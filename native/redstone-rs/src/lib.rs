@@ -143,8 +143,10 @@ mod tests {
         let mut powers = [15, 0];
         let status = unsafe {
             dragonfly_redstone_propagate(
-                relayers.as_ptr(), relayers.len(),
-                edges.as_ptr(), edges.len(),
+                relayers.as_ptr(),
+                relayers.len(),
+                edges.as_ptr(),
+                edges.len(),
                 powers.as_mut_ptr(),
             )
         };
