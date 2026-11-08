@@ -14,6 +14,8 @@ type ClientCacheBlobStatusHandler struct {
 func (c *ClientCacheBlobStatusHandler) Handle(p packet.Packet, s *Session, _ *world.Tx, _ Controllable) error {
 	pk := p.(*packet.ClientCacheBlobStatus)
 
+	s.cacheHits.Add(uint64(len(pk.HitHashes)))
+	s.cacheMisses.Add(uint64(len(pk.MissHashes)))
 	resp := &packet.ClientCacheMissResponse{Blobs: make([]protocol.CacheBlob, 0, len(pk.MissHashes))}
 
 	s.blobMu.Lock()

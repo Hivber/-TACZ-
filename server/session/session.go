@@ -44,6 +44,29 @@ type Session struct {
 	currentScoreboard atomic.Pointer[string]
 	currentLines      atomic.Pointer[[]string]
 
+	outPackets             atomic.Uint64
+	entityMovementPackets  atomic.Uint64
+	entityVelocityPackets  atomic.Uint64
+	entitySpawnPackets     atomic.Uint64
+	entityRemovePackets    atomic.Uint64
+	chunkPackets           atomic.Uint64
+	blockUpdatePackets     atomic.Uint64
+	cacheResponsePackets   atomic.Uint64
+	cacheHits              atomic.Uint64
+	cacheMisses            atomic.Uint64
+	subChunkRequests       atomic.Uint64
+	clientDiagnostics      atomic.Pointer[Diagnostics]
+	performanceSampleMu    sync.Mutex
+	performanceSampleAt    time.Time
+	performanceLastPackets uint64
+	performanceLastMoves   uint64
+	performanceLastVel     uint64
+	performanceLastSpawns  uint64
+	performanceLastRemoves uint64
+	performanceLastChunks  uint64
+	performanceLastBlocks  uint64
+	performanceLastCache   uint64
+
 	chunkLoader                 *world.Loader
 	chunkRadius, maxChunkRadius int32
 
@@ -202,6 +225,7 @@ func (conf Config) New(conn Conn) *Session {
 		emoteChatMuted:         conf.EmoteChatMuted,
 		conn:                   conn,
 		currentEntityRuntimeID: 1,
+		performanceSampleAt:    time.Now(),
 		heldSlot:               new(uint32),
 		recipes:                make(map[uint32]recipe.Recipe),
 		conf:                   conf,
@@ -634,6 +658,23 @@ func (s *Session) registerHandlers() {
 func (s *Session) writePacket(pk packet.Packet) {
 	if s == Nop {
 		return
+	}
+	s.outPackets.Add(1)
+	switch pk.(type) {
+	case *packet.MoveActorAbsolute:
+		s.entityMovementPackets.Add(1)
+	case *packet.SetActorMotion:
+		s.entityVelocityPackets.Add(1)
+	case *packet.AddActor, *packet.AddItemActor, *packet.AddPlayer:
+		s.entitySpawnPackets.Add(1)
+	case *packet.RemoveActor:
+		s.entityRemovePackets.Add(1)
+	case *packet.LevelChunk, *packet.SubChunk:
+		s.chunkPackets.Add(1)
+	case *packet.UpdateBlock:
+		s.blockUpdatePackets.Add(1)
+	case *packet.ClientCacheMissResponse:
+		s.cacheResponsePackets.Add(1)
 	}
 	select {
 	case s.packets <- pk:

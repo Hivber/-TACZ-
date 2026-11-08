@@ -3497,6 +3497,12 @@ func (p *Player) Data() Config {
 
 // session returns the network session of the player. If it has one, it is returned. If not, a no-op session
 // is returned.
+
+// PerformanceString returns per-session network and client rendering diagnostics.
+func (p *Player) PerformanceString() string {
+	return p.session().PerformanceString()
+}
+
 func (p *Player) session() *session.Session {
 	if s := p.s; s != nil {
 		return s

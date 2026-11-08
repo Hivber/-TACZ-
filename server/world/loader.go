@@ -147,6 +147,20 @@ func (l *Loader) viewChunk(tx *Tx, pos ChunkPos, c *Column) {
 	l.loaded[pos] = c
 }
 
+// LoaderStats describes the current work owned by a Loader.
+type LoaderStats struct {
+	Radius, Loaded, Pending, Queued int
+}
+
+// Stats returns a point-in-time snapshot of the Loader's chunk state.
+func (l *Loader) Stats() LoaderStats {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return LoaderStats{
+		Radius: l.r, Loaded: len(l.loaded), Pending: len(l.pending), Queued: len(l.loadQueue),
+	}
+}
+
 // Chunk attempts to return a chunk at the given ChunkPos. If the chunk is not loaded, the second return value will
 // be false.
 func (l *Loader) Chunk(pos ChunkPos) (*Column, bool) {

@@ -9,9 +9,9 @@ import (
 type ServerBoundDiagnosticsHandler struct{}
 
 // Handle ...
-func (h *ServerBoundDiagnosticsHandler) Handle(p packet.Packet, _ *Session, _ *world.Tx, c Controllable) error {
+func (h *ServerBoundDiagnosticsHandler) Handle(p packet.Packet, s *Session, _ *world.Tx, c Controllable) error {
 	pk := p.(*packet.ServerBoundDiagnostics)
-	c.UpdateDiagnostics(Diagnostics{
+	diagnostics := Diagnostics{
 		AverageFramesPerSecond:        float64(pk.AverageFramesPerSecond),
 		AverageServerSimTickTime:      float64(pk.AverageServerSimTickTime),
 		AverageClientSimTickTime:      float64(pk.AverageClientSimTickTime),
@@ -21,6 +21,8 @@ func (h *ServerBoundDiagnosticsHandler) Handle(p packet.Packet, _ *Session, _ *w
 		AverageEndFrameTime:           float64(pk.AverageEndFrameTime),
 		AverageRemainderTimePercent:   float64(pk.AverageRemainderTimePercent),
 		AverageUnaccountedTimePercent: float64(pk.AverageUnaccountedTimePercent),
-	})
+	}
+	s.clientDiagnostics.Store(&diagnostics)
+	c.UpdateDiagnostics(diagnostics)
 	return nil
 }

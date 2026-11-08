@@ -15,7 +15,7 @@ type perfCommand struct{}
 
 func (perfCommand) Allow(src Source) bool { return commandOperator(src) }
 
-func (perfCommand) Run(_ Source, out *Output, tx *world.Tx) {
+func (perfCommand) Run(src Source, out *Output, tx *world.Tx) {
 	var memory runtime.MemStats
 	runtime.ReadMemStats(&memory)
 
@@ -32,6 +32,9 @@ func (perfCommand) Run(_ Source, out *Output, tx *world.Tx) {
 		memory.GCCPUFraction*100,
 	)
 
+	if metrics, ok := src.(interface{ PerformanceString() string }); ok {
+		out.Printf("%s", metrics.PerformanceString())
+	}
 	if tx == nil {
 		out.Printf("World metrics unavailable: run /perf from a player in the target world.")
 		return
