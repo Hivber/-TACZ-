@@ -64,3 +64,8 @@ go tool pprof http://127.0.0.1:6060/debug/pprof/mutex
 ```
 
 Do not expose this endpoint through port forwarding or a public reverse proxy. CPU profiling runs for the requested duration and can add overhead; collect CPU, heap, block and mutex profiles separately when diagnosing a live server.
+
+
+## Allocation reuse
+
+Network chunk block-entity NBT encoding reuses bounded byte buffers. Encoded payloads are copied before a buffer is returned to the pool, so queued packets never depend on pooled memory. This reduces temporary buffer allocation without changing packet contents. Further object pooling is intentionally gated on allocation benchmarks and explicit buffer-ownership checks.
