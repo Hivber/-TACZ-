@@ -7,6 +7,7 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/inventory"
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
 )
 
@@ -25,6 +26,23 @@ func TestRedstoneRepeaterZeroValueIsRegistered(t *testing.T) {
 		}
 	}
 	t.Fatal("zero-value repeater hash is not registered")
+}
+
+func TestRedstoneRepeaterZeroValueHasRuntimeID(t *testing.T) {
+	registry := world.DefaultBlockRegistry
+	registry.Finalize()
+
+	zero := RedstoneRepeater{}
+	rid := registry.BlockRuntimeID(zero)
+	registered, ok := registry.BlockByRuntimeID(rid)
+	if !ok {
+		t.Fatalf("runtime ID %d for zero-value repeater could not be resolved", rid)
+	}
+	name, properties := zero.EncodeBlock()
+	registeredName, registeredProperties := registered.EncodeBlock()
+	if name != registeredName || !reflect.DeepEqual(properties, registeredProperties) {
+		t.Fatalf("runtime ID %d resolves to %s %v, want %s %v", rid, registeredName, registeredProperties, name, properties)
+	}
 }
 
 func TestRedstoneRepeaterStates(t *testing.T) {
