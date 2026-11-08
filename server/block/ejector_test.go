@@ -146,7 +146,7 @@ func TestEjectorFacingVectors(t *testing.T) {
 }
 
 func TestDispenserSpawnEggBehaviourFallback(t *testing.T) {
-	behaviour := func(*world.Tx, world.EntitySpawnOpts, item.Stack) bool { return true }
+	behaviour := func(*world.Tx, world.EntitySpawnOpts, item.Stack) DispenserItemBehaviorResult { return DispenserItemHandled }
 	RegisterDispenserItemBehavior("minecraft:spawn_egg", behaviour)
 	defer func() {
 		dispenserItemBehaviorRegistry.Lock()

@@ -17,7 +17,21 @@ import (
 
 // DispenserItemBehavior creates an entity or otherwise handles one item ejected by a dispenser.
 // The entity package registers built-in projectile and item-entity behaviours during initialisation.
-type DispenserItemBehavior func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool
+// DispenserItemBehaviorResult describes whether a dispenser item handler consumed an item.
+type DispenserItemBehaviorResult uint8
+
+const (
+	// DispenserItemUnhandled asks the dispenser to use its ordinary item-ejection fallback.
+	DispenserItemUnhandled DispenserItemBehaviorResult = iota
+	// DispenserItemHandled means the handler successfully performed the item's special action.
+	DispenserItemHandled
+	// DispenserItemFailed means the special action was attempted but could not be completed.
+	// The item is retained and the dispenser does not eject it as a generic item.
+	DispenserItemFailed
+)
+
+// DispenserItemBehavior handles one item ejected by a dispenser.
+type DispenserItemBehavior func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) DispenserItemBehaviorResult
 
 var dispenserItemBehaviorRegistry = struct {
 	sync.RWMutex
@@ -45,9 +59,12 @@ func lookupDispenserItemBehavior(identifier string) DispenserItemBehavior {
 	return behaviour
 }
 
-func runDispenserItemBehavior(identifier string, tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+func runDispenserItemBehavior(identifier string, tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) DispenserItemBehaviorResult {
 	behaviour := lookupDispenserItemBehavior(identifier)
-	return behaviour != nil && behaviour(tx, opts, stack)
+	if behaviour == nil {
+		return DispenserItemUnhandled
+	}
+	return behaviour(tx, opts, stack)
 }
 
 // Dispenser is a redstone-activated container that ejects one item from a random non-empty slot.
@@ -344,10 +361,16 @@ func (e ejector) dispense(pos cube.Pos, tx *world.Tx, dropper bool) {
 		}
 	}
 
-	if !dropper && e.dispenseProjectile(pos, tx, one) {
-		_ = e.inventory.SetItem(slot, stack.Grow(-1))
-		tx.SetBlockEntity(pos, Dispenser{e})
-		return
+	if !dropper {
+		switch e.dispenseProjectile(pos, tx, one) {
+		case DispenserItemHandled:
+			_ = e.inventory.SetItem(slot, stack.Grow(-1))
+			tx.SetBlockEntity(pos, Dispenser{e})
+			return
+		case DispenserItemFailed:
+			tx.PlaySound(pos.Vec3Centre(), sound.Click{})
+			return
+		}
 	}
 	if !e.dispenseItemEntity(pos, tx, one) {
 		tx.PlaySound(pos.Vec3Centre(), sound.Click{})
@@ -429,7 +452,7 @@ func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack
 	return runDispenserItemBehavior("minecraft:item", tx, opts, stack)
 }
 
-func (e ejector) dispenseProjectile(pos cube.Pos, tx *world.Tx, stack item.Stack) bool {
+func (e ejector) dispenseProjectile(pos cube.Pos, tx *world.Tx, stack item.Stack) DispenserItemBehaviorResult {
 	face := ejectorFaceVector(e.Facing)
 	velocity := face.Add(mgl64.Vec3{0, 0.1, 0}).Normalize().Mul(1.1)
 	velocity = velocity.Add(mgl64.Vec3{

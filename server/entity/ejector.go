@@ -13,68 +13,68 @@ import (
 
 // init connects the block package's dispenser hook to entity constructors without creating an import cycle.
 func init() {
-	block.RegisterDispenserItemBehavior("minecraft:item", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:item", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		tx.AddEntity(NewItem(opts, stack))
 		tx.PlaySound(opts.Position, sound.Click{})
-		return true
+		return block.DispenserItemHandled
 	})
-	block.RegisterDispenserItemBehavior("minecraft:arrow", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:arrow", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		arrow, ok := stack.Item().(item.Arrow)
 		if !ok {
-			return false
+			return block.DispenserItemFailed
 		}
 		conf := arrowConf
 		conf.Potion = arrow.Tip
 		conf.PickupItem = item.NewStack(arrow, 1)
 		tx.AddEntity(opts.New(ArrowType, conf))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
-		return true
+		return block.DispenserItemHandled
 	})
-	block.RegisterDispenserItemBehavior("minecraft:egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		if _, ok := stack.Item().(item.Egg); !ok {
-			return false
+			return block.DispenserItemFailed
 		}
 		tx.AddEntity(opts.New(EggType, eggConf))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
-		return true
+		return block.DispenserItemHandled
 	})
-	block.RegisterDispenserItemBehavior("minecraft:snowball", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:snowball", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		if _, ok := stack.Item().(item.Snowball); !ok {
-			return false
+			return block.DispenserItemFailed
 		}
 		tx.AddEntity(opts.New(SnowballType, snowballConf))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
-		return true
+		return block.DispenserItemHandled
 	})
-	block.RegisterDispenserItemBehavior("minecraft:firework_rocket", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:firework_rocket", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		firework, ok := stack.Item().(item.Firework)
 		if !ok {
-			return false
+			return block.DispenserItemFailed
 		}
 		tx.AddEntity(NewFirework(opts, firework))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
-		return true
+		return block.DispenserItemHandled
 	})
-	block.RegisterDispenserItemBehavior("minecraft:spawn_egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) bool {
+	block.RegisterDispenserItemBehavior("minecraft:spawn_egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
 		egg, ok := stack.Item().(item.SpawnEgg)
 		if !ok || egg.Mob == "" {
-			return false
+			return block.DispenserItemFailed
 		}
 		create := tx.World().EntityRegistry().Config().Mob
 		if create == nil {
-			return false
+			return block.DispenserItemFailed
 		}
 		spawnPos := cube.Pos{
 			int(math.Floor(opts.Position[0])),
 			int(math.Floor(opts.Position[1])),
 			int(math.Floor(opts.Position[2])),
 		}
-		isAir := func(pos cube.Pos) bool {
+		isAir := func(pos cube.Pos) block.DispenserItemBehaviorResult {
 			name, _ := tx.Block(pos).EncodeBlock()
 			return name == "minecraft:air"
 		}
 		if !isAir(spawnPos) || !isAir(spawnPos.Side(cube.FaceUp)) {
-			return false
+			return block.DispenserItemFailed
 		}
 		spawnOpts := world.EntitySpawnOpts{
 			Position: mgl64.Vec3{
@@ -85,10 +85,10 @@ func init() {
 		}
 		handle := create(spawnOpts, egg.Mob)
 		if handle == nil {
-			return false
+			return block.DispenserItemFailed
 		}
 		tx.AddEntity(handle)
 		tx.PlaySound(opts.Position, sound.Click{})
-		return true
+		return block.DispenserItemHandled
 	})
 }
