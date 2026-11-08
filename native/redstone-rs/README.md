@@ -26,10 +26,8 @@ The Go build tag is opt-in. A normal `go build` continues to use pure Go. Compar
 and workload with the same Go benchmark (first Go, then Rust):
 
 ```sh
-go test -run '^
- -bench 'BenchmarkPropagateRedstoneGraph|BenchmarkRedstoneDirtyContext' -benchmem ./server/world
-CGO_ENABLED=1 go test -tags dragonfly_rust -run '^
- -bench 'BenchmarkPropagateRedstoneGraph|BenchmarkRedstoneDirtyContext' -benchmem ./server/world
+go test -run TestPropagateRedstoneGraph -bench BenchmarkPropagateRedstoneGraph -benchmem ./server/world
+CGO_ENABLED=1 go test -tags dragonfly_rust -run TestPropagateRedstoneGraph -bench BenchmarkPropagateRedstoneGraph -benchmem ./server/world
 ```
 
 Also compare the complete server workload and `/perf` results; a faster isolated kernel does not guarantee a higher

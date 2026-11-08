@@ -22,7 +22,6 @@ func TestPropagateRedstoneGraph(t *testing.T) {
 	}
 }
 
-
 func TestPropagateRedstoneGraphMatchesGoReference(t *testing.T) {
 	for _, nodeCount := range []int{256, 512, 1024} {
 		relayers := make([]bool, nodeCount)

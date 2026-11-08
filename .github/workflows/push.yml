@@ -38,7 +38,7 @@ jobs:
       - name: Test optional Rust backend
         run: |
           CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world
-          CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world -run=^$ -bench=^BenchmarkPropagateRedstoneGraph$ -benchmem -count=3
+          CGO_ENABLED=1 go test -tags dragonfly_rust ./server/world -run=TestPropagateRedstoneGraphMatchesGoReference -bench=BenchmarkPropagateRedstoneGraph -benchmem -count=3
   deploy:
     name: Deploy
     needs: build

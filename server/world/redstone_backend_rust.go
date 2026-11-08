@@ -29,7 +29,7 @@ func propagateRedstoneGraph(relayers []bool, edges []redstoneEdge, powers []int)
 	}
 	nativeEdges := make([]C.DragonflyRedstoneEdge, len(edges))
 	const maxInt32 = int(^uint32(0) >> 1)
-		const minInt32 = -maxInt32 - 1
+	const minInt32 = -maxInt32 - 1
 	for i, edge := range edges {
 		if edge.from < 0 || edge.from >= len(relayers) || edge.to < 0 || edge.to >= len(relayers) ||
 			edge.from > maxInt32 || edge.to > maxInt32 || edge.weight < minInt32 || edge.weight > maxInt32 {
