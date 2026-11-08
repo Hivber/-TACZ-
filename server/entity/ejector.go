@@ -2,6 +2,8 @@ package entity
 
 import (
 	"math"
+	"math/rand/v2"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -9,6 +11,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
+	"github.com/go-gl/mathgl/mgl64"
 	"github.com/go-gl/mathgl/mgl64"
 )
 
@@ -54,6 +57,37 @@ func init() {
 		}
 		tx.AddEntity(NewFirework(opts, firework))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
+		return block.DispenserItemHandled
+	})
+	block.RegisterDispenserItemBehavior("minecraft:tnt", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
+		if _, ok := stack.Item().(block.TNT); !ok {
+			return block.DispenserItemFailed
+		}
+		pos := cube.Pos{
+			int(math.Floor(opts.Position[0])),
+			int(math.Floor(opts.Position[1])),
+			int(math.Floor(opts.Position[2])),
+		}
+		opts.Position = mgl64.Vec3{
+			float64(pos[0]) + 0.5,
+			float64(pos[1]),
+			float64(pos[2]) + 0.5,
+		}
+		opts.Velocity = mgl64.Vec3{
+			rand.NormFloat64() * 0.02,
+			0.2,
+			rand.NormFloat64() * 0.02,
+		}
+		create := tx.World().EntityRegistry().Config().TNT
+		if create == nil {
+			return block.DispenserItemFailed
+		}
+		handle := create(opts, 4*time.Second)
+		if handle == nil {
+			return block.DispenserItemFailed
+		}
+		tx.AddEntity(handle)
+		tx.PlaySound(opts.Position, sound.TNT{})
 		return block.DispenserItemHandled
 	})
 	block.RegisterDispenserItemBehavior("minecraft:flint_and_steel", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
