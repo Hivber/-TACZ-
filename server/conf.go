@@ -26,11 +26,16 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/resource"
 )
 
-// FeatureFlags controls non-vanilla extensions. Core Bedrock gameplay and protocol behaviour are always enabled by default.
+// FeatureFlags controls optional non-vanilla extensions. Core Bedrock gameplay
+// and protocol behaviour remain enabled by default.
 type FeatureFlags struct {
+	// JavaCompatibilityCommands enables Java-only command extensions.
 	JavaCompatibilityCommands bool
+	// PerformanceDiagnostics enables the non-vanilla /perf command.
 	PerformanceDiagnostics bool
+	// Pprof enables the local Go runtime profiling endpoint.
 	Pprof bool
+	// PprofAddress is the loopback address used by pprof when enabled.
 	PprofAddress string
 }
 
@@ -325,7 +330,8 @@ type UserConfig struct {
 		// Required is a boolean to force the client to load the resource pack
 		// on join. If they do not accept, they'll have to leave the server.
 		Required bool
-	}	// Features controls optional extensions; vanilla Bedrock features remain enabled.
+	}
+	// Features controls optional extensions; vanilla Bedrock features remain enabled.
 	Features FeatureFlags
 }
 
