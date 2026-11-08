@@ -15,8 +15,6 @@ import (
 	"github.com/go-gl/mathgl/mgl64"
 )
 
-// DispenserItemBehavior creates an entity or otherwise handles one item ejected by a dispenser.
-// The entity package registers built-in projectile and item-entity behaviours during initialisation.
 // DispenserItemBehaviorResult describes whether a dispenser item handler consumed an item.
 type DispenserItemBehaviorResult uint8
 
