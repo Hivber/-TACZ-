@@ -1,6 +1,7 @@
 package block
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -9,14 +10,21 @@ import (
 	"github.com/df-mc/dragonfly/server/world/sound"
 )
 
-func TestRedstoneRepeaterZeroValueUsesRegisteredDefaultState(t *testing.T) {
+func TestRedstoneRepeaterZeroValueIsRegistered(t *testing.T) {
 	zero := RedstoneRepeater{}
-	defaultState := RedstoneRepeater{Direction: cube.North, Delay: 1}
 	zeroBase, zeroState := zero.Hash()
-	defaultBase, defaultHash := defaultState.Hash()
-	if zeroBase != defaultBase || zeroState != defaultHash {
-		t.Fatalf("zero-value repeater hash = (%d, %d), want registered default (%d, %d)", zeroBase, zeroState, defaultBase, defaultHash)
+	for _, state := range allRedstoneRepeaters() {
+		base, hash := state.Hash()
+		if base == zeroBase && hash == zeroState {
+			name, properties := zero.EncodeBlock()
+			registeredName, registeredProperties := state.EncodeBlock()
+			if name != registeredName || !reflect.DeepEqual(properties, registeredProperties) {
+				t.Fatalf("zero-value repeater encodes as %s %v, registered state is %s %v", name, properties, registeredName, registeredProperties)
+			}
+			return
+		}
 	}
+	t.Fatal("zero-value repeater hash is not registered")
 }
 
 func TestRedstoneRepeaterStates(t *testing.T) {
@@ -31,8 +39,8 @@ func TestRedstoneRepeaterStates(t *testing.T) {
 		if name != "minecraft:unpowered_repeater" && name != "minecraft:powered_repeater" {
 			t.Fatalf("unexpected repeater block name %q", name)
 		}
-		if properties["repeater_delay"] != int32(repeater.Delay-1) {
-			t.Fatalf("repeater delay property = %v, want %d", properties["repeater_delay"], repeater.Delay-1)
+		if properties["repeater_delay"] != int32(repeater.effectiveDelay()-1) {
+			t.Fatalf("repeater delay property = %v, want %d", properties["repeater_delay"], repeater.effectiveDelay()-1)
 		}
 		if properties["minecraft:cardinal_direction"] != repeater.Direction.String() {
 			t.Fatalf("repeater cardinal direction = %v, want output-facing %s", properties["minecraft:cardinal_direction"], repeater.Direction)

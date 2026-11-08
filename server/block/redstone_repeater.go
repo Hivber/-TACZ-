@@ -173,9 +173,16 @@ func (r RedstoneRepeater) EncodeBlock() (string, map[string]any) {
 func allRedstoneRepeaters() (all []world.Block) {
 	for _, direction := range cube.Directions() {
 		for delay := 1; delay <= 4; delay++ {
+			// Delay zero is the canonical Go zero-value for the default
+			// one-redstone-tick state. EncodeBlock normalises it to delay one,
+			// while the generated Hash method hashes the stored field.
+			registeredDelay := delay
+			if delay == 1 {
+				registeredDelay = 0
+			}
 			all = append(all,
-				RedstoneRepeater{Direction: direction, Delay: delay},
-				RedstoneRepeater{Direction: direction, Delay: delay, Powered: true},
+				RedstoneRepeater{Direction: direction, Delay: registeredDelay},
+				RedstoneRepeater{Direction: direction, Delay: registeredDelay, Powered: true},
 			)
 		}
 	}
