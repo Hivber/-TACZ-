@@ -54,7 +54,9 @@ type Session struct {
 	cacheResponsePackets   atomic.Uint64
 	cacheHits              atomic.Uint64
 	cacheMisses            atomic.Uint64
-	encodedChunkPartCacheHits   atomic.Uint64
+	// encodedChunkPartCacheHits counts reused section encodings.
+	encodedChunkPartCacheHits atomic.Uint64
+	// encodedChunkPartCacheMisses counts newly encoded sections.
 	encodedChunkPartCacheMisses atomic.Uint64
 	subChunkRequests       atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
@@ -114,12 +116,16 @@ type Session struct {
 
 	recipes map[uint32]recipe.Recipe
 
-	blobMu                  sync.Mutex
-	blobs                   map[uint64][]byte
-	encodedChunkParts       map[encodedChunkPartKey][]byte
-	encodedChunkPartOrder   []encodedChunkPartKey
+	blobMu                sync.Mutex
+	blobs                 map[uint64][]byte
+	// encodedChunkParts is a bounded per-session cache of immutable network encodings.
+	encodedChunkParts map[encodedChunkPartKey][]byte
+	// encodedChunkPartOrder stores FIFO eviction order for the encoded section cache.
+	encodedChunkPartOrder []encodedChunkPartKey
+	// openChunkTransactions tracks client blob acknowledgements.
 	openChunkTransactions []map[uint64]struct{}
-	invOpened             bool
+	// invOpened reports whether the inventory window is open.
+	invOpened bool
 
 	hudMu      sync.RWMutex
 	hudUpdates map[hud.Element]bool

@@ -8,21 +8,21 @@ import (
 
 type revisionTestRegistry struct{}
 
-func (revisionTestRegistry) BlockCount() int { return 4 }
+func (revisionTestRegistry) BlockCount() int      { return 4 }
 func (revisionTestRegistry) AirRuntimeID() uint32 { return 0 }
 func (revisionTestRegistry) RuntimeIDToState(id uint32) (string, map[string]any, bool) {
 	return "test:block", map[string]any{"id": int32(id)}, true
 }
 func (revisionTestRegistry) StateToRuntimeID(string, map[string]any) (uint32, bool) { return 0, false }
-func (revisionTestRegistry) DefaultProperties(string) (map[string]any, bool) { return nil, false }
-func (revisionTestRegistry) FilteringBlock(uint32) uint8 { return 0 }
-func (revisionTestRegistry) LightBlock(uint32) uint8 { return 0 }
-func (revisionTestRegistry) RandomTickBlock(uint32) bool { return false }
-func (revisionTestRegistry) NBTBlock(uint32) bool { return false }
-func (revisionTestRegistry) LiquidDisplacingBlock(uint32) bool { return false }
-func (revisionTestRegistry) LiquidBlock(uint32) bool { return false }
-func (revisionTestRegistry) HashToRuntimeID(uint32) (uint32, bool) { return 0, false }
-func (revisionTestRegistry) RuntimeIDToHash(uint32) (uint32, bool) { return 0, false }
+func (revisionTestRegistry) DefaultProperties(string) (map[string]any, bool)        { return nil, false }
+func (revisionTestRegistry) FilteringBlock(uint32) uint8                            { return 0 }
+func (revisionTestRegistry) LightBlock(uint32) uint8                                { return 0 }
+func (revisionTestRegistry) RandomTickBlock(uint32) bool                            { return false }
+func (revisionTestRegistry) NBTBlock(uint32) bool                                   { return false }
+func (revisionTestRegistry) LiquidDisplacingBlock(uint32) bool                      { return false }
+func (revisionTestRegistry) LiquidBlock(uint32) bool                                { return false }
+func (revisionTestRegistry) HashToRuntimeID(uint32) (uint32, bool)                  { return 0, false }
+func (revisionTestRegistry) RuntimeIDToHash(uint32) (uint32, bool)                  { return 0, false }
 
 func TestSubChunkRevisionTracksAllStorageWrites(t *testing.T) {
 	c := New(revisionTestRegistry{}, cube.Range{0, 255})
