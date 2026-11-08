@@ -23,7 +23,7 @@ Operators can run `/perf` in-game to inspect the process and the current world:
 - World: tick invocations per second, total ticks, latest/EMA/P95/maximum tick duration.
 - Workload: loaded chunks, in-flight chunk requests, queued chunk loads, worker count, loaded entities, active loaders, simulation distance and random tick speed.
 
-The P95 tick time is calculated from the most recent 100 tick samples. The average is an exponential moving average. Metrics are sampled on demand except for the small fixed-size tick-duration recorder; no profiling server or public network endpoint is opened.
+The P95 tick time is calculated from the most recent 100 tick samples. The average is an exponential moving average. Metrics are sampled on demand except for the small fixed-size tick-duration recorder. Profiling remains disabled unless explicitly enabled.
 
 This first diagnostic pass does not yet measure OS process CPU percentage, network bytes, per-stage tick costs, or end-to-end chunk generation latency. Use Go CPU/heap profiles and repeatable load tests before selecting deeper optimisations. A high tick duration suggests world logic; a growing chunk queue suggests generation or storage cannot keep up; high heap/GC values suggest allocation pressure. These are investigation clues, not automatic proof of a specific bottleneck.
 
@@ -48,3 +48,19 @@ The executable creates `plugins/` and `mods/` in its working directory at startu
 
 
 Redstone source and consumer updates now resolve their nearest dirty context only when an update event or block-state change will actually be emitted. Unchanged power therefore avoids the nearest-context scan entirely.
+
+
+## Optional Go pprof endpoint
+
+Set `ZP_PPROF_ADDR=127.0.0.1:6060` before starting the server to enable Go runtime profiling. The endpoint is deliberately restricted to loopback addresses (`localhost`, `127.0.0.1` or `[::1]`); wildcard, LAN and public bind addresses are rejected. Leave the variable unset to keep profiling disabled.
+
+Useful commands from the same device:
+
+```sh
+go tool pprof http://127.0.0.1:6060/debug/pprof/profile?seconds=30
+go tool pprof http://127.0.0.1:6060/debug/pprof/heap
+go tool pprof http://127.0.0.1:6060/debug/pprof/goroutine
+go tool pprof http://127.0.0.1:6060/debug/pprof/mutex
+```
+
+Do not expose this endpoint through port forwarding or a public reverse proxy. CPU profiling runs for the requested duration and can add overhead; collect CPU, heap, block and mutex profiles separately when diagnosing a live server.
