@@ -2,6 +2,7 @@ package session
 
 import (
 	"bytes"
+	"sync"
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -15,6 +16,39 @@ import (
 // subChunkRequests is set to true to enable the sub-chunk request system. This can (likely) cause unexpected issues,
 // but also solves issues with block entities such as item frames and lecterns as of v1.19.10.
 const subChunkRequests = true
+
+var blockEntityBufferPool = sync.Pool{
+	New: func() any { return bytes.NewBuffer(make([]byte, 0, 256)) },
+}
+
+// encodeBlockEntityPayload returns an owned copy, never a slice backed by pooled storage.
+func encodeBlockEntityPayload(entities map[cube.Pos]world.Block, subChunk *int16, col *world.Column, includeBorderCount bool) []byte {
+	if len(entities) == 0 && !includeBorderCount {
+		return nil
+	}
+	buf := blockEntityBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	if includeBorderCount {
+		buf.WriteByte(0)
+	}
+	enc := nbt.NewEncoderWithEncoding(buf, nbt.NetworkLittleEndian)
+	for pos, b := range entities {
+		if subChunk != nil && col.SubIndex(int16(pos.Y())) != *subChunk {
+			continue
+		}
+		if n, ok := b.(world.NBTer); ok {
+			data := n.EncodeNBT()
+			data["x"], data["y"], data["z"] = int32(pos[0]), int32(pos[1]), int32(pos[2])
+			_ = enc.Encode(data)
+		}
+	}
+	payload := bytes.Clone(buf.Bytes())
+	buf.Reset()
+	if buf.Cap() <= 64*1024 {
+		blockEntityBufferPool.Put(buf)
+	}
+	return payload
+}
 
 // ViewChunk ...
 func (s *Session) ViewChunk(pos world.ChunkPos, dim world.Dimension, blockEntities map[cube.Pos]world.Block, c *chunk.Chunk) {
@@ -103,19 +137,11 @@ func (s *Session) subChunkEntry(offset protocol.SubChunkOffset, ind int16, col *
 
 	serialisedSubChunk := chunk.EncodeSubChunk(col.Chunk, chunk.NetworkEncoding, int(ind))
 
-	blockEntityBuf := bytes.NewBuffer(nil)
-	enc := nbt.NewEncoderWithEncoding(blockEntityBuf, nbt.NetworkLittleEndian)
-	for pos, b := range col.BlockEntities {
-		if n, ok := b.(world.NBTer); ok && col.SubIndex(int16(pos.Y())) == ind {
-			d := n.EncodeNBT()
-			d["x"], d["y"], d["z"] = int32(pos[0]), int32(pos[1]), int32(pos[2])
-			_ = enc.Encode(d)
-		}
-	}
+	blockEntityData := encodeBlockEntityPayload(col.BlockEntities, &ind, col, false)
 
 	entry := protocol.SubChunkEntry{
 		Result:              protocol.SubChunkResultSuccess,
-		RawPayload:          protocol.Option(append(serialisedSubChunk, blockEntityBuf.Bytes()...)),
+		RawPayload:          protocol.Option(append(serialisedSubChunk, blockEntityData...)),
 		HeightMapType:       subMapType,
 		HeightMapData:       subMapData,
 		RenderHeightMapType: subMapType,
@@ -127,7 +153,7 @@ func (s *Session) subChunkEntry(offset protocol.SubChunkOffset, ind int16, col *
 			transaction[hash] = struct{}{}
 
 			entry.BlobHash = protocol.Option(hash)
-			entry.RawPayload = protocol.Option(blockEntityBuf.Bytes())
+			entry.RawPayload = protocol.Option(blockEntityData)
 		}
 	}
 	return entry
@@ -182,16 +208,7 @@ func (s *Session) sendBlobHashes(pos world.ChunkPos, dim world.Dimension, c *chu
 	}
 	s.blobMu.Unlock()
 
-	// Length of 1 byte for the border block count.
-	raw := bytes.NewBuffer(make([]byte, 1, 32))
-	enc := nbt.NewEncoderWithEncoding(raw, nbt.NetworkLittleEndian)
-	for bp, b := range blockEntities {
-		if n, ok := b.(world.NBTer); ok {
-			d := n.EncodeNBT()
-			d["x"], d["y"], d["z"] = int32(bp[0]), int32(bp[1]), int32(bp[2])
-			_ = enc.Encode(d)
-		}
-	}
+	rawPayload := encodeBlockEntityPayload(blockEntities, nil, nil, true)
 
 	s.writePacket(&packet.LevelChunk{
 		Dimension:     s.dimensionID(dim),
@@ -199,7 +216,7 @@ func (s *Session) sendBlobHashes(pos world.ChunkPos, dim world.Dimension, c *chu
 		SubChunkCount: count,
 		CacheEnabled:  true,
 		BlobHashes:    hashes,
-		RawPayload:    raw.Bytes(),
+		RawPayload:    rawPayload,
 	})
 }
 
@@ -223,17 +240,7 @@ func (s *Session) sendNetworkChunk(pos world.ChunkPos, dim world.Dimension, c *c
 	}
 	_, _ = chunkBuf.Write(data.Biomes)
 
-	// Length of 1 byte for the border block count.
-	chunkBuf.WriteByte(0)
-
-	enc := nbt.NewEncoderWithEncoding(chunkBuf, nbt.NetworkLittleEndian)
-	for bp, b := range blockEntities {
-		if n, ok := b.(world.NBTer); ok {
-			d := n.EncodeNBT()
-			d["x"], d["y"], d["z"] = int32(bp[0]), int32(bp[1]), int32(bp[2])
-			_ = enc.Encode(d)
-		}
-	}
+	_, _ = chunkBuf.Write(encodeBlockEntityPayload(blockEntities, nil, nil, true))
 
 	s.writePacket(&packet.LevelChunk{
 		Dimension:     s.dimensionID(dim),
