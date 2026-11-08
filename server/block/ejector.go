@@ -449,7 +449,7 @@ func (e ejector) dispenseItemEntity(pos cube.Pos, tx *world.Tx, stack item.Stack
 		face[2]*offset + rand.NormFloat64()*0.045,
 	}
 	opts := world.EntitySpawnOpts{Position: origin, Velocity: velocity}
-	return runDispenserItemBehavior("minecraft:item", tx, opts, stack)
+	return runDispenserItemBehavior("minecraft:item", tx, opts, stack) == DispenserItemHandled
 }
 
 func (e ejector) dispenseProjectile(pos cube.Pos, tx *world.Tx, stack item.Stack) DispenserItemBehaviorResult {
