@@ -42,7 +42,6 @@ func TestSimulationChunkPositionsZeroRadius(t *testing.T) {
 	}
 }
 
-
 // TestPerformNeighbourUpdatesDoesNotLoadUnloadedChunks verifies that queued
 // neighbour notifications never synchronously load or generate their target
 // chunks while the world is ticking.
