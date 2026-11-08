@@ -58,7 +58,8 @@ type Session struct {
 	encodedChunkPartCacheHits atomic.Uint64
 	// encodedChunkPartCacheMisses counts newly encoded sections.
 	encodedChunkPartCacheMisses atomic.Uint64
-	subChunkRequests       atomic.Uint64
+	// subChunkRequests counts incoming client sub-chunk requests.
+	subChunkRequests atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
 	performanceSampleMu    sync.Mutex
 	performanceSampleAt    time.Time
@@ -230,7 +231,7 @@ func (conf Config) New(conn Conn) *Session {
 		entities:               map[uint64]*world.EntityHandle{},
 		hiddenEntities:         map[uuid.UUID]struct{}{},
 		blobs:                  map[uint64][]byte{},
-		encodedChunkParts:      make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
+		encodedChunkParts:     make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
 		encodedChunkPartOrder: make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
 		chunkRadius:            int32(r),
 		maxChunkRadius:         int32(conf.MaxChunkRadius),
