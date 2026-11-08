@@ -10,7 +10,6 @@ import (
 	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/go-gl/mathgl/mgl64"
-	"github.com/go-gl/mathgl/mgl64"
 )
 
 // init connects the block package's dispenser hook to entity constructors without creating an import cycle.
