@@ -77,8 +77,15 @@ The server follows a Bedrock Dedicated Server default policy: implemented vanill
 
 The [Features] section in config.toml contains only non-vanilla additions:
 
-- JavaCompatibilityCommands = false: enables Java-only command extensions such as /item, /attribute, /bossbar, /forceload, /worldborder, and the NBT /data extension.
+- JavaCompatibilityCommands = false: enables Java-only command extensions such as /item, /attribute, /bossbar, /forceload, /worldborder, /random, and the NBT /data extension.
 - PerformanceDiagnostics = false: enables the extra /perf command.
 - Pprof = false: enables the Go runtime profiling HTTP endpoint. When enabled, PprofAddress must be a loopback address such as 127.0.0.1:6060.
 
 Vanilla Bedrock commands already implemented by the server, including /give, /function, /schedule, /gamerule and /daylock, are not gated by these switches. New features should be classified against the Bedrock Dedicated Server command/gameplay surface before being assigned a default.
+
+
+## Per-session network section cache
+
+Network sub-chunk and biome encodings are cached per session using mutation revisions from the underlying paletted storage. Block palette writes, direct storage writes and biome section replacements invalidate the matching encoded section. The cache is bounded to 128 entries per session and uses FIFO eviction; it is cleared on world switches. This does not alter gameplay or the Bedrock wire format.
+
+The `/perf` output includes `encode_cache_hits` and `encode_cache_misses` when `[Features] PerformanceDiagnostics = true`. These counters help determine whether repeated sub-chunk requests are reusing encoded data.

@@ -550,12 +550,15 @@ func (s *Session) sendChunks(tx *world.Tx, c Controllable) {
 
 // handleWorldSwitch handles the player of the Session switching worlds.
 func (s *Session) handleWorldSwitch(w *world.World, tx *world.Tx, c Controllable) {
+	s.blobMu.Lock()
 	if s.conn.ClientCacheEnabled() {
-		s.blobMu.Lock()
 		s.blobs = map[uint64][]byte{}
 		s.openChunkTransactions = nil
-		s.blobMu.Unlock()
 	}
+	clear(s.encodedChunkParts)
+	clear(s.encodedChunkPartOrder)
+	s.encodedChunkPartOrder = s.encodedChunkPartOrder[:0]
+	s.blobMu.Unlock()
 
 	dim, _ := world.DimensionID(w.Dimension())
 	same := w.Dimension() == s.chunkLoader.World().Dimension()
