@@ -28,33 +28,33 @@ var tickStageNames = [tickStageCount]string{
 // PerformanceSnapshot contains a point-in-time view of World tick and workload
 // metrics. A snapshot must be obtained from an active world transaction.
 type PerformanceSnapshot struct {
-	TickCount                    uint64
-	TicksPerSecond               float64
-	LastTick                     time.Duration
-	AverageTick                  time.Duration
-	P95Tick                      time.Duration
-	RecentMaxTick                time.Duration
-	MaxTick                      time.Duration
-	LoadedChunks                 int
-	LoadingChunks                int
-	QueuedChunkLoads             int
-	ChunkLoadQueueCapacity       int
-	ChunkLoadWorkers             int
-	LoadedEntities               int
-	ActiveLoaders                int
-	SimulationDistance           int
-	RandomTickSpeed              int
-	Stages                       [tickStageCount]TickStageSnapshot
-	QueueWait                    TickStageSnapshot
+	TickCount                       uint64
+	TicksPerSecond                  float64
+	LastTick                        time.Duration
+	AverageTick                     time.Duration
+	P95Tick                         time.Duration
+	RecentMaxTick                   time.Duration
+	MaxTick                         time.Duration
+	LoadedChunks                    int
+	LoadingChunks                   int
+	QueuedChunkLoads                int
+	ChunkLoadQueueCapacity          int
+	ChunkLoadWorkers                int
+	LoadedEntities                  int
+	ActiveLoaders                   int
+	SimulationDistance              int
+	RandomTickSpeed                 int
+	Stages                          [tickStageCount]TickStageSnapshot
+	QueueWait                       TickStageSnapshot
 	NeighbourUpdatesProcessed       int
 	NeighbourUpdatesSkippedUnloaded int
 	NeighbourBlockCallbacks         int
 	NeighbourLiquidCallbacks        int
 	PendingNeighbourUpdates         int
-	RedstoneDirtyPositions       int
-	RedstoneGraphNodes           int
-	RedstoneGraphEdges           int
-	RedstoneContextScanPositions uint64
+	RedstoneDirtyPositions          int
+	RedstoneGraphNodes              int
+	RedstoneGraphEdges              int
+	RedstoneContextScanPositions    uint64
 }
 
 // TickStageSnapshot describes the recent cost of one stage of world ticking.
