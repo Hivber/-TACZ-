@@ -52,9 +52,9 @@ func (s *Session) PerformanceString() string {
 
 	stats := s.chunkLoaderStats()
 	result += fmt.Sprintf(
-		" Session chunks: radius=%d, loaded=%d, pending=%d, queued=%d, cache_blobs=%d, cache_transactions=%d, packet_queue=%d/256.",
+		" Session chunks: radius=%d, loaded=%d, pending=%d, queued=%d, cache_blobs=%d, cache_transactions=%d, packet_queue=%d/256, inbound_queue=%d/%d.",
 		stats.Radius, stats.Loaded, stats.Pending, stats.Queued,
-		s.pendingBlobCount(), s.pendingChunkTransactionCount(), len(s.packets),
+		s.pendingBlobCount(), s.pendingChunkTransactionCount(), len(s.packets), len(s.incomingPackets), cap(s.incomingPackets),
 	)
 	if d := s.clientDiagnostics.Load(); d != nil {
 		result += fmt.Sprintf(

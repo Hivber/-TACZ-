@@ -89,3 +89,8 @@ Vanilla Bedrock commands already implemented by the server, including /give, /fu
 Network sub-chunk and biome encodings are cached per session using mutation revisions from the underlying paletted storage. Block palette writes, direct storage writes and biome section replacements invalidate the matching encoded section. The cache is bounded to 128 entries per session and uses FIFO eviction; it is cleared on world switches. This does not alter gameplay or the Bedrock wire format.
 
 The `/perf` output includes `encode_cache_hits` and `encode_cache_misses` when `[Features] PerformanceDiagnostics = true`. These counters help determine whether repeated sub-chunk requests are reusing encoded data.
+
+
+## Inbound packet processing queue
+
+The connection reader now places decoded packets into a bounded 128-packet queue. A single ordered worker applies them through the world owner, preserving per-session packet order. If the queue fills, the reader stops consuming the socket until capacity is available, providing backpressure rather than allowing unbounded memory growth. On disconnect, queued packets are drained before the player is closed. The `/perf` diagnostics report `inbound_queue` occupancy when enabled.
