@@ -8,6 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
+	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/go-gl/mathgl/mgl64"
 )
 
@@ -53,6 +54,23 @@ func init() {
 		}
 		tx.AddEntity(NewFirework(opts, firework))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
+		return block.DispenserItemHandled
+	})
+	block.RegisterDispenserItemBehavior("minecraft:bone_meal", func(tx *world.Tx, opts world.EntitySpawnOpts, _ item.Stack) block.DispenserItemBehaviorResult {
+		pos := cube.Pos{
+			int(math.Floor(opts.Position[0])),
+			int(math.Floor(opts.Position[1])),
+			int(math.Floor(opts.Position[2])),
+		}
+		affected, ok := tx.Block(pos).(item.BoneMealAffected)
+		if !ok {
+			return block.DispenserItemFailed
+		}
+		result := affected.BoneMeal(pos, tx)
+		if result == item.BoneMealResultNone {
+			return block.DispenserItemFailed
+		}
+		tx.AddParticle(pos.Vec3(), particle.BoneMeal{Area: result == item.BoneMealResultArea})
 		return block.DispenserItemHandled
 	})
 	block.RegisterDispenserItemBehavior("minecraft:spawn_egg", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
