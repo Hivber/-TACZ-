@@ -57,7 +57,6 @@ func expandDirtyForIndexTest(dirty map[cube.Pos]redstoneDirty) map[cube.Pos]reds
 	return dirty
 }
 
-
 func BenchmarkRedstoneDirtyIndexBuild(b *testing.B) {
 	for _, size := range []int{64, 256, 1024, 4096} {
 		dirty := make(map[cube.Pos]redstoneDirty, size)
