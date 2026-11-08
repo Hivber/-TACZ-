@@ -47,6 +47,9 @@ type PerformanceSnapshot struct {
 	Stages                       [tickStageCount]TickStageSnapshot
 	QueueWait                    TickStageSnapshot
 	NeighbourUpdatesProcessed    int
+	NeighbourUpdatesSkippedUnloaded int
+	NeighbourBlockCallbacks      int
+	NeighbourLiquidCallbacks     int
 	PendingNeighbourUpdates      int
 	RedstoneDirtyPositions       int
 	RedstoneGraphNodes           int
@@ -76,7 +79,10 @@ type tickPerformance struct {
 	stages                    [tickStageCount]tickStagePerformance
 	stageRecorded             [tickStageCount]bool
 	queueWait                 tickStagePerformance
-	neighbourUpdatesProcessed int
+	neighbourUpdatesProcessed       int
+	neighbourUpdatesSkippedUnloaded int
+	neighbourBlockCallbacks         int
+	neighbourLiquidCallbacks        int
 	windowStart               time.Time
 	windowTicks               uint64
 	tps                       float64
@@ -92,6 +98,10 @@ type tickStagePerformance struct {
 }
 
 func (m *tickPerformance) beginTick() {
+	m.neighbourUpdatesProcessed = 0
+	m.neighbourUpdatesSkippedUnloaded = 0
+	m.neighbourBlockCallbacks = 0
+	m.neighbourLiquidCallbacks = 0
 	clear(m.stageRecorded[:])
 	for i := range m.stages {
 		m.stages[i].last = 0
@@ -262,7 +272,10 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 			P95:     m.queueWait.percentile95(),
 			Count:   m.queueWait.sampleCount,
 		},
-		NeighbourUpdatesProcessed:    m.neighbourUpdatesProcessed,
+		NeighbourUpdatesProcessed:       m.neighbourUpdatesProcessed,
+		NeighbourUpdatesSkippedUnloaded: m.neighbourUpdatesSkippedUnloaded,
+		NeighbourBlockCallbacks:         m.neighbourBlockCallbacks,
+		NeighbourLiquidCallbacks:        m.neighbourLiquidCallbacks,
 		PendingNeighbourUpdates:      len(w.neighbourUpdates),
 		RedstoneDirtyPositions:       w.redstone.lastDirtyPositions,
 		RedstoneGraphNodes:           w.redstone.lastGraphNodes,

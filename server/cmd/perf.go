@@ -73,9 +73,10 @@ func (perfCommand) Run(src Source, out *Output, tx *world.Tx) {
 		stats.Stages[world.TickStageOther].Average, stats.Stages[world.TickStageOther].P95,
 	)
 	out.Printf(
-		"Queue/updates: world_queue_wait last/EMA/P95=%s/%s/%s, neighbour_processed=%d, neighbour_pending=%d.",
+		"Queue/updates: world_queue_wait last/EMA/P95=%s/%s/%s, neighbour_processed=%d, neighbour_pending=%d, unloaded_skipped=%d, block_callbacks=%d, liquid_callbacks=%d.",
 		stats.QueueWait.Last, stats.QueueWait.Average, stats.QueueWait.P95,
 		stats.NeighbourUpdatesProcessed, stats.PendingNeighbourUpdates,
+		stats.NeighbourUpdatesSkippedUnloaded, stats.NeighbourBlockCallbacks, stats.NeighbourLiquidCallbacks,
 	)
 	out.Printf(
 		"Redstone: dirty_positions=%d, graph_nodes=%d, graph_edges=%d, context_scan_positions=%d.",

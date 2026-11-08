@@ -63,3 +63,19 @@ func TestPerformNeighbourUpdatesDoesNotLoadUnloadedChunks(t *testing.T) {
 		t.Fatalf("processing a neighbour update loaded chunk %v", chunkPos)
 	}
 }
+
+func TestTickPerformanceBeginTickResetsNeighbourCounters(t *testing.T) {
+	performance := tickPerformance{
+		neighbourUpdatesProcessed:       12,
+		neighbourUpdatesSkippedUnloaded: 3,
+		neighbourBlockCallbacks:         7,
+		neighbourLiquidCallbacks:        2,
+	}
+	performance.beginTick()
+	if performance.neighbourUpdatesProcessed != 0 ||
+		performance.neighbourUpdatesSkippedUnloaded != 0 ||
+		performance.neighbourBlockCallbacks != 0 ||
+		performance.neighbourLiquidCallbacks != 0 {
+		t.Fatalf("neighbour counters were not reset at tick start: %+v", performance)
+	}
+}

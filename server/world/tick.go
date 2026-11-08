@@ -140,6 +140,9 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 	w.neighbourUpdates = w.neighbourUpdateBuffer[:0]
 	w.neighbourUpdateBuffer = updates[:0]
 	w.performance.neighbourUpdatesProcessed = len(updates)
+	w.performance.neighbourUpdatesSkippedUnloaded = 0
+	w.performance.neighbourBlockCallbacks = 0
+	w.performance.neighbourLiquidCallbacks = 0
 
 	for _, update := range updates {
 		pos, changedNeighbour := update.pos, update.neighbour
@@ -148,13 +151,16 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 		// instance to notify until it is loaded through the normal chunk flow.
 		b, loaded := tx.BlockLoaded(pos)
 		if !loaded {
+			w.performance.neighbourUpdatesSkippedUnloaded++
 			continue
 		}
 		if ticker, ok := b.(NeighbourUpdateTicker); ok {
+			w.performance.neighbourBlockCallbacks++
 			ticker.NeighbourUpdateTick(pos, changedNeighbour, tx)
 		}
 		if liquid, ok := tx.additionalLiquid(pos); ok {
 			if ticker, ok := liquid.(NeighbourUpdateTicker); ok {
+				w.performance.neighbourLiquidCallbacks++
 				ticker.NeighbourUpdateTick(pos, changedNeighbour, tx)
 			}
 		}
