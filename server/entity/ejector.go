@@ -10,6 +10,7 @@ import (
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/particle"
+	"github.com/df-mc/dragonfly/server/world/portal"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/go-gl/mathgl/mgl64"
 )
@@ -107,10 +108,17 @@ func init() {
 			}
 			return block.DispenserItemFailed
 		}
+		// Portal activation may create the portal several blocks away from the
+		// dispenser target, leaving the target block unchanged. Detect that
+		// success directly instead of inferring it from the target state.
+		if portal.ActivateNetherPortal(tx, pos) {
+			tx.PlaySound(opts.Position, sound.Ignite{})
+			return block.DispenserItemDamaged
+		}
 		before, _ := tx.Block(pos).EncodeBlock()
 		block.Fire{}.Start(tx, pos)
 		after, _ := tx.Block(pos).EncodeBlock()
-		if before != after && (after == "minecraft:fire" || after == "minecraft:portal") {
+		if before != after && after == "minecraft:fire" {
 			tx.PlaySound(opts.Position, sound.Ignite{})
 			return block.DispenserItemDamaged
 		}
