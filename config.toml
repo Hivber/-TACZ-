@@ -47,8 +47,8 @@
   # The folder that the world files (will) reside in, relative to the working directory. If not currently
   # present, the folder will be made.
   Folder = "world_helix"
-  # Number of workers loading/generating chunks in the background. One worker is the mobile-friendly default; use two or more on a separate host with spare CPU.
-  ChunkLoadWorkers = 1
+  # Number of workers loading/generating chunks in the background. Two is the balanced default.
+  ChunkLoadWorkers = 2
   # Whether the worlds' data will be saved and loaded. If true, the server will use the
   # default LevelDB data provider and if false, an empty provider will be used. To use your
   # own provider, turn this value to false, as you will still be able to pass your own provider.
@@ -60,8 +60,8 @@
   MaxCount = 0
   # The maximum chunk radius that players may set in their settings. If they try to set it above this number,
   # it will be capped and set to the max.
-  # Recommended mobile-host cap is 8; the server enforces an absolute safety maximum of 16.
-  MaximumChunkRadius = 8
+  # Recommended cap is 10; the server enforces a safety maximum of 16.
+  MaximumChunkRadius = 10
   # Whether a player's data will be saved and loaded. If true, the server will use the
   # default LevelDB data provider and if false, an empty provider will be used. To use your
   # own provider, turn this value to false, as you will still be able to pass your own provider.
