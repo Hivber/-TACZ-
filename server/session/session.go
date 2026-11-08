@@ -204,6 +204,9 @@ type Config struct {
 
 	EmoteChatMuted bool
 
+	// PerformanceDiagnostics enables optional packet and client diagnostics.
+	PerformanceDiagnostics bool
+
 	JoinMessage, QuitMessage chat.Translation
 
 	// HandleStop is called once when the Session is closed. The transaction is
@@ -689,13 +692,16 @@ func (s *Session) registerHandlers() {
 		packet.IDSubChunkRequest:           &SubChunkRequestHandler{},
 		packet.IDText:                      &TextHandler{},
 		packet.IDServerBoundLoadingScreen:  &ServerBoundLoadingScreenHandler{},
-		packet.IDServerBoundDiagnostics:    &ServerBoundDiagnosticsHandler{},
+		packet.IDServerBoundDiagnostics:    nil,
 		// Stonecutter crafting is resolved from the recipe network ID in the
 		// item stack request, so the selected recipe index is not needed.
 		packet.IDServerboundStonecutterSetRecipe: nil,
 		packet.IDServerboundCursorItemDrag:       nil,
 		packet.IDServerboundMatchmakingCancel:    nil,
 		packet.IDServerboundRegisterAudioContent: nil,
+	}
+	if s.conf.PerformanceDiagnostics {
+		s.handlers[packet.IDServerBoundDiagnostics] = &ServerBoundDiagnosticsHandler{}
 	}
 }
 
@@ -704,22 +710,24 @@ func (s *Session) writePacket(pk packet.Packet) {
 	if s == Nop {
 		return
 	}
-	s.outPackets.Add(1)
-	switch pk.(type) {
-	case *packet.MoveActorAbsolute:
-		s.entityMovementPackets.Add(1)
-	case *packet.SetActorMotion:
-		s.entityVelocityPackets.Add(1)
-	case *packet.AddActor, *packet.AddItemActor, *packet.AddPlayer:
-		s.entitySpawnPackets.Add(1)
-	case *packet.RemoveActor:
-		s.entityRemovePackets.Add(1)
-	case *packet.LevelChunk, *packet.SubChunk:
-		s.chunkPackets.Add(1)
-	case *packet.UpdateBlock:
-		s.blockUpdatePackets.Add(1)
-	case *packet.ClientCacheMissResponse:
-		s.cacheResponsePackets.Add(1)
+	if s.conf.PerformanceDiagnostics {
+		s.outPackets.Add(1)
+		switch pk.(type) {
+		case *packet.MoveActorAbsolute:
+			s.entityMovementPackets.Add(1)
+		case *packet.SetActorMotion:
+			s.entityVelocityPackets.Add(1)
+		case *packet.AddActor, *packet.AddItemActor, *packet.AddPlayer:
+			s.entitySpawnPackets.Add(1)
+		case *packet.RemoveActor:
+			s.entityRemovePackets.Add(1)
+		case *packet.LevelChunk, *packet.SubChunk:
+			s.chunkPackets.Add(1)
+		case *packet.UpdateBlock:
+			s.blockUpdatePackets.Add(1)
+		case *packet.ClientCacheMissResponse:
+			s.cacheResponsePackets.Add(1)
+		}
 	}
 	select {
 	case s.packets <- pk:

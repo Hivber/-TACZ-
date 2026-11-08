@@ -10,6 +10,7 @@ import (
 func TestCachedChunkPartReusesRevisionAndBoundsMemory(t *testing.T) {
 	c := &chunk.Chunk{}
 	s := &Session{
+		conf:                  Config{PerformanceDiagnostics: true},
 		encodedChunkParts:     make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
 		encodedChunkPartOrder: make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
 	}

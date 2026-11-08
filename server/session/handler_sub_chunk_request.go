@@ -13,7 +13,9 @@ type SubChunkRequestHandler struct{}
 // Handle ...
 func (*SubChunkRequestHandler) Handle(p packet.Packet, s *Session, tx *world.Tx, _ Controllable) error {
 	pk := p.(*packet.SubChunkRequest)
-	s.subChunkRequests.Add(1)
+	if s.conf.PerformanceDiagnostics {
+		s.subChunkRequests.Add(1)
+	}
 	if dimID, _ := world.DimensionID(tx.World().Dimension()); pk.Dimension != int32(dimID) {
 		// Outdated sub chunk request from a previous dimension.
 		s.writePacket(&packet.SubChunk{

@@ -29,11 +29,15 @@ func (s *Session) cachedChunkPart(c *chunk.Chunk, index int16, revision uint64, 
 	key := encodedChunkPartKey{chunk: c, index: index, revision: revision}
 	s.blobMu.Lock()
 	if data, ok := s.encodedChunkParts[key]; ok {
-		s.encodedChunkPartCacheHits.Add(1)
+		if s.conf.PerformanceDiagnostics {
+			s.encodedChunkPartCacheHits.Add(1)
+		}
 		s.blobMu.Unlock()
 		return data
 	}
-	s.encodedChunkPartCacheMisses.Add(1)
+	if s.conf.PerformanceDiagnostics {
+		s.encodedChunkPartCacheMisses.Add(1)
+	}
 	s.blobMu.Unlock()
 
 	data := encode()
