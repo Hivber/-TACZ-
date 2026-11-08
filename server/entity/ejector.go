@@ -10,6 +10,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/go-gl/mathgl/mgl64"
+	"github.com/go-gl/mathgl/mgl64"
 )
 
 // init connects the block package's dispenser hook to entity constructors without creating an import cycle.
@@ -55,6 +56,33 @@ func init() {
 		tx.AddEntity(NewFirework(opts, firework))
 		tx.PlaySound(opts.Position, sound.BowShoot{})
 		return block.DispenserItemHandled
+	})
+	block.RegisterDispenserItemBehavior("minecraft:flint_and_steel", func(tx *world.Tx, opts world.EntitySpawnOpts, stack item.Stack) block.DispenserItemBehaviorResult {
+		if _, ok := stack.Item().(item.FlintAndSteel); !ok {
+			return block.DispenserItemFailed
+		}
+		pos := cube.Pos{
+			int(math.Floor(opts.Position[0])),
+			int(math.Floor(opts.Position[1])),
+			int(math.Floor(opts.Position[2])),
+		}
+		if igniter, ok := tx.Block(pos).(interface {
+			Ignite(cube.Pos, *world.Tx, world.Entity) bool
+		}); ok {
+			if igniter.Ignite(pos, tx, nil) {
+				tx.PlaySound(opts.Position, sound.Ignite{})
+				return block.DispenserItemDamaged
+			}
+			return block.DispenserItemFailed
+		}
+		before, _ := tx.Block(pos).EncodeBlock()
+		block.Fire{}.Start(tx, pos)
+		after, _ := tx.Block(pos).EncodeBlock()
+		if before != after && (after == "minecraft:fire" || after == "minecraft:portal") {
+			tx.PlaySound(opts.Position, sound.Ignite{})
+			return block.DispenserItemDamaged
+		}
+		return block.DispenserItemFailed
 	})
 	block.RegisterDispenserItemBehavior("minecraft:bone_meal", func(tx *world.Tx, opts world.EntitySpawnOpts, _ item.Stack) block.DispenserItemBehaviorResult {
 		pos := cube.Pos{

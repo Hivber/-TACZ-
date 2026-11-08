@@ -26,6 +26,8 @@ const (
 	// DispenserItemFailed means the special action was attempted but could not be completed.
 	// The item is retained and the dispenser does not eject it as a generic item.
 	DispenserItemFailed
+	// DispenserItemDamaged means the tool was used successfully and loses one durability point.
+	DispenserItemDamaged
 )
 
 // DispenserItemBehavior handles one item ejected by a dispenser.
@@ -367,6 +369,10 @@ func (e ejector) dispense(pos cube.Pos, tx *world.Tx, dropper bool) {
 			return
 		case DispenserItemFailed:
 			tx.PlaySound(pos.Vec3Centre(), sound.Click{})
+			return
+		case DispenserItemDamaged:
+			_ = e.inventory.SetItem(slot, stack.Damage(1))
+			tx.SetBlockEntity(pos, Dispenser{e})
 			return
 		}
 	}
