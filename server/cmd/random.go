@@ -9,10 +9,6 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 )
 
-func init() {
-	Register(New("random", "Generates a random integer, optionally announcing the result.", nil, randomCommand{}))
-}
-
 type randomMode string
 
 func (randomMode) Type() string            { return "RandomMode" }

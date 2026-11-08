@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"os"
 	"strings"
 	"time"
 )
@@ -14,10 +13,10 @@ import (
 // startPprofServer starts an opt-in diagnostics endpoint. It deliberately
 // accepts loopback addresses only: pprof exposes CPU, heap, goroutine and
 // execution data and must not be exposed to an untrusted network.
-func startPprofServer(log *slog.Logger) {
-	addr := strings.TrimSpace(os.Getenv("ZP_PPROF_ADDR"))
+func startPprofServer(log *slog.Logger, address string) {
+	addr := strings.TrimSpace(address)
 	if addr == "" {
-		return
+		addr = "127.0.0.1:6060"
 	}
 	if err := validatePprofAddress(addr); err != nil {
 		log.Error("pprof disabled", "error", err)

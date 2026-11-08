@@ -16,11 +16,8 @@ import (
 // native Dragonfly item, inventory, movement and boss-bar APIs.
 
 func init() {
+	// /give is part of vanilla Bedrock and remains enabled by default.
 	Register(New("give", "Gives items to one or more players.", nil, giveCommand{}))
-	Register(New("item", "Replaces an item in a player's hand, armour or inventory slot.", nil, itemCommand{}))
-	Register(New("attribute", "Queries or changes supported player attributes.", nil, attributeCommand{}))
-	Register(New("bossbar", "Displays a boss bar for one or more players.", nil, bossbarCommand{}))
-	Register(New("bossbarclear", "Hides the current boss bar from one or more players.", nil, bossbarClearCommand{}))
 }
 
 func commandOperator(src Source) bool {

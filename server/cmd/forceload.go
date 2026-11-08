@@ -23,11 +23,6 @@ var forcedChunkLoaders = struct {
 	worlds: make(map[*world.World]map[world.ChunkPos]*world.Loader),
 }
 
-func init() {
-	Register(New("forceload", "Keeps selected chunks loaded while the server is running.", nil,
-		forceloadAddCommand{}, forceloadRemoveCommand{}, forceloadRemoveAllCommand{}, forceloadQueryCommand{}))
-}
-
 type forceloadAddCommand struct {
 	Add   SubCommand
 	FromX int

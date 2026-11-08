@@ -69,3 +69,16 @@ Do not expose this endpoint through port forwarding or a public reverse proxy. C
 ## Allocation reuse
 
 Network chunk block-entity NBT encoding reuses bounded byte buffers. Encoded payloads are copied before a buffer is returned to the pool, so queued packets never depend on pooled memory. This reduces temporary buffer allocation without changing packet contents. Further object pooling is intentionally gated on allocation benchmarks and explicit buffer-ownership checks.
+
+
+## Vanilla features and optional extensions
+
+The server follows a Bedrock Dedicated Server default policy: implemented vanilla Bedrock gameplay, protocol behaviour and vanilla commands stay enabled by default. They are not disabled by the optional feature switches.
+
+The [Features] section in config.toml contains only non-vanilla additions:
+
+- JavaCompatibilityCommands = false: enables Java-only command extensions such as /item, /attribute, /bossbar, /forceload, /worldborder, and the NBT /data extension.
+- PerformanceDiagnostics = false: enables the extra /perf command.
+- Pprof = false: enables the Go runtime profiling HTTP endpoint. When enabled, PprofAddress must be a loopback address such as 127.0.0.1:6060.
+
+Vanilla Bedrock commands already implemented by the server, including /give, /function, /schedule, /gamerule and /daylock, are not gated by these switches. New features should be classified against the Bedrock Dedicated Server command/gameplay surface before being assigned a default.

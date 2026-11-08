@@ -7,10 +7,6 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 )
 
-func init() {
-	Register(New("perf", "Shows live server performance diagnostics.", nil, perfCommand{}))
-}
-
 type perfCommand struct{}
 
 func (perfCommand) Allow(src Source) bool { return commandOperator(src) }

@@ -26,9 +26,18 @@ func main() {
 		panic(err)
 	}
 
+	if conf.Features.JavaCompatibilityCommands {
+		cmd.RegisterJavaCompatibilityCommands()
+	}
+	if conf.Features.PerformanceDiagnostics {
+		cmd.RegisterPerformanceDiagnostics()
+	}
+
 	srv := conf.New()
 	srv.CloseOnProgramEnd()
-	startPprofServer(slog.Default())
+	if conf.Features.Pprof {
+		startPprofServer(slog.Default(), conf.Features.PprofAddress)
+	}
 
 	operators, err := loadOperatorStore("operators.json", conf.OwnerXUID)
 	if err != nil {

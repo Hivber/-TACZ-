@@ -10,11 +10,6 @@ import (
 
 const maxWorldBorderTransition = 30 * 24 * time.Hour
 
-func init() {
-	Register(New("worldborder", "Queries and changes the current world's horizontal movement border.", nil,
-		worldBorderGetCommand{}, worldBorderSetCommand{}, worldBorderAddCommand{}, worldBorderCenterCommand{}))
-}
-
 type worldBorderGetCommand struct {
 	Get SubCommand
 }

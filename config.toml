@@ -77,3 +77,14 @@
   Folder = "resources"
   # Required configures whether the server will require players to have a resource pack to join.
   Required = true
+
+
+[Features]
+  # Non-vanilla Java compatibility commands. Vanilla Bedrock commands remain enabled.
+  JavaCompatibilityCommands = false
+  # Adds the non-vanilla /perf diagnostics command.
+  PerformanceDiagnostics = false
+  # Starts the Go pprof HTTP endpoint. Disabled by default.
+  Pprof = false
+  # pprof only accepts localhost/loopback addresses for safety.
+  PprofAddress = "127.0.0.1:6060"

@@ -11,10 +11,6 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 )
 
-func init() {
-	Register(New("data", "Reads and modifies NBT data on supported blocks and reads entity NBT.", nil, dataGetBlockCommand{}, dataGetEntityCommand{}, dataMergeBlockCommand{}, dataModifyBlockCommand{}, dataRemoveBlockCommand{}))
-}
-
 type dataGetBlockCommand struct {
 	Get   SubCommand
 	Block SubCommand

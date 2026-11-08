@@ -35,3 +35,20 @@ func TestNormaliseChunkLoadWorkers(t *testing.T) {
 		}
 	}
 }
+
+
+func TestDefaultConfigOptionalFeaturesDisabled(t *testing.T) {
+	conf := DefaultConfig()
+	if conf.Features.JavaCompatibilityCommands {
+		t.Fatal("Java compatibility commands must be disabled by default")
+	}
+	if conf.Features.PerformanceDiagnostics {
+		t.Fatal("performance diagnostics command must be disabled by default")
+	}
+	if conf.Features.Pprof {
+		t.Fatal("pprof must be disabled by default")
+	}
+	if conf.Features.PprofAddress != "127.0.0.1:6060" {
+		t.Fatalf("default pprof address = %q, want 127.0.0.1:6060", conf.Features.PprofAddress)
+	}
+}
