@@ -67,7 +67,7 @@ pub unsafe extern "C" fn dragonfly_redstone_propagate(
         }
         for edge in &edges[starts[from]..starts[from + 1]] {
             let to = edge.to as usize;
-            let propagated = (powers[from] - edge.weight).clamp(0, 15);
+            let propagated = powers[from].saturating_sub(edge.weight).clamp(0, 15);
             if propagated > powers[to] {
                 powers[to] = propagated;
                 queue.push(to);

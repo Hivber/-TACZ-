@@ -22,6 +22,36 @@ func TestPropagateRedstoneGraph(t *testing.T) {
 	}
 }
 
+
+func TestPropagateRedstoneGraphMatchesGoReference(t *testing.T) {
+	for _, nodeCount := range []int{256, 512, 1024} {
+		relayers := make([]bool, nodeCount)
+		powers := make([]int, nodeCount)
+		edges := make([]redstoneEdge, 0, nodeCount*2)
+		for i := range nodeCount {
+			relayers[i] = i%3 != 0
+			if i%127 == 0 {
+				powers[i] = 15
+			}
+			if i+1 < nodeCount {
+				edges = append(edges, redstoneEdge{from: i, to: i + 1, weight: 1})
+			}
+			if i+2 < nodeCount {
+				edges = append(edges, redstoneEdge{from: i, to: i + 2, weight: 2})
+			}
+		}
+		gotInput := append([]int(nil), powers...)
+		wantInput := append([]int(nil), powers...)
+		got := propagateRedstoneGraph(relayers, edges, gotInput)
+		want := propagateRedstoneGraphGo(relayers, edges, wantInput)
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("node count %d, power[%d] = %d, want %d", nodeCount, i, got[i], want[i])
+			}
+		}
+	}
+}
+
 func BenchmarkPropagateRedstoneGraph(b *testing.B) {
 	const nodeCount = 4096
 	relayers := make([]bool, nodeCount)
