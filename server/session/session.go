@@ -32,6 +32,8 @@ import (
 
 // Session handles incoming packets from connections and sends outgoing packets by providing a thin layer
 // of abstraction over direct packets. A Session basically 'controls' an entity.
+const incomingPacketQueueCapacity = 128
+
 type Session struct {
 	conf           Config
 	once, connOnce sync.Once
@@ -39,7 +41,9 @@ type Session struct {
 	ent      *world.EntityHandle
 	conn     Conn
 	handlers map[uint32]packetHandler
-	packets  chan packet.Packet
+	packets          chan packet.Packet
+	incomingPackets  chan packet.Packet
+	packetWorkerDone chan struct{}
 
 	currentScoreboard atomic.Pointer[string]
 	currentLines      atomic.Pointer[[]string]
@@ -247,6 +251,8 @@ func (conf Config) New(conn Conn) *Session {
 		debugShapes:            make(map[int]debug.Shape),
 		debugShapeUpdates:      make([]debugShapeUpdate, 0, 256),
 	}
+	s.incomingPackets = make(chan packet.Packet, incomingPacketQueueCapacity)
+	s.packetWorkerDone = make(chan struct{})
 	s.viewLayer = world.NewViewLayer(s)
 	s.openedWindow.Store(inventory.New(1, nil))
 	s.openedPos.Store(&cube.Pos{})
@@ -328,6 +334,7 @@ func (s *Session) Spawn(c Controllable, tx *world.Tx) {
 	}
 
 	go s.background()
+	go s.processPackets()
 	go s.handlePackets()
 }
 
@@ -429,6 +436,12 @@ func (s *Session) ClientData() login.ClientData {
 // Once the connection is closed, handlePackets will return.
 func (s *Session) handlePackets() {
 	defer func() {
+		s.CloseConnection()
+		// Stop accepting packets, then let the single ordered worker drain the
+		// bounded queue before closing the Controllable.
+		close(s.incomingPackets)
+		<-s.packetWorkerDone
+
 		// First close the Controllable. This might lead to a world change
 		// (player might be dead while disconnecting, in which case it will
 		// respawn first).
@@ -439,7 +452,7 @@ func (s *Session) handlePackets() {
 			s.conf.Log.Debug("close controllable: " + err.Error())
 		}
 		// Because the player might no longer be in the same world after
-		// closing, we create a new transaction
+		// closing, we create a new transaction.
 		if err := s.withControllable(context.Background(), func(tx *world.Tx, c Controllable) error {
 			s.Close(tx, c)
 			return nil
@@ -452,14 +465,30 @@ func (s *Session) handlePackets() {
 		if err != nil {
 			return
 		}
-		err = s.withControllable(context.Background(), func(tx *world.Tx, c Controllable) error {
+		select {
+		case s.incomingPackets <- pk:
+		case <-s.packetWorkerDone:
+			return
+		case <-s.closeBackground:
+			return
+		}
+	}
+}
+
+// processPackets serially applies decoded packets on the world owner. Socket
+// reads continue independently until the bounded queue fills, at which point
+// backpressure is applied to the connection reader.
+func (s *Session) processPackets() {
+	defer close(s.packetWorkerDone)
+	for pk := range s.incomingPackets {
+		err := s.withControllable(context.Background(), func(tx *world.Tx, c Controllable) error {
 			return s.handlePacket(pk, tx, c)
 		})
 		if err != nil {
-			if sessionOwnerStopped(err) {
-				return
+			if !sessionOwnerStopped(err) {
+				s.conf.Log.Debug("process packet: " + err.Error())
 			}
-			s.conf.Log.Debug("process packet: " + err.Error())
+			s.CloseConnection()
 			return
 		}
 	}
