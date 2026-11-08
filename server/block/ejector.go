@@ -457,5 +457,4 @@ func allDroppers() (all []world.Block) {
 		all = append(all, Dropper{ejector: ejector{Facing: facing}})
 		all = append(all, Dropper{ejector: ejector{Facing: facing, Triggered: true}})
 	}
-	return
 }

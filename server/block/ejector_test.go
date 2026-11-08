@@ -156,7 +156,7 @@ func TestDispenserSpawnEggBehaviourFallback(t *testing.T) {
 	if got := lookupDispenserItemBehavior("minecraft:pig_spawn_egg"); got == nil {
 		t.Fatal("specific spawn egg did not resolve the generic spawn egg behaviour")
 	}
-	if got := lookupDispenserItemBehavior("minecraft:arrow"); got != nil {
+	if got := lookupDispenserItemBehavior("minecraft:unregistered_test_item"); got != nil {
 		t.Fatal("unregistered item unexpectedly resolved a dispenser behaviour")
 	}
 }
