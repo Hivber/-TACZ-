@@ -30,13 +30,13 @@ import (
 // and protocol behaviour remain enabled by default.
 type FeatureFlags struct {
 	// JavaCompatibilityCommands enables Java-only command extensions.
-	JavaCompatibilityCommands   bool
+	JavaCompatibilityCommands bool
 	// PerformanceDiagnostics enables the non-vanilla /perf command.
-	PerformanceDiagnostics      bool
+	PerformanceDiagnostics bool
 	// Pprof enables the local Go runtime profiling endpoint.
-	Pprof                       bool
+	Pprof bool
 	// PprofAddress is the loopback address used by pprof when enabled.
-	PprofAddress                string
+	PprofAddress string
 }
 
 // Config contains options for starting a Minecraft server.
