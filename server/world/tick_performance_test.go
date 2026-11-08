@@ -1,6 +1,6 @@
 package world
 
-import "testing"
+import (\n\t"testing"\n\t"github.com/df-mc/dragonfly/server/block/cube"\n)
 
 func TestSimulationChunkPositions(t *testing.T) {
 	loader := &Loader{pos: ChunkPos{-3, 7}}
@@ -35,5 +35,28 @@ func TestSimulationChunkPositionsZeroRadius(t *testing.T) {
 	loader := &Loader{pos: ChunkPos{0, 0}}
 	if got := simulationChunkPositions([]*Loader{loader}, 0); len(got) != 0 {
 		t.Fatalf("zero simulation radius returned %d chunks, want 0", len(got))
+	}
+}
+
+
+// TestPerformNeighbourUpdatesDoesNotLoadUnloadedChunks verifies that queued
+// neighbour notifications never synchronously load or generate their target
+// chunks while the world is ticking.
+func TestPerformNeighbourUpdatesDoesNotLoadUnloadedChunks(t *testing.T) {
+	w := Config{Synchronous: true}.New()
+	defer w.Close()
+
+	pos := cube.Pos{1600, 64, 1600}
+	chunkPos := chunkPosFromBlockPos(pos)
+	var loaded bool
+	<-w.exec(func(tx *Tx) {
+		w.neighbourUpdates = append(w.neighbourUpdates, neighbourUpdate{
+			pos: pos, neighbour: pos,
+		})
+		ticker{}.performNeighbourUpdates(tx)
+		_, loaded = w.chunks[chunkPos]
+	})
+	if loaded {
+		t.Fatalf("processing a neighbour update loaded chunk %v", chunkPos)
 	}
 }

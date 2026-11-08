@@ -143,7 +143,14 @@ func (t ticker) performNeighbourUpdates(tx *Tx) {
 
 	for _, update := range updates {
 		pos, changedNeighbour := update.pos, update.neighbour
-		if ticker, ok := tx.Block(pos).(NeighbourUpdateTicker); ok {
+		// Neighbour notifications must not load or generate chunks. A chunk
+		// outside the loaded world is not being simulated, so there is no block
+		// instance to notify until it is loaded through the normal chunk flow.
+		b, loaded := tx.BlockLoaded(pos)
+		if !loaded {
+			continue
+		}
+		if ticker, ok := b.(NeighbourUpdateTicker); ok {
 			ticker.NeighbourUpdateTick(pos, changedNeighbour, tx)
 		}
 		if liquid, ok := tx.additionalLiquid(pos); ok {
