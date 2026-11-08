@@ -385,6 +385,11 @@ func (uc UserConfig) Config(log *slog.Logger) (Config, error) {
 		if err != nil {
 			return conf, fmt.Errorf("create player provider: %w", err)
 		}
+		if log != nil {
+			log.Info("Player data persistence enabled", "directory", uc.Players.Folder)
+		}
+	} else if log != nil {
+		log.Warn("Player data persistence disabled; player inventories and position will not be saved")
 	}
 	conf.Listeners = append(conf.Listeners, listeners...)
 	return conf, nil
@@ -462,7 +467,7 @@ func loadGenerator(dim world.Dimension, name string, seed int64) world.Generator
 
 // DefaultConfig returns a configuration with the default values filled out.
 const (
-	// defaultChunkRadius is the recommended client view-distance cap for a balanced server.
+	// defaultChunkRadius is the recommended client view-distance cap for a phone hosting its own game client.
 	defaultChunkRadius = 8
 	// maximumChunkRadius prevents a single client from requesting an excessive number of chunks.
 	maximumChunkRadius = 16
