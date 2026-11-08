@@ -833,10 +833,9 @@ func (e *redstoneEngine) graphPower(tx *Tx, graph redstoneGraph) []int {
 	return propagateRedstoneGraph(relayers, graph.edges, powers)
 }
 
-// propagateRedstoneGraph performs the numeric, side-effect-free part of redstone propagation.
-// Edges must be sorted by from-node (compileEdges provides this ordering). The function only
-// reads and writes flat slices, making it suitable for benchmarking and a future Rust backend.
-func propagateRedstoneGraph(relayers []bool, edges []redstoneEdge, powers []int) []int {
+// propagateRedstoneGraphGo is the portable Go implementation of numeric redstone propagation.
+// Edges must be sorted by from-node (compileEdges provides this ordering).
+func propagateRedstoneGraphGo(relayers []bool, edges []redstoneEdge, powers []int) []int {
 	if len(relayers) == 0 {
 		return powers
 	}

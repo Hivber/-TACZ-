@@ -1,0 +1,14 @@
+[package]
+name = "dragonfly-redstone-native"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "dragonfly_redstone"
+crate-type = ["staticlib"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
