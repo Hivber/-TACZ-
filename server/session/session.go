@@ -54,6 +54,8 @@ type Session struct {
 	cacheResponsePackets   atomic.Uint64
 	cacheHits              atomic.Uint64
 	cacheMisses            atomic.Uint64
+	encodedChunkPartCacheHits   atomic.Uint64
+	encodedChunkPartCacheMisses atomic.Uint64
 	subChunkRequests       atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
 	performanceSampleMu    sync.Mutex
@@ -112,8 +114,10 @@ type Session struct {
 
 	recipes map[uint32]recipe.Recipe
 
-	blobMu                sync.Mutex
-	blobs                 map[uint64][]byte
+	blobMu                  sync.Mutex
+	blobs                   map[uint64][]byte
+	encodedChunkParts       map[encodedChunkPartKey][]byte
+	encodedChunkPartOrder   []encodedChunkPartKey
 	openChunkTransactions []map[uint64]struct{}
 	invOpened             bool
 
@@ -220,6 +224,8 @@ func (conf Config) New(conn Conn) *Session {
 		entities:               map[uint64]*world.EntityHandle{},
 		hiddenEntities:         map[uuid.UUID]struct{}{},
 		blobs:                  map[uint64][]byte{},
+		encodedChunkParts:      make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
+		encodedChunkPartOrder: make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
 		chunkRadius:            int32(r),
 		maxChunkRadius:         int32(conf.MaxChunkRadius),
 		emoteChatMuted:         conf.EmoteChatMuted,

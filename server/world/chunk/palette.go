@@ -16,7 +16,8 @@ type Palette struct {
 	size      paletteSize
 
 	// values is a map of values. A PalettedStorage points to the index to this value.
-	values []uint32
+	values  []uint32
+	version *uint64
 }
 
 // newPalette returns a new Palette with size and a slice of added values.
@@ -45,6 +46,9 @@ func (palette *Palette) Len() int {
 func (palette *Palette) Add(v uint32) (index int16, resize bool) {
 	i := int16(len(palette.values))
 	palette.values = append(palette.values, v)
+	if palette.version != nil {
+		(*palette.version)++
+	}
 
 	if palette.needsResize() {
 		palette.increaseSize()
@@ -60,6 +64,9 @@ func (palette *Palette) Replace(f func(v uint32) uint32) {
 	palette.last = math.MaxUint32
 	for index, v := range palette.values {
 		palette.values[index] = f(v)
+	}
+	if palette.version != nil {
+		(*palette.version)++
 	}
 }
 

@@ -27,7 +27,7 @@ func (s *Session) PerformanceString() string {
 		return float64(current-previous) / elapsed
 	}
 	result := fmt.Sprintf(
-		"Session network/s: packets=%.1f, entity_move=%.1f, entity_velocity=%.1f, entity_spawn=%.1f, entity_remove=%.1f, chunk_packets=%.1f, block_updates=%.1f, cache_responses=%.1f, cache_hits=%d, cache_misses=%d, subchunk_requests=%d.",
+		"Session network/s: packets=%.1f, entity_move=%.1f, entity_velocity=%.1f, entity_spawn=%.1f, entity_remove=%.1f, chunk_packets=%.1f, block_updates=%.1f, cache_responses=%.1f, cache_hits=%d, cache_misses=%d, subchunk_requests=%d, encode_cache_hits=%d, encode_cache_misses=%d.",
 		rate(packets, s.performanceLastPackets),
 		rate(moves, s.performanceLastMoves),
 		rate(velocities, s.performanceLastVel),
@@ -37,6 +37,7 @@ func (s *Session) PerformanceString() string {
 		rate(blocks, s.performanceLastBlocks),
 		rate(cacheResponses, s.performanceLastCache),
 		s.cacheHits.Load(), s.cacheMisses.Load(), s.subChunkRequests.Load(),
+		s.encodedChunkPartCacheHits.Load(), s.encodedChunkPartCacheMisses.Load(),
 	)
 	s.performanceSampleAt = now
 	s.performanceLastPackets = packets

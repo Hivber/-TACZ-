@@ -38,6 +38,7 @@ type PalettedStorage struct {
 	// indices contains all indices in the PalettedStorage. This slice has a variable size, but may not be changed
 	// unless the whole PalettedStorage is resized, including the Palette.
 	indices []uint32
+	version *uint64
 }
 
 // newPalettedStorage creates a new block storage using the uint32 slice as the indices and the palette passed.
@@ -63,6 +64,11 @@ func emptyStorage(v uint32) *PalettedStorage {
 // Clone returns an independent copy of the PalettedStorage.
 func (storage *PalettedStorage) Clone() *PalettedStorage {
 	return newPalettedStorage(slices.Clone(storage.indices), storage.palette.Clone())
+}
+
+func (storage *PalettedStorage) setVersion(version *uint64) {
+	storage.version = version
+	storage.palette.version = version
 }
 
 // Palette returns the Palette of the PalettedStorage.
@@ -91,6 +97,9 @@ func (storage *PalettedStorage) Set(x, y, z byte, v uint32) {
 		index = storage.addNew(v)
 	}
 	storage.setPaletteIndex(x&15, y&15, z&15, uint16(index))
+	if storage.version != nil {
+		(*storage.version)++
+	}
 }
 
 // Equal checks if two PalettedStorages are equal value wise. False is returned
@@ -159,7 +168,9 @@ func (storage *PalettedStorage) resize(newPaletteSize paletteSize) {
 		return // Don't resize if the size is already equal.
 	}
 	// Keep the palette while allocating words at the new width.
+	version := storage.version
 	newStorage := newPalettedStorage(make([]uint32, newPaletteSize.uint32s()), storage.palette)
+	newStorage.setVersion(version)
 	// A zero-bit storage's implicit indices already match the zero-filled allocation.
 	if storage.bitsPerIndex != 0 {
 		for x := byte(0); x < 16; x++ {

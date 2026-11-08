@@ -5,6 +5,7 @@ import "slices"
 // SubChunk is a cube of blocks located in a chunk. It has a size of 16x16x16 blocks and forms part of a stack
 // that forms a Chunk.
 type SubChunk struct {
+	version    *uint64
 	air        uint32
 	storages   []*PalettedStorage
 	blockLight []uint8
@@ -32,6 +33,13 @@ func NewSubChunk(air uint32) *SubChunk {
 }
 
 // Clone returns an independent copy of the SubChunk.
+func (sub *SubChunk) setVersion(version *uint64) {
+	sub.version = version
+	for _, storage := range sub.storages {
+		storage.setVersion(version)
+	}
+}
+
 func (sub *SubChunk) Clone() *SubChunk {
 	clone := &SubChunk{
 		air:        sub.air,
@@ -71,7 +79,9 @@ func (sub *SubChunk) Layer(layer uint8) *PalettedStorage {
 	for uint8(len(sub.storages)) <= layer {
 		// Keep appending to storages until the requested layer is achieved. Makes working with new layers
 		// much easier.
-		sub.storages = append(sub.storages, emptyStorage(sub.air))
+		storage := emptyStorage(sub.air)
+		storage.setVersion(sub.version)
+		sub.storages = append(sub.storages, storage)
 	}
 	return sub.storages[layer]
 }

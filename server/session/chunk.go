@@ -17,6 +17,64 @@ import (
 // but also solves issues with block entities such as item frames and lecterns as of v1.19.10.
 const subChunkRequests = true
 
+const encodedChunkPartCacheCapacity = 128
+
+type encodedChunkPartKey struct {
+	chunk    *chunk.Chunk
+	index    int16 // -1 identifies the biome payload.
+	revision uint64
+}
+
+func (s *Session) cachedChunkPart(c *chunk.Chunk, index int16, revision uint64, encode func() []byte) []byte {
+	key := encodedChunkPartKey{chunk: c, index: index, revision: revision}
+	s.blobMu.Lock()
+	if data, ok := s.encodedChunkParts[key]; ok {
+		s.encodedChunkPartCacheHits.Add(1)
+		s.blobMu.Unlock()
+		return data
+	}
+	s.encodedChunkPartCacheMisses.Add(1)
+	s.blobMu.Unlock()
+
+	data := encode()
+	s.blobMu.Lock()
+	if existing, ok := s.encodedChunkParts[key]; ok {
+		data = existing
+	} else {
+		if len(s.encodedChunkPartOrder) >= encodedChunkPartCacheCapacity {
+			oldest := s.encodedChunkPartOrder[0]
+			delete(s.encodedChunkParts, oldest)
+			copy(s.encodedChunkPartOrder, s.encodedChunkPartOrder[1:])
+			s.encodedChunkPartOrder = s.encodedChunkPartOrder[:len(s.encodedChunkPartOrder)-1]
+		}
+		s.encodedChunkParts[key] = data
+		s.encodedChunkPartOrder = append(s.encodedChunkPartOrder, key)
+	}
+	s.blobMu.Unlock()
+	return data
+}
+
+func (s *Session) encodeSubChunk(c *chunk.Chunk, index int) []byte {
+	return s.cachedChunkPart(c, int16(index), c.SubChunkRevision(index), func() []byte {
+		return chunk.EncodeSubChunk(c, chunk.NetworkEncoding, index)
+	})
+}
+
+func (s *Session) encodeBiomes(c *chunk.Chunk) []byte {
+	return s.cachedChunkPart(c, -1, c.BiomeRevision(), func() []byte {
+		return chunk.EncodeBiomes(c, chunk.NetworkEncoding)
+	})
+}
+
+func (s *Session) encodeChunk(c *chunk.Chunk) chunk.SerialisedData {
+	data := chunk.SerialisedData{SubChunks: make([][]byte, len(c.Sub()))}
+	for i := range data.SubChunks {
+		data.SubChunks[i] = s.encodeSubChunk(c, i)
+	}
+	data.Biomes = s.encodeBiomes(c)
+	return data
+}
+
 var blockEntityBufferPool = sync.Pool{
 	New: func() any { return bytes.NewBuffer(make([]byte, 0, 256)) },
 }
@@ -135,13 +193,16 @@ func (s *Session) subChunkEntry(offset protocol.SubChunkOffset, ind int16, col *
 		}
 	}
 
-	serialisedSubChunk := chunk.EncodeSubChunk(col.Chunk, chunk.NetworkEncoding, int(ind))
+	serialisedSubChunk := s.encodeSubChunk(col.Chunk, int(ind))
 
 	blockEntityData := encodeBlockEntityPayload(col.BlockEntities, &ind, col, false)
 
+	rawPayload := make([]byte, 0, len(serialisedSubChunk)+len(blockEntityData))
+	rawPayload = append(rawPayload, serialisedSubChunk...)
+	rawPayload = append(rawPayload, blockEntityData...)
 	entry := protocol.SubChunkEntry{
 		Result:              protocol.SubChunkResultSuccess,
-		RawPayload:          protocol.Option(append(serialisedSubChunk, blockEntityData...)),
+		RawPayload:          protocol.Option(rawPayload),
 		HeightMapType:       subMapType,
 		HeightMapData:       subMapData,
 		RenderHeightMapType: subMapType,
@@ -169,7 +230,7 @@ func (s *Session) dimensionID(dim world.Dimension) int32 {
 // data that the client doesn't yet have will be sent over the network.
 func (s *Session) sendBlobHashes(pos world.ChunkPos, dim world.Dimension, c *chunk.Chunk, blockEntities map[cube.Pos]world.Block) {
 	if subChunkRequests {
-		biomes := chunk.EncodeBiomes(c, chunk.NetworkEncoding)
+		biomes := s.encodeBiomes(c)
 		if hash := xxhash.Sum64(biomes); s.trackBlob(hash, biomes) {
 			s.writePacket(&packet.LevelChunk{
 				Dimension:     s.dimensionID(dim),
@@ -185,7 +246,7 @@ func (s *Session) sendBlobHashes(pos world.ChunkPos, dim world.Dimension, c *chu
 	}
 
 	var (
-		data   = chunk.Encode(c, chunk.NetworkEncoding)
+		data   = s.encodeChunk(c)
 		count  = uint32(len(data.SubChunks))
 		blobs  = append(data.SubChunks, data.Biomes)
 		hashes = make([]uint64, len(blobs))
@@ -228,12 +289,12 @@ func (s *Session) sendNetworkChunk(pos world.ChunkPos, dim world.Dimension, c *c
 			SubChunkCount: 0,
 			Position:      protocol.ChunkPos(pos),
 			SubChunkLimit: protocol.Option(int32(c.HighestFilledSubChunk())),
-			RawPayload:    append(chunk.EncodeBiomes(c, chunk.NetworkEncoding), 0),
+			RawPayload:    append(s.encodeBiomes(c), 0),
 		})
 		return
 	}
 
-	data := chunk.Encode(c, chunk.NetworkEncoding)
+	data := s.encodeChunk(c)
 	chunkBuf := bytes.NewBuffer(nil)
 	for _, s := range data.SubChunks {
 		_, _ = chunkBuf.Write(s)

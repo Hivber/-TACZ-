@@ -30,6 +30,10 @@ type Chunk struct {
 	sub []*SubChunk
 	// biomes is an array of biome IDs. There is one biome ID for every column in the chunk.
 	biomes []*PalettedStorage
+
+	// subChunkVersions and biomeVersion invalidate per-session encoded network payloads.
+	subChunkVersions []uint64
+	biomeVersion     uint64
 }
 
 // New initialises a new chunk and returns it, so that it may be used.
@@ -42,7 +46,7 @@ func New(br BlockRegistry, r cube.Range) *Chunk {
 		sub[i] = NewSubChunk(air)
 		biomes[i] = emptyStorage(0)
 	}
-	return &Chunk{
+	c := &Chunk{
 		r:                    r,
 		br:                   br,
 		air:                  air,
@@ -50,7 +54,13 @@ func New(br BlockRegistry, r cube.Range) *Chunk {
 		biomes:               biomes,
 		recalculateHeightMap: true,
 		heightMap:            make(HeightMap, 256),
+		subChunkVersions:     make([]uint64, n),
 	}
+	for i := range c.sub {
+		c.sub[i].setVersion(&c.subChunkVersions[i])
+		c.biomes[i].setVersion(&c.biomeVersion)
+	}
+	return c
 }
 
 // Clone returns an independent copy of the Chunk.
@@ -64,12 +74,16 @@ func (chunk *Chunk) Clone() *Chunk {
 		heightMap:            slices.Clone(chunk.heightMap),
 		sub:                  make([]*SubChunk, len(chunk.sub)),
 		biomes:               make([]*PalettedStorage, len(chunk.biomes)),
+		subChunkVersions:     slices.Clone(chunk.subChunkVersions),
+		biomeVersion:         chunk.biomeVersion,
 	}
 	for i, sub := range chunk.sub {
 		clone.sub[i] = sub.Clone()
+		clone.sub[i].setVersion(&clone.subChunkVersions[i])
 	}
 	for i, biomes := range chunk.biomes {
 		clone.biomes[i] = biomes.Clone()
+		clone.biomes[i].setVersion(&clone.biomeVersion)
 	}
 	return clone
 }
@@ -119,6 +133,16 @@ func (chunk *Chunk) Range() cube.Range {
 // Sub returns a list of all sub chunks present in the chunk.
 func (chunk *Chunk) Sub() []*SubChunk {
 	return chunk.sub
+}
+
+// SubChunkRevision returns the network-visible mutation revision of a sub chunk.
+func (chunk *Chunk) SubChunkRevision(index int) uint64 {
+	return chunk.subChunkVersions[index]
+}
+
+// BiomeRevision returns the network-visible mutation revision of the biome data.
+func (chunk *Chunk) BiomeRevision() uint64 {
+	return chunk.biomeVersion
 }
 
 // Block returns the runtime ID of the block at a given x, y and z in a chunk at the given layer. If no
@@ -191,6 +215,8 @@ func (chunk *Chunk) SetBiomeSection(y int16, biomes [4][4][4]uint32) {
 			}
 		}
 	}
+	storage.setVersion(&chunk.biomeVersion)
+	chunk.biomeVersion++
 	chunk.biomes[chunk.SubIndex(y)] = storage
 }
 
