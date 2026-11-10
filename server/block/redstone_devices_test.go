@@ -338,7 +338,6 @@ func TestComparatorStatesAndNBT(t *testing.T) {
 	}
 }
 
-
 func TestObserverMonitoredFacePulseAndAutomaticReset(t *testing.T) {
 	w := world.Config{Synchronous: true}.New()
 	defer w.Close()
