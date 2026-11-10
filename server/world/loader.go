@@ -21,6 +21,7 @@ type Loader struct {
 	loadQueue []ChunkPos
 	loaded    map[ChunkPos]*Column
 	pending   map[ChunkPos]struct{}
+	queued    map[ChunkPos]struct{}
 
 	closed bool
 }
