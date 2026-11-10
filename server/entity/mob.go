@@ -625,7 +625,7 @@ func mobSpawnGroupSize(kind mobKind) int {
 func naturalSpawnDistanceLimits(tickRange int) (minDistance, maxDistance, maxHorizontalDistance float64) {
 	minDistance, maxDistance, maxHorizontalDistance = 24, 128, 96
 	if tickRange <= 4 {
-		maxDistance, maxHorizontalDistance = 44, 44
+		maxDistance, maxHorizontalDistance = 44, math.Inf(1)
 	}
 	return
 }
