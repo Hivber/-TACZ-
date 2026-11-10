@@ -24,7 +24,8 @@ server-side interactions and persistence are also implemented and tested.
   patrols, phantoms, bosses and the remaining vanilla entities.
 - The first AI pass still uses simplified steering and is not yet vanilla navigation.
 - Natural mob spawning applies the Bedrock 24-44 block shell at simulation distance 4,
-  and the 24-128 block shell plus 96-block chunk-centre horizontal limit at distance 6+.
+  and the 24-128 block shell plus 96-block chunk-centre horizontal limit and n-1 chunk
+  taxicab boundary at distance 6+. Natural despawning applies the matching chunk boundary.
   The current implementation remains surface-only and uses a small fixed attempt budget;
   per-chunk attempt scheduling, complete population/density caps, caves, aquatic/Nether/End,
   structure spawns and full vanilla biome spawn tables remain incomplete.

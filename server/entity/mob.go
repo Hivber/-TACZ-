@@ -460,6 +460,9 @@ func nearestPlayerDistanceSquared(pos mgl64.Vec3, tx *world.Tx) float64 {
 		if gm, ok := player.(interface{ GameMode() world.GameMode }); ok && !gm.GameMode().HasCollision() {
 			continue
 		}
+		if !mobWithinChunkTaxicabDistance(player.Position(), cube.PosFromVec3(pos), tx.World().TickRange()) {
+			continue
+		}
 		nearest = min(nearest, mobDistanceSquared(player.Position(), pos))
 	}
 	return nearest
@@ -630,7 +633,10 @@ func naturalSpawnDistanceLimits(tickRange int) (minDistance, maxDistance, maxHor
 // naturalSpawnDistanceAllowed checks the three-dimensional feet distance and the
 // horizontal distance to the centre of the candidate chunk. Bedrock applies the
 // 96-block horizontal limit to chunk centres, not to individual block positions.
-func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDistance, maxDistance, maxHorizontalDistance float64) bool {
+func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDistance, maxDistance, maxHorizontalDistance float64, tickRange int) bool {
+	if !mobWithinChunkTaxicabDistance(playerPos, spawnPos, tickRange) {
+		return false
+	}
 	mobPos := mgl64.Vec3{float64(spawnPos[0]) + 0.5, float64(spawnPos[1]), float64(spawnPos[2]) + 0.5}
 	if distanceSquared := mobDistanceSquared(playerPos, mobPos); distanceSquared < minDistance*minDistance || distanceSquared > maxDistance*maxDistance {
 		return false
@@ -639,6 +645,19 @@ func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDis
 	chunkCentreZ := math.Floor(float64(spawnPos[2])/16)*16 + 8
 	dx, dz := chunkCentreX-playerPos[0], chunkCentreZ-playerPos[2]
 	return dx*dx+dz*dz <= maxHorizontalDistance*maxHorizontalDistance
+}
+
+// mobWithinChunkTaxicabDistance applies Bedrock's simulation-distance chunk
+// boundary for simulation distances above four. Distance four uses its own
+// 44-block spherical despawn/spawn boundary without this additional filter.
+func mobWithinChunkTaxicabDistance(playerPos mgl64.Vec3, blockPos cube.Pos, tickRange int) bool {
+	if tickRange <= 4 {
+		return true
+	}
+	playerChunkX, playerChunkZ := int(math.Floor(playerPos[0]/16)), int(math.Floor(playerPos[2]/16))
+	entityChunkX, entityChunkZ := int(math.Floor(float64(blockPos[0])/16)), int(math.Floor(float64(blockPos[2])/16))
+	chunkDistance := int(math.Abs(float64(playerChunkX-entityChunkX)) + math.Abs(float64(playerChunkZ-entityChunkZ)))
+	return chunkDistance <= tickRange-1
 }
 
 // SpawnNaturalMobs performs bounded, loaded-chunk-only surface spawning around players.
@@ -659,7 +678,8 @@ func SpawnNaturalMobs(tx *world.Tx) {
 	if len(players) == 0 {
 		return
 	}
-	minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance := naturalSpawnDistanceLimits(w.TickRange())
+	tickRange := w.TickRange()
+	minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance := naturalSpawnDistanceLimits(tickRange)
 
 	animals, monsters := 0, 0
 	for e := range tx.Entities() {
@@ -709,7 +729,7 @@ func SpawnNaturalMobs(tx *world.Tx) {
 			x := int(math.Floor(p[0] + math.Cos(angle)*distance))
 			z := int(math.Floor(p[2] + math.Sin(angle)*distance))
 			spawnPos, ground, biome, light, ok := naturalSpawnSurface(tx, x, z, p[1])
-			if !ok || !naturalSpawnDistanceAllowed(p, spawnPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance) {
+			if !ok || !naturalSpawnDistanceAllowed(p, spawnPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance, tickRange) {
 				continue
 			}
 			kind, ok := chooseNaturalMob(category, biome, light)
@@ -731,7 +751,7 @@ func SpawnNaturalMobs(tx *world.Tx) {
 						continue
 					}
 				}
-				if !naturalSpawnDistanceAllowed(p, memberPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance) {
+				if !naturalSpawnDistanceAllowed(p, memberPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance, tickRange) {
 					continue
 				}
 				if naturalSpawnBlocked(tx, kind, memberPos) {

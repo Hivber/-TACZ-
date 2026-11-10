@@ -200,23 +200,53 @@ func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) 
 func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
 	player := mgl64.Vec3{8, 64, 8}
 	tests := []struct {
-		name string
-		pos  cube.Pos
-		minimum, maximum, horizontal float64
-		want bool
+		name      string
+		pos       cube.Pos
+		minimum   float64
+		maximum   float64
+		horizontal float64
+		tickRange int
+		want      bool
 	}{
-		{name: "inside shell", pos: cube.Pos{8, 89, 8}, minimum: 24, maximum: 128, horizontal: 96, want: true},
-		{name: "too close", pos: cube.Pos{8, 87, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
-		{name: "too far vertically", pos: cube.Pos{8, 193, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
-		{name: "simulation distance four upper edge", pos: cube.Pos{8, 108, 8}, minimum: 24, maximum: 44, horizontal: 44, want: true},
-		{name: "outside simulation distance four", pos: cube.Pos{8, 109, 8}, minimum: 24, maximum: 44, horizontal: 44, want: false},
-		{name: "chunk centre exceeds horizontal limit", pos: cube.Pos{112, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
+		{name: "inside shell", pos: cube.Pos{8, 89, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: true},
+		{name: "too close", pos: cube.Pos{8, 87, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: false},
+		{name: "too far vertically", pos: cube.Pos{8, 193, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: false},
+		{name: "simulation distance four upper edge", pos: cube.Pos{8, 108, 8}, minimum: 24, maximum: 44, horizontal: 44, tickRange: 4, want: true},
+		{name: "outside simulation distance four", pos: cube.Pos{8, 109, 8}, minimum: 24, maximum: 44, horizontal: 44, tickRange: 4, want: false},
+		{name: "chunk centre exceeds horizontal limit", pos: cube.Pos{112, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 8, want: false},
+		{name: "chunk taxicab radius exceeded", pos: cube.Pos{80, 64, 16}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: false},
+		{name: "chunk taxicab radius at boundary", pos: cube.Pos{80, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := naturalSpawnDistanceAllowed(player, test.pos, test.minimum, test.maximum, test.horizontal)
+			got := naturalSpawnDistanceAllowed(player, test.pos, test.minimum, test.maximum, test.horizontal, test.tickRange)
 			if got != test.want {
 				t.Fatalf("naturalSpawnDistanceAllowed() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+
+func TestMobChunkTaxicabDistanceUsesSimulationRadius(t *testing.T) {
+	player := mgl64.Vec3{8, 64, 8}
+	tests := []struct {
+		name      string
+		pos       cube.Pos
+		tickRange int
+		want      bool
+	}{
+		{name: "distance four uses spherical radius", pos: cube.Pos{160, 64, 8}, tickRange: 4, want: true},
+		{name: "simulation distance six boundary", pos: cube.Pos{80, 64, 8}, tickRange: 6, want: true},
+		{name: "simulation distance six outside", pos: cube.Pos{80, 64, 16}, tickRange: 6, want: false},
+		{name: "simulation distance eight boundary", pos: cube.Pos{112, 64, 8}, tickRange: 8, want: true},
+		{name: "negative chunk coordinates", pos: cube.Pos{-16, 64, -16}, tickRange: 6, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := mobWithinChunkTaxicabDistance(player, test.pos, test.tickRange)
+			if got != test.want {
+				t.Fatalf("mobWithinChunkTaxicabDistance() = %v, want %v", got, test.want)
 			}
 		})
 	}
