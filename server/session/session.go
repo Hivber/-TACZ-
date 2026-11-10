@@ -764,7 +764,6 @@ func (s *Session) writePacket(pk packet.Packet) {
 			s.cacheResponsePackets.Add(1)
 		}
 	}
-	select {
 	queued := outgoingPacket{packet: pk}
 	select {
 	case <-s.closeBackground:
