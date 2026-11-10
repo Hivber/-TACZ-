@@ -4,10 +4,11 @@ import "testing"
 
 func TestLoaderQueueDeduplicatesInConstantTime(t *testing.T) {
 	l := &Loader{
-		r: 4, w: &World{},
-		loaded: make(map[ChunkPos]*Column),
+		r:       4,
+		w:       &World{},
+		loaded:  make(map[ChunkPos]*Column),
 		pending: make(map[ChunkPos]struct{}),
-		queued: make(map[ChunkPos]struct{}),
+		queued:  make(map[ChunkPos]struct{}),
 	}
 	pos := ChunkPos{1, 1}
 	l.queueLoad(pos)
