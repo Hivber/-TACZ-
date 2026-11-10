@@ -39,7 +39,7 @@ func (s *Session) recordInboundHandler(d time.Duration) {
 	}
 }
 
-// PerformanceString returns a compact snapshot of per-session network and client diagnostics.
+func (s *Session) PerformanceString() string {
 	now := time.Now()
 	s.performanceSampleMu.Lock()
 	elapsed := now.Sub(s.performanceSampleAt).Seconds()
