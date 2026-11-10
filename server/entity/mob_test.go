@@ -200,13 +200,13 @@ func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) 
 func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
 	player := mgl64.Vec3{8, 64, 8}
 	tests := []struct {
-		name      string
-		pos       cube.Pos
-		minimum   float64
-		maximum   float64
+		name       string
+		pos        cube.Pos
+		minimum    float64
+		maximum    float64
 		horizontal float64
-		tickRange int
-		want      bool
+		tickRange  int
+		want       bool
 	}{
 		{name: "inside shell", pos: cube.Pos{8, 89, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: true},
 		{name: "too close", pos: cube.Pos{8, 87, 8}, minimum: 24, maximum: 128, horizontal: 96, tickRange: 6, want: false},
@@ -226,7 +226,6 @@ func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
 		})
 	}
 }
-
 
 func TestMobChunkTaxicabDistanceUsesSimulationRadius(t *testing.T) {
 	player := mgl64.Vec3{8, 64, 8}
