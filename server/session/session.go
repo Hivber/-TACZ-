@@ -40,8 +40,8 @@ type incomingPacket struct {
 }
 
 type outgoingPacket struct {
-	packet    packet.Packet
-	queuedAt  time.Time
+	packet   packet.Packet
+	queuedAt time.Time
 }
 
 type Session struct {
