@@ -17,7 +17,7 @@ var (
 )
 
 // Observer watches the block on its facing side. A change there causes a
-// two-redstone-tick pulse from the opposite face.
+// two-game-tick pulse from the opposite face.
 type Observer struct {
 	solid
 

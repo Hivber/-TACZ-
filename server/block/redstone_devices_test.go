@@ -9,6 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server/item/inventory"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
+	"github.com/go-gl/mathgl/mgl64"
 )
 
 func TestRedstoneRepeaterZeroValueIsRegistered(t *testing.T) {
@@ -334,5 +335,77 @@ func TestComparatorStatesAndNBT(t *testing.T) {
 	decoded := original.DecodeNBT(original.EncodeNBT()).(RedstoneComparator)
 	if decoded.output != 13 || !decoded.Powered || !decoded.Subtract || decoded.Direction != cube.East {
 		t.Fatalf("comparator NBT round trip mismatch: %+v", decoded)
+	}
+}
+
+
+func TestObserverMonitoredFacePulseAndAutomaticReset(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	loader := world.NewLoader(1, w, world.NopViewer{})
+	runWorld(w, func(tx *world.Tx) {
+		loader.Move(tx, mgl64.Vec3{1, 64, 1})
+		loader.Load(tx, 1)
+	})
+	defer func() {
+		runWorld(w, func(tx *world.Tx) {
+			loader.Close(tx)
+		})
+	}()
+
+	observerPos := cube.Pos{1, 64, 1}
+	monitoredPos := observerPos.Side(cube.FaceNorth)
+	runWorld(w, func(tx *world.Tx) {
+		tx.SetBlock(observerPos, Observer{Facing: cube.FaceNorth}, nil)
+		tx.SetBlock(monitoredPos, Stone{}, nil)
+	})
+
+	isPowered := func() bool {
+		var powered bool
+		runWorld(w, func(tx *world.Tx) {
+			powered = tx.Block(observerPos).(Observer).Powered
+		})
+		return powered
+	}
+	for range 4 {
+		if isPowered() {
+			break
+		}
+		w.AdvanceTick()
+	}
+	if !isPowered() {
+		t.Fatal("observer did not pulse after its monitored block changed")
+	}
+	runWorld(w, func(tx *world.Tx) {
+		observer := tx.Block(observerPos).(Observer)
+		if got := observer.RedstonePower(observerPos, tx, cube.FaceSouth); got != 15 {
+			t.Fatalf("observer pulse output = %d, want 15 behind the observer", got)
+		}
+		if got := observer.RedstonePower(observerPos, tx, cube.FaceNorth); got != 0 {
+			t.Fatalf("observer emitted %d toward its monitored face, want 0", got)
+		}
+	})
+
+	// Bedrock observers emit a two-game-tick pulse: they remain powered for
+	// the first game tick after activation and turn off on the next one.
+	w.AdvanceTick()
+	if !isPowered() {
+		t.Fatal("observer pulse ended before two game ticks elapsed")
+	}
+	w.AdvanceTick()
+	if isPowered() {
+		t.Fatal("observer remained powered after its two-game-tick pulse")
+	}
+
+	// A change behind the observer is not a monitored-face update.
+	runWorld(w, func(tx *world.Tx) {
+		tx.SetBlock(observerPos.Side(cube.FaceSouth), Stone{}, nil)
+	})
+	for range 4 {
+		w.AdvanceTick()
+	}
+	if isPowered() {
+		t.Fatal("observer pulsed after a change on its output face")
 	}
 }
