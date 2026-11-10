@@ -23,6 +23,13 @@ server-side interactions and persistence are also implemented and tested.
   full pathfinding, breeding, taming, equipment, pickup, riding, sleep, village behaviour, raids,
   patrols, phantoms, bosses and the remaining vanilla entities.
 - The first AI pass still uses simplified steering and is not yet vanilla navigation.
+- Natural mob spawning applies the Bedrock 24-44 block shell at simulation distance 4,
+  and the 24-128 block shell plus 96-block chunk-centre horizontal limit at distance 6+.
+  The current implementation remains surface-only and uses a small fixed attempt budget;
+  per-chunk attempt scheduling, complete population/density caps, caves, aquatic/Nether/End,
+  structure spawns and full vanilla biome spawn tables remain incomplete.
+- Natural mob despawning uses 3D player distance, simulation-distance immediate limits and
+  a persisted 30-second inactivity counter followed by the per-tick random despawn check.
 
 ### Redstone and automation
 - Existing wire/torch/lever power evaluation is not the complete redstone circuit.

@@ -618,6 +618,29 @@ func mobSpawnGroupSize(kind mobKind) int {
 	return minimum + rand.IntN(maximum-minimum+1)
 }
 
+// naturalSpawnDistanceLimits returns the Bedrock spawn shell and horizontal chunk-centre limit.
+func naturalSpawnDistanceLimits(tickRange int) (minDistance, maxDistance, maxHorizontalDistance float64) {
+	minDistance, maxDistance, maxHorizontalDistance = 24, 128, 96
+	if tickRange <= 4 {
+		maxDistance, maxHorizontalDistance = 44, 44
+	}
+	return
+}
+
+// naturalSpawnDistanceAllowed checks the three-dimensional feet distance and the
+// horizontal distance to the centre of the candidate chunk. Bedrock applies the
+// 96-block horizontal limit to chunk centres, not to individual block positions.
+func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDistance, maxDistance, maxHorizontalDistance float64) bool {
+	mobPos := mgl64.Vec3{float64(spawnPos[0]) + 0.5, float64(spawnPos[1]), float64(spawnPos[2]) + 0.5}
+	if distanceSquared := mobDistanceSquared(playerPos, mobPos); distanceSquared < minDistance*minDistance || distanceSquared > maxDistance*maxDistance {
+		return false
+	}
+	chunkCentreX := math.Floor(float64(spawnPos[0])/16)*16 + 8
+	chunkCentreZ := math.Floor(float64(spawnPos[2])/16)*16 + 8
+	dx, dz := chunkCentreX-playerPos[0], chunkCentreZ-playerPos[2]
+	return dx*dx+dz*dz <= maxHorizontalDistance*maxHorizontalDistance
+}
+
 // SpawnNaturalMobs performs bounded, loaded-chunk-only surface spawning around players.
 // The first implementation follows the category/weight/group/biome/light rule structure
 // used by Bedrock servers, while keeping the scan budget small for mobile hosts.
@@ -636,6 +659,7 @@ func SpawnNaturalMobs(tx *world.Tx) {
 	if len(players) == 0 {
 		return
 	}
+	minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance := naturalSpawnDistanceLimits(w.TickRange())
 
 	animals, monsters := 0, 0
 	for e := range tx.Entities() {
@@ -678,12 +702,14 @@ func SpawnNaturalMobs(tx *world.Tx) {
 			}
 
 			p := player.Position()
-			distance := float64(24 + rand.IntN(25))
+			// Sample across the full horizontal disk. The actual 3D spawn shell is
+			// applied after the surface height and candidate chunk are known.
+			distance := rand.Float64() * maxHorizontalSpawnDistance
 			angle := rand.Float64() * math.Pi * 2
 			x := int(math.Floor(p[0] + math.Cos(angle)*distance))
 			z := int(math.Floor(p[2] + math.Sin(angle)*distance))
 			spawnPos, ground, biome, light, ok := naturalSpawnSurface(tx, x, z, p[1])
-			if !ok {
+			if !ok || !naturalSpawnDistanceAllowed(p, spawnPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance) {
 				continue
 			}
 			kind, ok := chooseNaturalMob(category, biome, light)
@@ -704,6 +730,9 @@ func SpawnNaturalMobs(tx *world.Tx) {
 					if !surfaceOK || !mobKindCanSpawn(kind, biome, light) || (kind.grassRequired && !isGrassBlock(ground)) {
 						continue
 					}
+				}
+				if !naturalSpawnDistanceAllowed(p, memberPos, minSpawnDistance, maxSpawnDistance, maxHorizontalSpawnDistance) {
+					continue
 				}
 				if naturalSpawnBlocked(tx, kind, memberPos) {
 					continue

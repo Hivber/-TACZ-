@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/biome"
 	"github.com/go-gl/mathgl/mgl64"
 )
@@ -167,5 +169,57 @@ func TestMobDespawnInactivityCounterPersistsThroughNBT(t *testing.T) {
 	encoded := ZombieType.EncodeNBT(data)
 	if encoded["DespawnTicks"] != int32(417) {
 		t.Fatalf("encoded despawn ticks = %v, want 417", encoded["DespawnTicks"])
+	}
+}
+
+
+// TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance verifies the
+// 24-44 and 24-128 spherical spawn shells and the larger-distance chunk limit.
+func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) {
+	tests := []struct {
+		name                    string
+		tickRange               int
+		minimum, maximum, horizontal float64
+	}{
+		{name: "simulation distance 4", tickRange: 4, minimum: 24, maximum: 44, horizontal: 44},
+		{name: "simulation distance 6", tickRange: 6, minimum: 24, maximum: 128, horizontal: 96},
+		{name: "simulation distance 8", tickRange: 8, minimum: 24, maximum: 128, horizontal: 96},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			minimum, maximum, horizontal := naturalSpawnDistanceLimits(test.tickRange)
+			if minimum != test.minimum || maximum != test.maximum || horizontal != test.horizontal {
+				t.Fatalf("spawn limits = %.0f..%.0f (horizontal %.0f), want %.0f..%.0f (horizontal %.0f)",
+					minimum, maximum, horizontal, test.minimum, test.maximum, test.horizontal)
+			}
+		})
+	}
+}
+
+// TestNaturalSpawnDistanceUsesThreeDimensionalShell verifies that valid
+// vertical distance can satisfy the spherical shell even when horizontal
+// distance is small, while candidates outside the Euclidean bounds are rejected.
+func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
+	player := mgl64.Vec3{8.5, 64, 8.5}
+	tests := []struct {
+		name string
+		pos  cube.Pos
+		minimum, maximum, horizontal float64
+		want bool
+	}{
+		{name: "inside shell", pos: cube.Pos{8, 89, 8}, minimum: 24, maximum: 128, horizontal: 96, want: true},
+		{name: "too close", pos: cube.Pos{8, 87, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
+		{name: "too far vertically", pos: cube.Pos{8, 193, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
+		{name: "simulation distance four upper edge", pos: cube.Pos{8, 108, 8}, minimum: 24, maximum: 44, horizontal: 44, want: true},
+		{name: "outside simulation distance four", pos: cube.Pos{8, 109, 8}, minimum: 24, maximum: 44, horizontal: 44, want: false},
+		{name: "chunk centre exceeds horizontal limit", pos: cube.Pos{96, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := naturalSpawnDistanceAllowed(player, test.pos, test.minimum, test.maximum, test.horizontal)
+			if got != test.want {
+				t.Fatalf("naturalSpawnDistanceAllowed() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
