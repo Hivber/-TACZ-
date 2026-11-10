@@ -2,6 +2,7 @@ package session
 
 import (
 	"bytes"
+	"container/list"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
@@ -17,7 +18,7 @@ import (
 // but also solves issues with block entities such as item frames and lecterns as of v1.19.10.
 const subChunkRequests = true
 
-const encodedChunkPartCacheCapacity = 128
+const sharedEncodedChunkPartCacheCapacity = 4096
 
 type encodedChunkPartKey struct {
 	chunk    *chunk.Chunk
@@ -25,36 +26,70 @@ type encodedChunkPartKey struct {
 	revision uint64
 }
 
-func (s *Session) cachedChunkPart(c *chunk.Chunk, index int16, revision uint64, encode func() []byte) []byte {
-	key := encodedChunkPartKey{chunk: c, index: index, revision: revision}
-	s.blobMu.Lock()
-	if data, ok := s.encodedChunkParts[key]; ok {
-		if s.conf.PerformanceDiagnostics {
-			s.encodedChunkPartCacheHits.Add(1)
-		}
-		s.blobMu.Unlock()
-		return data
+type encodedChunkPartEntry struct {
+	key  encodedChunkPartKey
+	data []byte
+}
+
+type encodedChunkPartCache struct {
+	mu       sync.Mutex
+	capacity int
+	entries  map[encodedChunkPartKey]*list.Element
+	order    *list.List
+}
+
+func newEncodedChunkPartCache(capacity int) *encodedChunkPartCache {
+	return &encodedChunkPartCache{
+		capacity: capacity,
+		entries:  make(map[encodedChunkPartKey]*list.Element, capacity),
+		order:    list.New(),
 	}
-	if s.conf.PerformanceDiagnostics {
-		s.encodedChunkPartCacheMisses.Add(1)
+}
+
+// get returns immutable encoded data shared by all sessions. Encoding happens
+// outside the lock; concurrent misses may encode twice, but only one result is retained.
+func (cache *encodedChunkPartCache) get(key encodedChunkPartKey, encode func() []byte) ([]byte, bool) {
+	cache.mu.Lock()
+	if element, ok := cache.entries[key]; ok {
+		cache.order.MoveToFront(element)
+		data := element.Value.(encodedChunkPartEntry).data
+		cache.mu.Unlock()
+		return data, true
 	}
-	s.blobMu.Unlock()
+	cache.mu.Unlock()
 
 	data := encode()
-	s.blobMu.Lock()
-	if existing, ok := s.encodedChunkParts[key]; ok {
-		data = existing
-	} else {
-		if len(s.encodedChunkPartOrder) >= encodedChunkPartCacheCapacity {
-			oldest := s.encodedChunkPartOrder[0]
-			delete(s.encodedChunkParts, oldest)
-			copy(s.encodedChunkPartOrder, s.encodedChunkPartOrder[1:])
-			s.encodedChunkPartOrder = s.encodedChunkPartOrder[:len(s.encodedChunkPartOrder)-1]
-		}
-		s.encodedChunkParts[key] = data
-		s.encodedChunkPartOrder = append(s.encodedChunkPartOrder, key)
+	cache.mu.Lock()
+	if element, ok := cache.entries[key]; ok {
+		cache.order.MoveToFront(element)
+		data = element.Value.(encodedChunkPartEntry).data
+		cache.mu.Unlock()
+		return data, true
 	}
-	s.blobMu.Unlock()
+	element := cache.order.PushFront(encodedChunkPartEntry{key: key, data: data})
+	cache.entries[key] = element
+	if cache.order.Len() > cache.capacity {
+		oldest := cache.order.Back()
+		entry := oldest.Value.(encodedChunkPartEntry)
+		delete(cache.entries, entry.key)
+		cache.order.Remove(oldest)
+	}
+	cache.mu.Unlock()
+	return data, false
+}
+
+var sharedEncodedChunkParts = newEncodedChunkPartCache(sharedEncodedChunkPartCacheCapacity)
+
+func (s *Session) cachedChunkPart(c *chunk.Chunk, index int16, revision uint64, encode func() []byte) []byte {
+	key := encodedChunkPartKey{chunk: c, index: index, revision: revision}
+	data, hit := sharedEncodedChunkParts.get(key, encode)
+	if s.conf.PerformanceDiagnostics {
+		if hit {
+			s.encodedChunkPartCacheHits.Add(1)
+		} else {
+			s.encodedChunkPartCacheMisses.Add(1)
+		}
+	}
 	return data
 }
 

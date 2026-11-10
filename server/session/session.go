@@ -137,10 +137,6 @@ type Session struct {
 
 	blobMu sync.Mutex
 	blobs  map[uint64][]byte
-	// encodedChunkParts is a bounded per-session cache of immutable network encodings.
-	encodedChunkParts map[encodedChunkPartKey][]byte
-	// encodedChunkPartOrder stores FIFO eviction order for the encoded section cache.
-	encodedChunkPartOrder []encodedChunkPartKey
 	// openChunkTransactions tracks client blob acknowledgements.
 	openChunkTransactions []map[uint64]struct{}
 	// invOpened reports whether the inventory window is open.
@@ -252,8 +248,6 @@ func (conf Config) New(conn Conn) *Session {
 		entities:               map[uint64]*world.EntityHandle{},
 		hiddenEntities:         map[uuid.UUID]struct{}{},
 		blobs:                  map[uint64][]byte{},
-		encodedChunkParts:      make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
-		encodedChunkPartOrder:  make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
 		chunkRadius:            int32(r),
 		maxChunkRadius:         int32(conf.MaxChunkRadius),
 		emoteChatMuted:         conf.EmoteChatMuted,

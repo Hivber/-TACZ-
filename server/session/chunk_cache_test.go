@@ -1,45 +1,71 @@
 package session
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/world/chunk"
 )
 
-func TestCachedChunkPartReusesRevisionAndBoundsMemory(t *testing.T) {
-	c := &chunk.Chunk{}
-	s := &Session{
-		conf:                  Config{PerformanceDiagnostics: true},
-		encodedChunkParts:     make(map[encodedChunkPartKey][]byte, encodedChunkPartCacheCapacity),
-		encodedChunkPartOrder: make([]encodedChunkPartKey, 0, encodedChunkPartCacheCapacity),
-	}
-	calls := 0
+func TestEncodedChunkPartCacheSharesEntries(t *testing.T) {
+	cache := newEncodedChunkPartCache(4)
+	key := encodedChunkPartKey{chunk: new(chunk.Chunk), index: 2, revision: 7}
+	encodes := 0
 	encode := func() []byte {
-		calls++
-		return []byte{byte(calls)}
+		encodes++
+		return []byte("encoded")
 	}
 
-	first := s.cachedChunkPart(c, 0, 1, encode)
-	second := s.cachedChunkPart(c, 0, 1, encode)
-	if calls != 1 || !bytes.Equal(first, second) {
-		t.Fatalf("same revision encoded %d times; first=%v second=%v", calls, first, second)
+	first, hit := cache.get(key, encode)
+	if hit {
+		t.Fatal("first lookup unexpectedly hit")
 	}
-	changed := s.cachedChunkPart(c, 0, 2, encode)
-	if calls != 2 || bytes.Equal(first, changed) {
-		t.Fatalf("new revision was not re-encoded: calls=%d first=%v changed=%v", calls, first, changed)
+	second, hit := cache.get(key, encode)
+	if !hit {
+		t.Fatal("second lookup did not hit")
 	}
-	if s.encodedChunkPartCacheHits.Load() != 1 || s.encodedChunkPartCacheMisses.Load() != 2 {
-		t.Fatalf("cache counters = hits %d, misses %d; want 1 and 2", s.encodedChunkPartCacheHits.Load(), s.encodedChunkPartCacheMisses.Load())
+	if encodes != 1 {
+		t.Fatalf("encode called %d times, want 1", encodes)
 	}
+	if string(first) != string(second) {
+		t.Fatalf("cached payload differs: %q != %q", first, second)
+	}
+}
 
-	for i := 1; i <= encodedChunkPartCacheCapacity; i++ {
-		s.cachedChunkPart(c, int16(i), 1, encode)
+func TestEncodedChunkPartCacheEvictsLeastRecentlyUsed(t *testing.T) {
+	cache := newEncodedChunkPartCache(2)
+	chunks := []*chunk.Chunk{new(chunk.Chunk), new(chunk.Chunk), new(chunk.Chunk)}
+	keys := []encodedChunkPartKey{
+		{chunk: chunks[0], index: 0, revision: 1},
+		{chunk: chunks[1], index: 0, revision: 1},
+		{chunk: chunks[2], index: 0, revision: 1},
 	}
-	if got := len(s.encodedChunkParts); got != encodedChunkPartCacheCapacity {
-		t.Fatalf("cache size = %d, want capacity %d", got, encodedChunkPartCacheCapacity)
+	encode := func() []byte { return []byte("payload") }
+
+	cache.get(keys[0], encode)
+	cache.get(keys[1], encode)
+	cache.get(keys[0], encode) // Make key 0 the most recently used.
+	cache.get(keys[2], encode)
+
+	if _, hit := cache.get(keys[0], encode); !hit {
+		t.Fatal("most recently used entry was evicted")
 	}
-	if _, ok := s.encodedChunkParts[encodedChunkPartKey{chunk: c, index: 0, revision: 1}]; ok {
-		t.Fatal("oldest cache entry was not evicted")
+	if _, hit := cache.get(keys[1], encode); hit {
+		t.Fatal("least recently used entry was not evicted")
+	}
+	if cache.order.Len() != 2 || len(cache.entries) != 2 {
+		t.Fatalf("cache size = %d entries / %d list nodes, want 2", len(cache.entries), cache.order.Len())
+	}
+}
+
+func TestEncodedChunkPartCacheSeparatesRevisions(t *testing.T) {
+	cache := newEncodedChunkPartCache(4)
+	base := encodedChunkPartKey{chunk: new(chunk.Chunk), index: 1, revision: 1}
+	updated := base
+	updated.revision++
+
+	cache.get(base, func() []byte { return []byte("old") })
+	got, hit := cache.get(updated, func() []byte { return []byte("new") })
+	if hit || string(got) != "new" {
+		t.Fatalf("new revision returned hit=%v payload=%q", hit, got)
 	}
 }
