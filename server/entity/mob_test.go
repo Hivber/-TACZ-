@@ -200,7 +200,7 @@ func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) 
 // vertical distance can satisfy the spherical shell even when horizontal
 // distance is small, while candidates outside the Euclidean bounds are rejected.
 func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
-	player := mgl64.Vec3{8.5, 64, 8.5}
+	player := mgl64.Vec3{8, 64, 8}
 	tests := []struct {
 		name string
 		pos  cube.Pos
