@@ -39,6 +39,11 @@ type incomingPacket struct {
 	enqueuedAt time.Time
 }
 
+type outgoingPacket struct {
+	packet    packet.Packet
+	queuedAt  time.Time
+}
+
 type Session struct {
 	conf           Config
 	once, connOnce sync.Once
@@ -46,7 +51,7 @@ type Session struct {
 	ent              *world.EntityHandle
 	conn             Conn
 	handlers         map[uint32]packetHandler
-	packets          chan packet.Packet
+	packets          chan outgoingPacket
 	incomingPackets  chan incomingPacket
 	packetWorkerDone chan struct{}
 
@@ -78,6 +83,11 @@ type Session struct {
 	inboundHandlerTotal    atomic.Uint64
 	inboundHandlerMax      atomic.Uint64
 	inboundSlowHandlers    atomic.Uint64
+	outboundWriteCount     atomic.Uint64
+	outboundQueueWaitTotal atomic.Uint64
+	outboundQueueWaitMax   atomic.Uint64
+	outboundWriteTotal     atomic.Uint64
+	outboundWriteMax       atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
 	performanceSampleMu    sync.Mutex
 	performanceSampleAt    time.Time
@@ -243,7 +253,7 @@ func (conf Config) New(conn Conn) *Session {
 		openChunkTransactions:  make([]map[uint64]struct{}, 0, 8),
 		closeBackground:        make(chan struct{}),
 		handlers:               map[uint32]packetHandler{},
-		packets:                make(chan packet.Packet, 256),
+		packets:                make(chan outgoingPacket, 256),
 		entityRuntimeIDs:       map[*world.EntityHandle]uint64{},
 		entities:               map[uint64]*world.EntityHandle{},
 		hiddenEntities:         map[uuid.UUID]struct{}{},
@@ -291,8 +301,16 @@ func (conf Config) New(conn Conn) *Session {
 			select {
 			case <-s.closeBackground:
 				return
-			case pk := <-s.packets:
-				_ = conn.WritePacket(pk)
+			case queued := <-s.packets:
+				started := time.Now()
+				err := conn.WritePacket(queued.packet)
+				if s.conf.PerformanceDiagnostics {
+					s.recordOutboundWrite(started.Sub(queued.queuedAt), time.Since(started))
+				}
+				if err != nil {
+					s.CloseConnection()
+					return
+				}
 			}
 		}
 	}()
@@ -747,7 +765,17 @@ func (s *Session) writePacket(pk packet.Packet) {
 		}
 	}
 	select {
-	case s.packets <- pk:
+	queued := outgoingPacket{packet: pk}
+	select {
+	case <-s.closeBackground:
+		return
+	default:
+	}
+	if s.conf.PerformanceDiagnostics {
+		queued.queuedAt = time.Now()
+	}
+	select {
+	case s.packets <- queued:
 	case <-s.closeBackground:
 	}
 }

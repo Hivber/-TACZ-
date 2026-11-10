@@ -39,6 +39,16 @@ func (s *Session) recordInboundHandler(d time.Duration) {
 	}
 }
 
+func (s *Session) recordOutboundWrite(queueWait, writeDuration time.Duration) {
+	s.outboundWriteCount.Add(1)
+	queue := uint64(max(queueWait, 0))
+	write := uint64(max(writeDuration, 0))
+	s.outboundQueueWaitTotal.Add(queue)
+	updateAtomicMax(&s.outboundQueueWaitMax, queue)
+	s.outboundWriteTotal.Add(write)
+	updateAtomicMax(&s.outboundWriteMax, write)
+}
+
 func (s *Session) PerformanceString() string {
 	now := time.Now()
 	s.performanceSampleMu.Lock()
@@ -95,6 +105,18 @@ func (s *Session) PerformanceString() string {
 		)
 	} else {
 		result += " Inbound: waiting for packet samples."
+	}
+
+	if count := s.outboundWriteCount.Load(); count > 0 {
+		result += fmt.Sprintf(
+			" Outbound: queue_wait_avg=%s, queue_wait_max=%s, socket_write_avg=%s, socket_write_max=%s.",
+			time.Duration(s.outboundQueueWaitTotal.Load()/count),
+			time.Duration(s.outboundQueueWaitMax.Load()),
+			time.Duration(s.outboundWriteTotal.Load()/count),
+			time.Duration(s.outboundWriteMax.Load()),
+		)
+	} else {
+		result += " Outbound: waiting for packet samples."
 	}
 
 	stats := s.chunkLoaderStats()
