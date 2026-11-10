@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"math"
 	"testing"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -182,7 +181,7 @@ func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) 
 		maximum    float64
 		horizontal float64
 	}{
-		{name: "simulation distance 4", tickRange: 4, minimum: 24, maximum: 44, horizontal: math.Inf(1)},
+		{name: "simulation distance 4", tickRange: 4, minimum: 24, maximum: 44, horizontal: 44},
 		{name: "simulation distance 6", tickRange: 6, minimum: 24, maximum: 128, horizontal: 96},
 		{name: "simulation distance 8", tickRange: 8, minimum: 24, maximum: 128, horizontal: 96},
 	}

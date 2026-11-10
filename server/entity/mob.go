@@ -625,14 +625,14 @@ func mobSpawnGroupSize(kind mobKind) int {
 func naturalSpawnDistanceLimits(tickRange int) (minDistance, maxDistance, maxHorizontalDistance float64) {
 	minDistance, maxDistance, maxHorizontalDistance = 24, 128, 96
 	if tickRange <= 4 {
-		maxDistance, maxHorizontalDistance = 44, math.Inf(1)
+		maxDistance, maxHorizontalDistance = 44, 44
 	}
 	return
 }
 
-// naturalSpawnDistanceAllowed checks the three-dimensional feet distance and the
-// horizontal distance to the centre of the candidate chunk. Bedrock applies the
-// 96-block horizontal limit to chunk centres, not to individual block positions.
+// naturalSpawnDistanceAllowed checks the three-dimensional feet distance and,
+// above simulation distance four, the horizontal distance to the candidate
+// chunk centre. The distance-four shell has no additional chunk-centre limit.
 func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDistance, maxDistance, maxHorizontalDistance float64, tickRange int) bool {
 	if !mobWithinChunkTaxicabDistance(playerPos, spawnPos, tickRange) {
 		return false
@@ -640,6 +640,9 @@ func naturalSpawnDistanceAllowed(playerPos mgl64.Vec3, spawnPos cube.Pos, minDis
 	mobPos := mgl64.Vec3{float64(spawnPos[0]) + 0.5, float64(spawnPos[1]), float64(spawnPos[2]) + 0.5}
 	if distanceSquared := mobDistanceSquared(playerPos, mobPos); distanceSquared < minDistance*minDistance || distanceSquared > maxDistance*maxDistance {
 		return false
+	}
+	if tickRange <= 4 {
+		return true
 	}
 	chunkCentreX := math.Floor(float64(spawnPos[0])/16)*16 + 8
 	chunkCentreZ := math.Floor(float64(spawnPos[2])/16)*16 + 8
