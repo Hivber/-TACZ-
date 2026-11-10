@@ -110,7 +110,6 @@ func TestDeadMobStateSurvivesNBT(t *testing.T) {
 	}
 }
 
-
 // TestMobDespawnDistanceUsesThreeDimensions verifies vertical separation is
 // included in the Euclidean player distance used by natural mob despawning.
 func TestMobDespawnDistanceUsesThreeDimensions(t *testing.T) {

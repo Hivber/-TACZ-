@@ -258,7 +258,6 @@ func (b *testTickerBlock) Tick(int64, cube.Pos, *Tx) {
 	b.ticks++
 }
 
-
 // TestWorldTickRange exposes the configured simulation distance.
 func TestWorldTickRange(t *testing.T) {
 	w := Config{Synchronous: true}.New()
