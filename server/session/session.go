@@ -607,9 +607,6 @@ func (s *Session) handleWorldSwitch(w *world.World, tx *world.Tx, c Controllable
 		s.blobs = map[uint64][]byte{}
 		s.openChunkTransactions = nil
 	}
-	clear(s.encodedChunkParts)
-	clear(s.encodedChunkPartOrder)
-	s.encodedChunkPartOrder = s.encodedChunkPartOrder[:0]
 	s.blobMu.Unlock()
 
 	dim, _ := world.DimensionID(w.Dimension())
