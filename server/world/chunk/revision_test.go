@@ -72,3 +72,27 @@ func TestCloneKeepsIndependentNetworkRevisions(t *testing.T) {
 		t.Fatal("mutating clone did not advance clone revisions")
 	}
 }
+
+func TestUnchangedWritesDoNotAdvanceNetworkRevisions(t *testing.T) {
+	c := New(revisionTestRegistry{}, cube.Range{0, 255})
+
+	c.SetBlock(1, 0, 1, 0, 1)
+	blockRevision := c.SubChunkRevision(0)
+	c.SetBlock(1, 0, 1, 0, 1)
+	if c.SubChunkRevision(0) != blockRevision {
+		t.Fatal("writing the existing block value advanced the sub-chunk revision")
+	}
+
+	c.SetBiome(1, 0, 1, 2)
+	biomeRevision := c.BiomeRevision()
+	c.SetBiome(1, 0, 1, 2)
+	if c.BiomeRevision() != biomeRevision {
+		t.Fatal("writing the existing biome value advanced the biome revision")
+	}
+
+	// Writing air to an unallocated layer must remain a no-op.
+	c.SetBlock(2, 0, 2, 1, 0)
+	if c.SubChunkRevision(0) != blockRevision {
+		t.Fatal("writing air to an unallocated layer advanced the sub-chunk revision")
+	}
+}

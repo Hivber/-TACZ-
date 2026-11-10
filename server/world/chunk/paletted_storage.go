@@ -90,6 +90,12 @@ func (storage *PalettedStorage) PaletteIndex(x, y, z byte) uint16 {
 // Set sets a value at a specific x, y and z. The Palette and PalettedStorage are expanded
 // automatically to make space for the value, should that be needed.
 func (storage *PalettedStorage) Set(x, y, z byte, v uint32) {
+	// Avoid invalidating encoded chunk data when a caller writes the value
+	// that is already present. Block and biome update paths may legitimately
+	// repeat writes during neighbour and scheduled updates.
+	if storage.At(x, y, z) == v {
+		return
+	}
 	index := storage.palette.Index(v)
 	if index == -1 {
 		// The runtime ID was not yet available in the palette. We add it, then check if the block storage

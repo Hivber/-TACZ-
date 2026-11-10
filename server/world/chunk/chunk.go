@@ -158,6 +158,11 @@ func (chunk *Chunk) Block(x uint8, y int16, z uint8, layer uint8) uint32 {
 // SetBlock sets the runtime ID of a block at a given x, y and z in a chunk at the given layer. If no
 // SubChunk exists at the given y, a new SubChunk is created and the block is set.
 func (chunk *Chunk) SetBlock(x uint8, y int16, z uint8, layer uint8, block uint32) {
+	// Repeated writes are common in block update chains. Do not allocate a
+	// missing layer or invalidate the height map when the visible value is unchanged.
+	if chunk.Block(x, y, z, layer) == block {
+		return
+	}
 	sub := chunk.sub[chunk.SubIndex(y)]
 	if uint8(len(sub.storages)) <= layer && block == chunk.air {
 		// Air was set at n layer, but there were less than n layers, so there already was air there.
