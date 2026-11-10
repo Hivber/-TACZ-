@@ -70,7 +70,6 @@ func TestEncodedChunkPartCacheSeparatesRevisions(t *testing.T) {
 	}
 }
 
-
 func TestEncodedChunkPartCacheEnforcesByteBudget(t *testing.T) {
 	cache := newEncodedChunkPartCacheWithLimits(8, 10)
 	chunks := []*chunk.Chunk{new(chunk.Chunk), new(chunk.Chunk), new(chunk.Chunk)}
