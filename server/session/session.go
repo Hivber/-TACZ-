@@ -34,6 +34,11 @@ import (
 // of abstraction over direct packets. A Session basically 'controls' an entity.
 const incomingPacketQueueCapacity = 128
 
+type incomingPacket struct {
+	packet     packet.Packet
+	enqueuedAt time.Time
+}
+
 type Session struct {
 	conf           Config
 	once, connOnce sync.Once
@@ -42,7 +47,7 @@ type Session struct {
 	conn             Conn
 	handlers         map[uint32]packetHandler
 	packets          chan packet.Packet
-	incomingPackets  chan packet.Packet
+	incomingPackets  chan incomingPacket
 	packetWorkerDone chan struct{}
 
 	currentScoreboard atomic.Pointer[string]
@@ -64,6 +69,15 @@ type Session struct {
 	encodedChunkPartCacheMisses atomic.Uint64
 	// subChunkRequests counts incoming client sub-chunk requests.
 	subChunkRequests       atomic.Uint64
+	inboundQueueWaitCount  atomic.Uint64
+	inboundQueueWaitTotal  atomic.Uint64
+	inboundQueueWaitMax    atomic.Uint64
+	inboundOwnerWaitTotal  atomic.Uint64
+	inboundOwnerWaitMax    atomic.Uint64
+	inboundHandlerCount    atomic.Uint64
+	inboundHandlerTotal    atomic.Uint64
+	inboundHandlerMax      atomic.Uint64
+	inboundSlowHandlers    atomic.Uint64
 	clientDiagnostics      atomic.Pointer[Diagnostics]
 	performanceSampleMu    sync.Mutex
 	performanceSampleAt    time.Time
@@ -254,7 +268,7 @@ func (conf Config) New(conn Conn) *Session {
 		debugShapes:            make(map[int]debug.Shape),
 		debugShapeUpdates:      make([]debugShapeUpdate, 0, 256),
 	}
-	s.incomingPackets = make(chan packet.Packet, incomingPacketQueueCapacity)
+	s.incomingPackets = make(chan incomingPacket, incomingPacketQueueCapacity)
 	s.packetWorkerDone = make(chan struct{})
 	s.viewLayer = world.NewViewLayer(s)
 	s.openedWindow.Store(inventory.New(1, nil))
@@ -469,7 +483,7 @@ func (s *Session) handlePackets() {
 			return
 		}
 		select {
-		case s.incomingPackets <- pk:
+		case s.incomingPackets <- incomingPacket{packet: pk, enqueuedAt: time.Now()}:
 		case <-s.packetWorkerDone:
 			return
 		case <-s.closeBackground:
@@ -483,10 +497,22 @@ func (s *Session) handlePackets() {
 // backpressure is applied to the connection reader.
 func (s *Session) processPackets() {
 	defer close(s.packetWorkerDone)
-	for pk := range s.incomingPackets {
+	for queued := range s.incomingPackets {
+		started := time.Now()
+		if s.conf.PerformanceDiagnostics {
+			s.recordInboundQueueWait(started.Sub(queued.enqueuedAt))
+		}
+		var handlerDuration time.Duration
 		err := s.withControllable(context.Background(), func(tx *world.Tx, c Controllable) error {
-			return s.handlePacket(pk, tx, c)
+			handlerStarted := time.Now()
+			handlerErr := s.handlePacket(queued.packet, tx, c)
+			handlerDuration = time.Since(handlerStarted)
+			return handlerErr
 		})
+		if s.conf.PerformanceDiagnostics {
+			s.recordInboundOwnerWait(time.Since(started) - handlerDuration)
+			s.recordInboundHandler(handlerDuration)
+		}
 		if err != nil {
 			if !sessionOwnerStopped(err) {
 				s.conf.Log.Debug("process packet: " + err.Error())

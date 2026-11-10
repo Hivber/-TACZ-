@@ -2,12 +2,44 @@ package session
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 )
 
 // PerformanceString returns a compact snapshot of per-session network and client diagnostics.
 // Packet rates are measured since the previous call (or since session creation on the first call).
-func (s *Session) PerformanceString() string {
+func updateAtomicMax(target *atomic.Uint64, value uint64) {
+	for current := target.Load(); value > current; current = target.Load() {
+		if target.CompareAndSwap(current, value) {
+			return
+		}
+	}
+}
+
+func (s *Session) recordInboundQueueWait(d time.Duration) {
+	n := uint64(max(d, 0))
+	s.inboundQueueWaitCount.Add(1)
+	s.inboundQueueWaitTotal.Add(n)
+	updateAtomicMax(&s.inboundQueueWaitMax, n)
+}
+
+func (s *Session) recordInboundOwnerWait(d time.Duration) {
+	n := uint64(max(d, 0))
+	s.inboundOwnerWaitTotal.Add(n)
+	updateAtomicMax(&s.inboundOwnerWaitMax, n)
+}
+
+func (s *Session) recordInboundHandler(d time.Duration) {
+	n := uint64(max(d, 0))
+	s.inboundHandlerCount.Add(1)
+	s.inboundHandlerTotal.Add(n)
+	updateAtomicMax(&s.inboundHandlerMax, n)
+	if d >= 5*time.Millisecond {
+		s.inboundSlowHandlers.Add(1)
+	}
+}
+
+// PerformanceString returns a compact snapshot of per-session network and client diagnostics.
 	now := time.Now()
 	s.performanceSampleMu.Lock()
 	elapsed := now.Sub(s.performanceSampleAt).Seconds()
@@ -49,6 +81,21 @@ func (s *Session) PerformanceString() string {
 	s.performanceLastBlocks = blocks
 	s.performanceLastCache = cacheResponses
 	s.performanceSampleMu.Unlock()
+
+	if count := s.inboundQueueWaitCount.Load(); count > 0 {
+		result += fmt.Sprintf(
+			" Inbound: queue_wait_avg=%s, queue_wait_max=%s, owner_wait_avg=%s, owner_wait_max=%s, handler_avg=%s, handler_max=%s, slow_handlers(>=5ms)=%d.",
+			time.Duration(s.inboundQueueWaitTotal.Load()/count),
+			time.Duration(s.inboundQueueWaitMax.Load()),
+			time.Duration(s.inboundOwnerWaitTotal.Load()/count),
+			time.Duration(s.inboundOwnerWaitMax.Load()),
+			time.Duration(s.inboundHandlerTotal.Load()/count),
+			time.Duration(s.inboundHandlerMax.Load()),
+			s.inboundSlowHandlers.Load(),
+		)
+	} else {
+		result += " Inbound: waiting for packet samples."
+	}
 
 	stats := s.chunkLoaderStats()
 	result += fmt.Sprintf(
