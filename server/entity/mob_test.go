@@ -171,7 +171,6 @@ func TestMobDespawnInactivityCounterPersistsThroughNBT(t *testing.T) {
 	}
 }
 
-
 // TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance verifies the
 // 24-44 and 24-128 spherical spawn shells and the larger-distance chunk limit.
 func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) {
