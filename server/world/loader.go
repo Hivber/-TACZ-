@@ -30,7 +30,10 @@ type Loader struct {
 // The Viewer passed will handle the loading of chunks, including the viewing of entities that were loaded in
 // those chunks.
 func NewLoader(chunkRadius int, world *World, v Viewer) *Loader {
-	l := &Loader{r: chunkRadius, loaded: make(map[ChunkPos]*Column), pending: make(map[ChunkPos]struct{}), viewer: v}
+	l := &Loader{
+		r: chunkRadius, loaded: make(map[ChunkPos]*Column),
+		pending: make(map[ChunkPos]struct{}), queued: make(map[ChunkPos]struct{}), viewer: v,
+	}
 	l.world(world)
 	return l
 }
@@ -56,6 +59,7 @@ func (l *Loader) ChangeWorld(tx *Tx, new *World) {
 	})
 	clear(l.loaded)
 	clear(l.pending)
+	clear(l.queued)
 	l.w.viewerMu.Lock()
 	delete(l.w.viewers, l)
 	l.w.viewerMu.Unlock()
@@ -102,6 +106,7 @@ func (l *Loader) Load(tx *Tx, n int) {
 			break
 		}
 		pos := l.loadQueue[0]
+		delete(l.queued, pos)
 		w := tx.World()
 		l.pending[pos] = struct{}{}
 
@@ -181,6 +186,8 @@ func (l *Loader) Close(tx *Tx) {
 	}
 	l.loaded = map[ChunkPos]*Column{}
 	clear(l.pending)
+	clear(l.queued)
+	l.loadQueue = l.loadQueue[:0]
 
 	l.w.viewerMu.Lock()
 	delete(l.w.viewers, l)
@@ -232,12 +239,14 @@ func (l *Loader) queueLoad(pos ChunkPos) {
 	if _, ok := l.pending[pos]; ok {
 		return
 	}
-	for _, queued := range l.loadQueue {
-		if queued == pos {
-			return
-		}
+	if _, ok := l.queued[pos]; ok {
+		return
+	}
+	if l.queued == nil {
+		l.queued = make(map[ChunkPos]struct{})
 	}
 	l.loadQueue = append(l.loadQueue, pos)
+	l.queued[pos] = struct{}{}
 }
 
 // populateLoadQueue populates the load queue of the loader. This method is called once to create the order in
@@ -270,7 +279,14 @@ func (l *Loader) populateLoadQueue() {
 	}
 
 	l.loadQueue = l.loadQueue[:0]
+	clear(l.queued)
+	if l.queued == nil {
+		l.queued = make(map[ChunkPos]struct{})
+	}
 	for i := int32(0); i <= r; i++ {
-		l.loadQueue = append(l.loadQueue, queue[i]...)
+		for _, pos := range queue[i] {
+			l.loadQueue = append(l.loadQueue, pos)
+			l.queued[pos] = struct{}{}
+		}
 	}
 }
