@@ -176,9 +176,11 @@ func TestMobDespawnInactivityCounterPersistsThroughNBT(t *testing.T) {
 // 24-44 and 24-128 spherical spawn shells and the larger-distance chunk limit.
 func TestNaturalSpawnDistanceLimitsMatchBedrockSimulationDistance(t *testing.T) {
 	tests := []struct {
-		name                    string
-		tickRange               int
-		minimum, maximum, horizontal float64
+		name       string
+		tickRange  int
+		minimum    float64
+		maximum    float64
+		horizontal float64
 	}{
 		{name: "simulation distance 4", tickRange: 4, minimum: 24, maximum: 44, horizontal: math.Inf(1)},
 		{name: "simulation distance 6", tickRange: 6, minimum: 24, maximum: 128, horizontal: 96},
