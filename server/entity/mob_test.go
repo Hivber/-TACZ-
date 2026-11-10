@@ -212,7 +212,7 @@ func TestNaturalSpawnDistanceUsesThreeDimensionalShell(t *testing.T) {
 		{name: "too far vertically", pos: cube.Pos{8, 193, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
 		{name: "simulation distance four upper edge", pos: cube.Pos{8, 108, 8}, minimum: 24, maximum: 44, horizontal: 44, want: true},
 		{name: "outside simulation distance four", pos: cube.Pos{8, 109, 8}, minimum: 24, maximum: 44, horizontal: 44, want: false},
-		{name: "chunk centre exceeds horizontal limit", pos: cube.Pos{96, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
+		{name: "chunk centre exceeds horizontal limit", pos: cube.Pos{112, 64, 8}, minimum: 24, maximum: 128, horizontal: 96, want: false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
