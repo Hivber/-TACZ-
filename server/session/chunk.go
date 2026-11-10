@@ -18,7 +18,10 @@ import (
 // but also solves issues with block entities such as item frames and lecterns as of v1.19.10.
 const subChunkRequests = true
 
-const sharedEncodedChunkPartCacheCapacity = 4096
+const (
+	sharedEncodedChunkPartCacheCapacity = 4096
+	sharedEncodedChunkPartCacheMaxBytes = 32 * 1024 * 1024
+)
 
 type encodedChunkPartKey struct {
 	chunk    *chunk.Chunk
@@ -34,13 +37,26 @@ type encodedChunkPartEntry struct {
 type encodedChunkPartCache struct {
 	mu       sync.Mutex
 	capacity int
+	maxBytes int
+	bytes    int
 	entries  map[encodedChunkPartKey]*list.Element
 	order    *list.List
 }
 
 func newEncodedChunkPartCache(capacity int) *encodedChunkPartCache {
+	return newEncodedChunkPartCacheWithLimits(capacity, sharedEncodedChunkPartCacheMaxBytes)
+}
+
+func newEncodedChunkPartCacheWithLimits(capacity, maxBytes int) *encodedChunkPartCache {
+	if capacity < 0 {
+		capacity = 0
+	}
+	if maxBytes < 0 {
+		maxBytes = 0
+	}
 	return &encodedChunkPartCache{
 		capacity: capacity,
+		maxBytes: maxBytes,
 		entries:  make(map[encodedChunkPartKey]*list.Element, capacity),
 		order:    list.New(),
 	}
@@ -59,6 +75,9 @@ func (cache *encodedChunkPartCache) get(key encodedChunkPartKey, encode func() [
 	cache.mu.Unlock()
 
 	data := encode()
+	if len(data) > cache.maxBytes || cache.capacity == 0 {
+		return data, false
+	}
 	cache.mu.Lock()
 	if element, ok := cache.entries[key]; ok {
 		cache.order.MoveToFront(element)
@@ -66,14 +85,16 @@ func (cache *encodedChunkPartCache) get(key encodedChunkPartKey, encode func() [
 		cache.mu.Unlock()
 		return data, true
 	}
-	element := cache.order.PushFront(encodedChunkPartEntry{key: key, data: data})
-	cache.entries[key] = element
-	if cache.order.Len() > cache.capacity {
+	for cache.order.Len() > 0 && (cache.order.Len() >= cache.capacity || cache.bytes+len(data) > cache.maxBytes) {
 		oldest := cache.order.Back()
 		entry := oldest.Value.(encodedChunkPartEntry)
 		delete(cache.entries, entry.key)
+		cache.bytes -= len(entry.data)
 		cache.order.Remove(oldest)
 	}
+	element := cache.order.PushFront(encodedChunkPartEntry{key: key, data: data})
+	cache.entries[key] = element
+	cache.bytes += len(data)
 	cache.mu.Unlock()
 	return data, false
 }

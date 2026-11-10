@@ -69,3 +69,42 @@ func TestEncodedChunkPartCacheSeparatesRevisions(t *testing.T) {
 		t.Fatalf("new revision returned hit=%v payload=%q", hit, got)
 	}
 }
+
+
+func TestEncodedChunkPartCacheEnforcesByteBudget(t *testing.T) {
+	cache := newEncodedChunkPartCacheWithLimits(8, 10)
+	chunks := []*chunk.Chunk{new(chunk.Chunk), new(chunk.Chunk), new(chunk.Chunk)}
+	keys := []encodedChunkPartKey{
+		{chunk: chunks[0], index: 0, revision: 1},
+		{chunk: chunks[1], index: 0, revision: 1},
+		{chunk: chunks[2], index: 0, revision: 1},
+	}
+	cache.get(keys[0], func() []byte { return []byte("123456") })
+	cache.get(keys[1], func() []byte { return []byte("abcd") })
+	if cache.bytes != 10 {
+		t.Fatalf("cached bytes = %d, want 10", cache.bytes)
+	}
+	cache.get(keys[2], func() []byte { return []byte("xyz") })
+	if cache.bytes != 7 || cache.order.Len() != 2 {
+		t.Fatalf("after byte-budget eviction: bytes=%d entries=%d, want 7 bytes and 2 entries", cache.bytes, cache.order.Len())
+	}
+	if _, hit := cache.get(keys[0], func() []byte { return []byte("123456") }); hit {
+		t.Fatal("oldest entry should have been evicted to satisfy byte budget")
+	}
+	if _, hit := cache.get(keys[2], func() []byte { return []byte("xyz") }); !hit {
+		t.Fatal("newest entry should remain cached")
+	}
+}
+
+func TestEncodedChunkPartCacheDoesNotRetainOversizedPayload(t *testing.T) {
+	cache := newEncodedChunkPartCacheWithLimits(8, 4)
+	key := encodedChunkPartKey{chunk: new(chunk.Chunk), index: 0, revision: 1}
+	payload := []byte("oversized")
+	got, hit := cache.get(key, func() []byte { return payload })
+	if hit || string(got) != string(payload) {
+		t.Fatalf("oversized payload lookup returned hit=%v data=%q", hit, got)
+	}
+	if cache.order.Len() != 0 || cache.bytes != 0 {
+		t.Fatalf("oversized payload was retained: entries=%d bytes=%d", cache.order.Len(), cache.bytes)
+	}
+}
