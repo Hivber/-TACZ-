@@ -310,7 +310,9 @@ func (t ticker) tickEntities(tx *Tx, tick int64) {
 
 		if tx.World().conf.Synchronous || len(c.viewers) > 0 {
 			if te, ok := e.(TickerEntity); ok {
+				started := time.Now()
 				te.Tick(tx, tick)
+				tx.World().performance.recordEntityTick(time.Since(started))
 			}
 		}
 	}

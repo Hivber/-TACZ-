@@ -55,6 +55,9 @@ type PerformanceSnapshot struct {
 	RedstoneGraphNodes              int
 	RedstoneGraphEdges              int
 	RedstoneContextScanPositions    uint64
+	EntityTickCount                 uint64
+	SlowEntityTicks                 uint64
+	MaxEntityTick                   time.Duration
 }
 
 // TickStageSnapshot describes the recent cost of one stage of world ticking.
@@ -83,6 +86,9 @@ type tickPerformance struct {
 	neighbourUpdatesSkippedUnloaded int
 	neighbourBlockCallbacks         int
 	neighbourLiquidCallbacks        int
+	entityTickCount                 uint64
+	slowEntityTicks                 uint64
+	maxEntityTick                   time.Duration
 	windowStart                     time.Time
 	windowTicks                     uint64
 	tps                             float64
@@ -102,6 +108,9 @@ func (m *tickPerformance) beginTick() {
 	m.neighbourUpdatesSkippedUnloaded = 0
 	m.neighbourBlockCallbacks = 0
 	m.neighbourLiquidCallbacks = 0
+	m.entityTickCount = 0
+	m.slowEntityTicks = 0
+	m.maxEntityTick = 0
 	clear(m.stageRecorded[:])
 	for i := range m.stages {
 		m.stages[i].last = 0
@@ -111,6 +120,19 @@ func (m *tickPerformance) beginTick() {
 func (m *tickPerformance) recordStage(stage TickStage, duration time.Duration) {
 	m.stageRecorded[stage] = true
 	m.stages[stage].record(duration)
+}
+
+// recordEntityTick records the cost of one entity's Tick call. A 5 ms entity
+// consumes 10% of the entire 50 ms tick budget, so it is useful to surface
+// these calls without logging every normal entity update.
+func (m *tickPerformance) recordEntityTick(duration time.Duration) {
+	m.entityTickCount++
+	if duration >= 5*time.Millisecond {
+		m.slowEntityTicks++
+	}
+	if duration > m.maxEntityTick {
+		m.maxEntityTick = duration
+	}
 }
 
 // recordUnrecordedStages adds zero-duration samples for stages skipped by an early tick return.
@@ -281,5 +303,8 @@ func (tx *Tx) Performance() PerformanceSnapshot {
 		RedstoneGraphNodes:              w.redstone.lastGraphNodes,
 		RedstoneGraphEdges:              w.redstone.lastGraphEdges,
 		RedstoneContextScanPositions:    w.redstone.lastContextScanPositions,
+		EntityTickCount:                 m.entityTickCount,
+		SlowEntityTicks:                 m.slowEntityTicks,
+		MaxEntityTick:                   m.maxEntityTick,
 	}
 }

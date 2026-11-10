@@ -66,6 +66,10 @@ func (perfCommand) Run(src Source, out *Output, tx *world.Tx) {
 		stats.Stages[world.TickStageRandomBlocks].Average, stats.Stages[world.TickStageRandomBlocks].P95,
 	)
 	out.Printf(
+		"Entity ticks: calls=%d, slow_calls(>=5ms)=%d, max_call=%s.",
+		stats.EntityTickCount, stats.SlowEntityTicks, stats.MaxEntityTick,
+	)
+	out.Printf(
 		"Tick stage EMA/P95: neighbours=%s/%s, redstone=%s/%s, lightning=%s/%s, other=%s/%s.",
 		stats.Stages[world.TickStageNeighbours].Average, stats.Stages[world.TickStageNeighbours].P95,
 		stats.Stages[world.TickStageRedstone].Average, stats.Stages[world.TickStageRedstone].P95,
