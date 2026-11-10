@@ -26,10 +26,12 @@ server-side interactions and persistence are also implemented and tested.
 
 ### Redstone and automation
 - Existing wire/torch/lever power evaluation is not the complete redstone circuit.
-- Known missing block implementations include repeaters, comparators, observers, pistons/sticky pistons,
-  dispensers, droppers, daylight detectors, target blocks, tripwire and sculk sensors.
-- Missing systems include piston movement resolution, block-entity inventories/dispense behaviours,
-  comparator container output, observer change detection and complete circuit timing/locking.
+- Existing partial implementations include repeaters, comparators, observers, dispensers/droppers
+  (shared ejector implementation), daylight detectors and tripwire hooks. Their complete Bedrock
+  timing, update ordering and edge-case parity still requires broader integration tests.
+- Missing block implementations include pistons/sticky pistons, target blocks and sculk sensors.
+- Missing systems include piston movement resolution, complete dispenser item behaviours, observer
+  event fidelity, comparator/container edge cases and cross-component circuit timing/locking.
 
 ### Items, combat and interaction
 - Several vanilla items are identity-preserving fallbacks or have only partial use behaviour.

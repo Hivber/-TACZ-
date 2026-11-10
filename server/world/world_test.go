@@ -257,3 +257,18 @@ func (*testTickerBlock) EncodeNBT() map[string]any {
 func (b *testTickerBlock) Tick(int64, cube.Pos, *Tx) {
 	b.ticks++
 }
+
+
+// TestWorldTickRange exposes the configured simulation distance.
+func TestWorldTickRange(t *testing.T) {
+	w := Config{Synchronous: true}.New()
+	defer w.Close()
+
+	if got := w.TickRange(); got != 6 {
+		t.Fatalf("default tick range = %d, want 6", got)
+	}
+	w.SetTickRange(4)
+	if got := w.TickRange(); got != 4 {
+		t.Fatalf("updated tick range = %d, want 4", got)
+	}
+}

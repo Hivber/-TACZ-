@@ -5,6 +5,7 @@ import (
 
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/biome"
+	"github.com/go-gl/mathgl/mgl64"
 )
 
 func TestDefaultRegistryContainsInitialMobTypes(t *testing.T) {
@@ -106,5 +107,66 @@ func TestDeadMobStateSurvivesNBT(t *testing.T) {
 	encoded := ZombieType.EncodeNBT(data)
 	if encoded["Dead"] != true || encoded["DeathTicks"] != int32(9) {
 		t.Fatalf("encoded death state = %#v", encoded)
+	}
+}
+
+
+// TestMobDespawnDistanceUsesThreeDimensions verifies vertical separation is
+// included in the Euclidean player distance used by natural mob despawning.
+func TestMobDespawnDistanceUsesThreeDimensions(t *testing.T) {
+	if got := mobDistanceSquared(mgl64.Vec3{0, 0, 0}, mgl64.Vec3{0, 33, 0}); got != 33*33 {
+		t.Fatalf("vertical distance squared = %v, want %v", got, 33*33)
+	}
+}
+
+// TestMobImmediateDespawnDistanceMatchesSimulationDistance verifies the
+// Bedrock immediate-despawn boundary for simulation distance 4 and 6+.
+func TestMobImmediateDespawnDistanceMatchesSimulationDistance(t *testing.T) {
+	tests := []struct {
+		tickRange int
+		want      float64
+	}{
+		{tickRange: 4, want: 44},
+		{tickRange: 6, want: 128},
+		{tickRange: 8, want: 128},
+	}
+	for _, test := range tests {
+		if got := mobImmediateDespawnDistance(test.tickRange); got != test.want {
+			t.Errorf("tick range %d immediate despawn distance = %v, want %v", test.tickRange, got, test.want)
+		}
+	}
+}
+
+// TestMobDespawnInactivityCounter verifies the 32-block reset and 30-second
+// inactivity threshold used before random despawning begins.
+func TestMobDespawnInactivityCounter(t *testing.T) {
+	if got := nextMobDespawnTicks(32*32, 599); got != 0 {
+		t.Fatalf("counter at 32 blocks = %d, want reset to 0", got)
+	}
+	if got := nextMobDespawnTicks(33*33, 598); got != 599 {
+		t.Fatalf("counter before threshold = %d, want 599", got)
+	}
+	if got := nextMobDespawnTicks(33*33, 599); got != mobDespawnInactiveTicks {
+		t.Fatalf("counter at threshold = %d, want %d", got, mobDespawnInactiveTicks)
+	}
+	if got := nextMobDespawnTicks(33*33, mobDespawnInactiveTicks); got != mobDespawnInactiveTicks {
+		t.Fatalf("counter after threshold = %d, want saturation at %d", got, mobDespawnInactiveTicks)
+	}
+}
+
+// TestMobDespawnInactivityCounterPersistsThroughNBT keeps the inactivity
+// countdown stable across a chunk save and reload.
+func TestMobDespawnInactivityCounterPersistsThroughNBT(t *testing.T) {
+	data := &world.EntityData{}
+	ZombieType.DecodeNBT(map[string]any{
+		"DespawnTicks": int32(417),
+	}, data)
+	state := data.Data.(*mobBehaviour)
+	if state.despawnTicks != 417 {
+		t.Fatalf("decoded despawn ticks = %d, want 417", state.despawnTicks)
+	}
+	encoded := ZombieType.EncodeNBT(data)
+	if encoded["DespawnTicks"] != int32(417) {
+		t.Fatalf("encoded despawn ticks = %v, want 417", encoded["DespawnTicks"])
 	}
 }

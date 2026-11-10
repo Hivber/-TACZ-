@@ -116,6 +116,9 @@ func (t mobType) DecodeNBT(nbt map[string]any, data *world.EntityData) {
 	if ticks, ok := nbt["DeathTicks"].(int32); ok {
 		b.deathTicks = int(ticks)
 	}
+	if ticks, ok := nbt["DespawnTicks"].(int32); ok {
+		b.despawnTicks = min(max(int(ticks), 0), mobDespawnInactiveTicks)
+	}
 	if b.health.Health() <= 0 {
 		b.dead = true
 	}
@@ -135,6 +138,7 @@ func (t mobType) EncodeNBT(data *world.EntityData) map[string]any {
 		"NaturalSpawn": b.naturalSpawn,
 		"Dead":         b.dead,
 		"DeathTicks":   int32(b.deathTicks),
+		"DespawnTicks": int32(b.despawnTicks),
 	}
 }
 
@@ -192,6 +196,7 @@ type mobBehaviour struct {
 	wanderTicks     int
 	dead            bool
 	deathTicks      int
+	despawnTicks    int
 	deathActionSent bool
 	naturalSpawn    bool
 }
@@ -243,7 +248,7 @@ func (m *Mob) Tick(tx *world.Tx, current int64) {
 		return
 	}
 	b.effects.Tick(m, tx)
-	if b.naturalSpawn && m.tickDespawn(tx, current) {
+	if b.naturalSpawn && m.tickDespawn(tx) {
 		return
 	}
 	if b.kind.sunBurn && current%20 == 0 {
@@ -405,16 +410,44 @@ func (m *Mob) tickSunBurn(tx *world.Tx) {
 	}
 }
 
-func (m *Mob) tickDespawn(tx *world.Tx, current int64) bool {
-	if m.NameTag() != "" || current%20 != 0 {
+const mobDespawnInactiveTicks = 30 * 20
+
+// mobImmediateDespawnDistance returns the Bedrock immediate-despawn distance
+// for the world's simulation distance.
+func mobImmediateDespawnDistance(tickRange int) float64 {
+	if tickRange <= 4 {
+		return 44
+	}
+	return 128
+}
+
+// nextMobDespawnTicks tracks consecutive ticks spent more than 32 blocks from
+// every player. The counter resets as soon as a player comes within that range.
+func nextMobDespawnTicks(distanceSquared float64, inactivityTicks int) int {
+	if distanceSquared <= 32*32 {
+		return 0
+	}
+	return min(inactivityTicks+1, mobDespawnInactiveTicks)
+}
+
+func mobDistanceSquared(a, b mgl64.Vec3) float64 {
+	return a.Sub(b).LenSqr()
+}
+
+func (m *Mob) tickDespawn(tx *world.Tx) bool {
+	if m.NameTag() != "" {
 		return false
 	}
 	nearest := nearestPlayerDistanceSquared(m.Position(), tx)
-	if nearest > 128*128 {
+	maxDistance := mobImmediateDespawnDistance(tx.World().TickRange())
+	if nearest > maxDistance*maxDistance {
 		_ = m.Close()
 		return true
 	}
-	if nearest > 32*32 && m.Age() > 30*time.Second && rand.IntN(800) == 0 {
+
+	b := m.mobState()
+	b.despawnTicks = nextMobDespawnTicks(nearest, b.despawnTicks)
+	if b.despawnTicks >= mobDespawnInactiveTicks && rand.IntN(800) == 0 {
 		_ = m.Close()
 		return true
 	}
@@ -424,9 +457,10 @@ func (m *Mob) tickDespawn(tx *world.Tx, current int64) bool {
 func nearestPlayerDistanceSquared(pos mgl64.Vec3, tx *world.Tx) float64 {
 	nearest := math.Inf(1)
 	for player := range tx.Players() {
-		delta := player.Position().Sub(pos)
-		delta[1] = 0
-		nearest = min(nearest, delta.LenSqr())
+		if gm, ok := player.(interface{ GameMode() world.GameMode }); ok && !gm.GameMode().HasCollision() {
+			continue
+		}
+		nearest = min(nearest, mobDistanceSquared(player.Position(), pos))
 	}
 	return nearest
 }
@@ -462,6 +496,7 @@ func (m *Mob) Hurt(damage float64, src world.DamageSource) (float64, bool) {
 		return 0, false
 	}
 	b.immuneUntil, b.lastDamage = time.Now().Add(time.Second/2), damage
+	b.despawnTicks = 0
 	b.health.AddHealth(-damage)
 	for _, viewer := range m.tx.Viewers(m.Position()) {
 		viewer.ViewEntityAction(m, HurtAction{})

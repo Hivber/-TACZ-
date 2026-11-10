@@ -1079,6 +1079,17 @@ func (w *World) SetTickRange(v int) {
 	w.set.TickRange = int32(v)
 }
 
+// TickRange returns the radius in chunks around each Viewer whose chunks
+// receive block and entity ticks. This is the world's simulation distance.
+func (w *World) TickRange() int {
+	if w == nil {
+		return 0
+	}
+	w.set.Lock()
+	defer w.set.Unlock()
+	return int(w.set.TickRange)
+}
+
 // tickRange returns the tick range around each Viewer.
 func (w *World) tickRange() int {
 	w.set.Lock()
