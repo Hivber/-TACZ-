@@ -24,6 +24,17 @@ struct Response { protocol_version: u16, ok: bool, message: &'static str, online
 #[derive(Default)]
 struct CoreState { players: HashMap<String, PlayerState> }
 
+impl SemanticEvent {
+    fn is_valid(&self) -> bool {
+        match self {
+            Self::PlayerJoin { uuid, name, position, .. } => !uuid.is_empty() && !name.is_empty() && position.is_finite(),
+            Self::PlayerMove { position, .. } => position.is_finite(),
+            Self::PlayerLeave { uuid } => !uuid.is_empty(),
+            Self::Tick => true,
+        }
+    }
+}
+
 impl CoreState {
     fn handle(&mut self, request: Request) -> Response {
         match request {
@@ -31,10 +42,12 @@ impl CoreState {
             Request::Batch { protocol_version, events } => {
                 if protocol_version != CORE_PROTOCOL_VERSION { return self.response(false, "protocol_mismatch", 0); }
                 if events.len() > MAX_BATCH_EVENTS { return self.response(false, "batch_too_large", 0); }
-                let mut processed = 0;
+                if !events.iter().all(SemanticEvent::is_valid) {
+                    return self.response(false, "invalid_event", 0);
+                }
+                let processed = events.len();
                 for event in events {
-                    if !self.apply(event) { return self.response(false, "invalid_event", processed); }
-                    processed += 1;
+                    self.apply(event);
                 }
                 self.response(true, "batch_applied", processed)
             }
@@ -128,4 +141,16 @@ mod tests {
         let response = state.handle(Request::Batch { protocol_version: 1, events: vec![SemanticEvent::PlayerJoin { uuid: "u".into(), name: "p".into(), dimension: 0, game_mode: 0, position: bad }] });
         assert!(!response.ok); assert!(state.players.is_empty());
     }
+    #[test] fn invalid_batches_do_not_partially_mutate_state() {
+        let mut state = CoreState::default();
+        let events = vec![
+            SemanticEvent::PlayerJoin { uuid: "u".into(), name: "p".into(), dimension: 0, game_mode: 0, position: Position::default() },
+            SemanticEvent::PlayerMove { uuid: "u".into(), dimension: 0, position: Position { x: f64::NAN, ..Position::default() } },
+        ];
+        let response = state.handle(Request::Batch { protocol_version: 1, events });
+        assert!(!response.ok);
+        assert_eq!(response.processed_events, 0);
+        assert!(state.players.is_empty());
+    }
+
 }
