@@ -41,7 +41,7 @@ import (
 // Server implements a Dragonfly server. It runs the main server loop and
 // handles the connections of players trying to join the server.
 type Server struct {
-	conf Config
+	conf     Config
 	gameCore *gamecore.Bridge
 
 	once    sync.Once

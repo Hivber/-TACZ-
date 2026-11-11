@@ -10,25 +10,25 @@ import (
 const (
 	queueCapacity  = 8192
 	batchSize      = 256
-	flushInterval  = 10 * time.Millisecond
+	flushInterval = 10 * time.Millisecond
 )
 
 // Bridge mirrors semantic events asynchronously. It never blocks packet/session owners.
 type Bridge struct {
-	client *Client
-	queue chan Event
-	stop chan struct{}
-	done chan struct{}
-	once sync.Once
+	client  *Client
+	queue   chan Event
+	stop    chan struct{}
+	done    chan struct{}
+	once    sync.Once
 	onError func(error)
 }
 
 func NewBridge(socket string, onError func(error)) *Bridge {
 	b := &Bridge{
-		client: &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
-		queue: make(chan Event, queueCapacity),
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		client:  &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
+		queue:   make(chan Event, queueCapacity),
+		stop:    make(chan struct{}),
+		done:    make(chan struct{}),
 		onError: onError,
 	}
 	go b.run()
