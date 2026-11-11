@@ -7,6 +7,7 @@
 //! The 1.26.52.3 sampled block/drop JSON is deliberately not used for 1.26.60.
 
 use crate::components::{BlockComponents, MineableComponent};
+use serde::{Deserialize, Serialize};
 use crate::random::RandomSource;
 
 pub mod tool_type {
@@ -22,7 +23,7 @@ pub mod tool_type {
 const COMPATIBLE_TOOL_MULTIPLIER: f32 = 1.5;
 const INCOMPATIBLE_TOOL_MULTIPLIER: f32 = 5.0;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MiningTool {
     pub tool_type: u8,
     pub harvest_level: u8,
@@ -60,7 +61,7 @@ impl MiningTool {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BlockBreakProfile {
     pub hardness: f32,
     pub tool_type: u8,
@@ -109,7 +110,7 @@ impl BlockBreakProfile {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MinerState {
     pub on_ground: bool,
     pub flying: bool,

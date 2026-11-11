@@ -6,23 +6,26 @@
 use crate::block_break::{
     break_progress_per_tick, BlockBreakProfile, MinerState, MiningTool,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BlockPos { pub x: i32, pub y: i32, pub z: i32 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BlockTarget {
     pub position: BlockPos,
     /// Bedrock face values: 0 down, 1 up, 2 north, 3 south, 4 west, 5 east.
     pub face: u8,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MiningError {
     InvalidFace, InvalidReach, OutOfReach, Unbreakable, NoActiveSession, TargetChanged,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
 pub enum MiningUpdate {
     Started { progress: f32, crack_stage: u8 },
     Progress { progress: f32, crack_stage: u8 },

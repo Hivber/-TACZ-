@@ -29,13 +29,65 @@ type Position struct {
 }
 
 type Event struct {
-	Type            string   `json:"type"`
-	ProtocolVersion uint16   `json:"protocol_version,omitempty"`
-	UUID            string   `json:"uuid,omitempty"`
-	Name            string   `json:"name,omitempty"`
-	Dimension       int32    `json:"dimension,omitempty"`
-	GameMode        uint8    `json:"game_mode,omitempty"`
-	Position        Position `json:"position,omitempty"`
+	Type            string            `json:"type"`
+	ProtocolVersion uint16            `json:"protocol_version,omitempty"`
+	UUID            string            `json:"uuid,omitempty"`
+	Name            string            `json:"name,omitempty"`
+	Dimension       int32             `json:"dimension,omitempty"`
+	GameMode        uint8             `json:"game_mode,omitempty"`
+	Position        Position          `json:"position,omitempty"`
+	Target          *BlockTarget      `json:"target,omitempty"`
+	Profile         *BlockBreakProfile `json:"profile,omitempty"`
+	Tool            *MiningTool       `json:"tool,omitempty"`
+	Miner           *MinerState       `json:"miner,omitempty"`
+	EyePosition     [3]float32        `json:"eye_position,omitempty"`
+	MaxReach        float32           `json:"max_reach,omitempty"`
+	Tick            uint64            `json:"tick,omitempty"`
+}
+
+type BlockPos struct {
+	X int32 `json:"x"`
+	Y int32 `json:"y"`
+	Z int32 `json:"z"`
+}
+
+type BlockTarget struct {
+	Position BlockPos `json:"position"`
+	Face uint8 `json:"face"`
+}
+
+type BlockBreakProfile struct {
+	Hardness float32 `json:"hardness"`
+	ToolType uint8 `json:"tool_type"`
+	HarvestLevel uint8 `json:"harvest_level"`
+	RequiresCorrectTool bool `json:"requires_correct_tool"`
+}
+
+type MiningTool struct {
+	ToolType uint8 `json:"tool_type"`
+	HarvestLevel uint8 `json:"harvest_level"`
+	EfficiencyCorrect float32 `json:"efficiency_correct"`
+	EfficiencyIncorrect float32 `json:"efficiency_incorrect"`
+	EfficiencyEnchantment uint8 `json:"efficiency_enchantment"`
+	SilkTouch bool `json:"silk_touch"`
+	Fortune uint8 `json:"fortune"`
+	Unbreaking uint8 `json:"unbreaking"`
+}
+
+type MinerState struct {
+	OnGround bool `json:"on_ground"`
+	Flying bool `json:"flying"`
+	UnderwaterWithoutAquaAffinity bool `json:"underwater_without_aqua_affinity"`
+	Haste uint8 `json:"haste"`
+	MiningFatigue uint8 `json:"mining_fatigue"`
+}
+
+type MiningResult struct {
+	UUID string `json:"uuid"`
+	Status string `json:"status"`
+	Progress float32 `json:"progress,omitempty"`
+	CrackStage uint8 `json:"crack_stage,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 type batchRequest struct {
@@ -55,6 +107,7 @@ type Response struct {
 	Message         string `json:"message"`
 	OnlinePlayers   int    `json:"online_players"`
 	ProcessedEvents int    `json:"processed_events"`
+	MiningResults   []MiningResult `json:"mining_results,omitempty"
 }
 
 // Client serializes access to one persistent local IPC connection. A failed
