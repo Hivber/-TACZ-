@@ -289,6 +289,12 @@ func (tx *Tx) EntitiesWithin(box cube.BBox) iter.Seq[Entity] {
 	return tx.World().entitiesWithin(tx, box)
 }
 
+// EntitiesIntersecting returns an iterator that yields entities whose bounding boxes intersect box.
+// Unlike EntitiesWithin, this method considers the complete entity bounding box rather than only its origin.
+func (tx *Tx) EntitiesIntersecting(box cube.BBox) iter.Seq[Entity] {
+	return tx.World().entitiesIntersecting(tx, box)
+}
+
 // Entities returns an iterator that yields all entities in the World.
 func (tx *Tx) Entities() iter.Seq[Entity] {
 	return tx.World().allEntities(tx)

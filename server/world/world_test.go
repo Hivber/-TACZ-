@@ -53,6 +53,29 @@ func TestSynchronousWorldAdvanceTick(t *testing.T) {
 	}
 }
 
+func TestEntitiesIntersectingUsesBoundingBoxes(t *testing.T) {
+	w := Config{Synchronous: true}.New()
+	defer w.Close()
+
+	var found bool
+	w.Do(func(tx *Tx) {
+		// testEntityType has a [0,1] local bounding box. Its origin is outside
+		// the query, but the entity's box overlaps the query.
+		h := EntitySpawnOpts{Position: mgl64.Vec3{4.2, 4, 4}}.New(testEntityType{}, testEntityConfig{})
+		tx.AddEntity(h)
+		query := cube.Box(4.8, 4, 4, 5.1, 4.9, 4.9)
+		for e := range tx.EntitiesIntersecting(query) {
+			if e.H() == h {
+				found = true
+			}
+		}
+	}).Wait(context.Background())
+
+	if !found {
+		t.Fatal("entity with an intersecting bounding box was not returned when its origin was outside the query")
+	}
+}
+
 func TestSynchronousEntityDoCanRemoveEntity(t *testing.T) {
 	w := Config{Synchronous: true}.New()
 	defer w.Close()

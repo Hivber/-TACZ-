@@ -953,6 +953,32 @@ func (w *World) entitiesWithin(tx *Tx, box cube.BBox) iter.Seq[Entity] {
 	}
 }
 
+// entitiesIntersecting returns entities whose world-space bounding boxes intersect box.
+// The one-chunk search halo includes entities whose origins are in an adjacent chunk
+// while part of their bounding boxes extends into the requested area.
+func (w *World) entitiesIntersecting(tx *Tx, box cube.BBox) iter.Seq[Entity] {
+	return func(yield func(Entity) bool) {
+		minPos, maxPos := chunkPosFromVec3(box.Min()), chunkPosFromVec3(box.Max())
+		for x := minPos[0] - 1; x <= maxPos[0]+1; x++ {
+			for z := minPos[1] - 1; z <= maxPos[1]+1; z++ {
+				c, ok := w.chunks[ChunkPos{x, z}]
+				if !ok {
+					continue
+				}
+				for _, handle := range slices.Clone(c.Entities) {
+					ent, ok := handle.Entity(tx)
+					if !ok || !handle.t.BBox(ent).Translate(handle.data.Pos).IntersectsWith(box) {
+						continue
+					}
+					if !yield(ent) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
 // allEntities returns an iterator that yields all entities in the World.
 func (w *World) allEntities(tx *Tx) iter.Seq[Entity] {
 	return func(yield func(Entity) bool) {

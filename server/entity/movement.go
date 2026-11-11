@@ -160,16 +160,14 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 	entityBBox := e.H().Type().BBox(e).Translate(pos)
 	blocks := blockBBoxsAround(tx, entityBBox.Extend(vel))
 
-	// EntitiesWithin currently indexes entities by their position rather than
-	// their bounding box. Grow the search area enough to include nearby entity
-	// origins whose bounding boxes may overlap the swept movement box.
-	const entitySearchMargin = 2.0
-	searchBox := entityBBox.Extend(vel).Grow(entitySearchMargin)
+	// Query by the swept bounding box, not just entity origins. This avoids
+	// missing wide entities whose origin lies outside the movement path.
+	searchBox := entityBBox.Extend(vel).Grow(epsilon)
 	var entityBoxes []cube.BBox
 	if collidable, ok := e.H().Type().(interface {
 		CanCollideWith(world.Entity) bool
 	}); ok {
-		for other := range tx.EntitiesWithin(searchBox) {
+		for other := range tx.EntitiesIntersecting(searchBox) {
 			if other.H() == e.H() || !collidable.CanCollideWith(other) {
 				continue
 			}
