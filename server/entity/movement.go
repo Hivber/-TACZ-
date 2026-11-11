@@ -15,7 +15,7 @@ type MovementComputer struct {
 	Gravity, Drag     float64
 	DragBeforeGravity bool
 	// StepHeight is the maximum height this entity may automatically step up while grounded.
-	StepHeight         float64
+	StepHeight float64
 
 	onGround bool
 }
