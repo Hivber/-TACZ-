@@ -36,7 +36,7 @@ type Event struct {
 
 type Response struct {
 	ProtocolVersion uint16 `json:"protocol_version"`
-	OK               bool   `json:"ok"`
+	OK              bool   `json:"ok"`
 	Message          string `json:"message"`
 	OnlinePlayers    int    `json:"online_players"`
 }
@@ -104,7 +104,7 @@ func (c Client) Call(ctx context.Context, event Event) (Response, error) {
 		return Response{}, fmt.Errorf("game core protocol mismatch: Go=%d Rust=%d", ProtocolVersion, response.ProtocolVersion)
 	}
 	if !response.OK {
-		return response, fmt.Errorf("Rust gameplay core rejected event: %s", response.Message)
+		return response, fmt.Errorf("rust gameplay core rejected event: %s", response.Message)
 	}
 	return response, nil
 }
