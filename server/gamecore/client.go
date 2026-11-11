@@ -1,4 +1,5 @@
 // Package gamecore implements Dragonfly's semantic-event bridge to the Rust gameplay core.
+// It deliberately has no Bedrock packet, RakNet, login, or encryption dependencies.
 package gamecore
 
 import (
@@ -14,9 +15,9 @@ import (
 )
 
 const (
-	ProtocolVersion = uint16(1)
-	maxFrameSize    = 1 << 20
-	maxBatchEvents  = 4096
+	ProtocolVersion uint16 = 1
+	maxFrameSize           = 1 << 20
+	maxBatchEvents         = 4096
 )
 
 type Position struct {
@@ -56,7 +57,8 @@ type Response struct {
 	ProcessedEvents int    `json:"processed_events"`
 }
 
-// Client owns one persistent ordered Unix-domain socket connection.
+// Client serializes access to one persistent local IPC connection. A failed
+// exchange invalidates the stream; the next call reconnects automatically.
 type Client struct {
 	SocketPath string
 	Timeout    time.Duration
@@ -73,40 +75,21 @@ func (c *Client) Call(ctx context.Context, event Event) (Response, error) {
 }
 
 func (c *Client) CallBatch(ctx context.Context, events []Event) (Response, error) {
-	if c == nil {
-		return Response{}, errors.New("game core client is nil")
-	}
 	if len(events) == 0 {
 		return Response{ProtocolVersion: ProtocolVersion, OK: true, Message: "empty_batch"}, nil
 	}
 	if len(events) > maxBatchEvents {
 		return Response{}, fmt.Errorf("game core batch has %d events; maximum is %d", len(events), maxBatchEvents)
 	}
-	normalized := append([]Event(nil), events...)
-	for i := range normalized {
-		normalized[i].ProtocolVersion = ProtocolVersion
+	for i := range events {
+		events[i].ProtocolVersion = ProtocolVersion
 	}
-	response, err := c.call(ctx, batchRequest{
-		Type: "batch", ProtocolVersion: ProtocolVersion, Events: normalized,
-	})
-	if err != nil {
-		return response, err
-	}
-	if response.ProcessedEvents != len(normalized) {
-		return response, fmt.Errorf("game core processed %d of %d events", response.ProcessedEvents, len(normalized))
-	}
-	return response, nil
+	return c.call(ctx, batchRequest{Type: "batch", ProtocolVersion: ProtocolVersion, Events: events})
 }
 
 func (c *Client) call(ctx context.Context, request any) (Response, error) {
-	if c == nil || c.SocketPath == "" {
+	if c.SocketPath == "" {
 		return Response{}, errors.New("game core socket path is empty")
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if err := ctx.Err(); err != nil {
-		return Response{}, err
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -131,8 +114,8 @@ func (c *Client) call(ctx context.Context, request any) (Response, error) {
 		}
 	}
 	deadline := time.Now().Add(timeout)
-	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
-		deadline = contextDeadline
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
 	}
 	if err = c.conn.SetDeadline(deadline); err != nil {
 		c.resetLocked()
@@ -157,17 +140,13 @@ func (c *Client) call(ctx context.Context, request any) (Response, error) {
 		c.resetLocked()
 		return Response{}, fmt.Errorf("invalid response frame size %d", size)
 	}
-	data := make([]byte, size)
-	if _, err = io.ReadFull(c.conn, data); err != nil {
+	responseBytes := make([]byte, size)
+	if _, err = io.ReadFull(c.conn, responseBytes); err != nil {
 		c.resetLocked()
 		return Response{}, fmt.Errorf("read game core response: %w", err)
 	}
-	if err = ctx.Err(); err != nil {
-		c.resetLocked()
-		return Response{}, err
-	}
 	var response Response
-	if err = json.Unmarshal(data, &response); err != nil {
+	if err = json.Unmarshal(responseBytes, &response); err != nil {
 		c.resetLocked()
 		return Response{}, fmt.Errorf("decode game core response: %w", err)
 	}
@@ -177,10 +156,6 @@ func (c *Client) call(ctx context.Context, request any) (Response, error) {
 	}
 	if !response.OK {
 		return response, fmt.Errorf("rust gameplay core rejected request: %s", response.Message)
-	}
-	if err = c.conn.SetDeadline(time.Time{}); err != nil {
-		c.resetLocked()
-		return Response{}, fmt.Errorf("clear IPC deadline: %w", err)
 	}
 	return response, nil
 }
@@ -207,9 +182,6 @@ func (c *Client) resetLocked() {
 }
 
 func (c *Client) Close() error {
-	if c == nil {
-		return nil
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.conn == nil {

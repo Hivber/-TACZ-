@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	queueCapacity  = 8192
-	batchSize      = 256
+	queueCapacity = 8192
+	batchSize = 256
 	flushInterval = 10 * time.Millisecond
 )
 
