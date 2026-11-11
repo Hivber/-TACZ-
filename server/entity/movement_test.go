@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
