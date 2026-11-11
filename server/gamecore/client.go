@@ -109,6 +109,7 @@ type Response struct {
 	ProcessedEvents int            `json:"processed_events"`
 	MiningResults   []MiningResult `json:"mining_results,omitempty"`
 }
+
 // Client serializes access to one persistent local IPC connection. A failed
 // exchange invalidates the stream; the next call reconnects automatically.
 type Client struct {
