@@ -38,7 +38,7 @@ type Response struct {
 	ProtocolVersion uint16 `json:"protocol_version"`
 	OK              bool   `json:"ok"`
 	Message         string `json:"message"`
-	OnlinePlayers    int    `json:"online_players"`
+	OnlinePlayers  int    `json:"online_players"`
 }
 
 type Client struct {
