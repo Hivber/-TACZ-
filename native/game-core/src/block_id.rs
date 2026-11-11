@@ -1518,7 +1518,7 @@ mod tests {
 
     #[test]
     fn identifiers_are_namespaced_and_unique() {
-        let all: Vec<&str> = [AIR, STONE, GRASS_BLOCK, DIAMOND_ORE, CHEST, FURNACE];
+        let all = [AIR, STONE, GRASS_BLOCK, DIAMOND_ORE, CHEST, FURNACE];
         assert!(all.iter().all(|id| id.starts_with("minecraft:")));
         let unique: HashSet<&str> = all.iter().copied().collect();
         assert_eq!(unique.len(), all.len());

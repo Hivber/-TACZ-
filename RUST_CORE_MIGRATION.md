@@ -92,15 +92,6 @@ The IPC schema must have an explicit protocol version, message length limits, co
 - Performance comparisons record TPS, tick time, memory, chunk throughput and mobile client FPS.
 - CI success is not treated as proof of real-device/client compatibility. Record code, CI and device-test status separately.
 
-## Current status
-
-- Source repositories and license files inspected at the audited refs above.
-- gophertunnel v1.63.0 protocol constant verified as 2225 / 1.26.60.
-- No MC-RS or Chorus gameplay source has yet been copied into this repository.
-- No Dragonfly network/protocol code has been replaced.
-- Next implementation step: introduce the Rust workspace and versioned local IPC contract, then complete the player/session vertical slice before migrating any existing gameplay ownership.
-
-
 ## Implementation status update (2026-11-12)
 
 The following code is now present on dev-settings:
