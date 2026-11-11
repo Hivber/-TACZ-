@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	queueCapacity = 8192
-	batchSize = 256
-	flushInterval = 10 * time.Millisecond
+	queueCapacity  = 8192
+	batchSize      = 256
+	flushInterval  = 10 * time.Millisecond
 )
 
 // Bridge mirrors semantic events asynchronously. It never blocks packet/session owners.
