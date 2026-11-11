@@ -1,9 +1,177 @@
 package gamecore
-import("context";"encoding/binary";"encoding/json";"io";"net";"path/filepath";"sync/atomic";"testing";"time")
-func readFrame(t *testing.T,c net.Conn)[]byte{t.Helper();var h[4]byte;if _,e:=io.ReadFull(c,h[:]);e!=nil{t.Fatal(e)};p:=make([]byte,binary.BigEndian.Uint32(h[:]));if _,e:=io.ReadFull(c,p);e!=nil{t.Fatal(e)};return p}
-func writeFrame(t *testing.T,c net.Conn,r Response){t.Helper();p,e:=json.Marshal(r);if e!=nil{t.Fatal(e)};var h[4]byte;binary.BigEndian.PutUint32(h[:],uint32(len(p)));if _,e=c.Write(h[:]);e!=nil{t.Fatal(e)};if _,e=c.Write(p);e!=nil{t.Fatal(e)}}
-func TestClientReusesPersistentConnection(t *testing.T){path:=filepath.Join(t.TempDir(),"core.sock");l,e:=net.Listen("unix",path);if e!=nil{t.Fatal(e)};defer l.Close();var accepts atomic.Int32;done:=make(chan error,1);go func(){c,e:=l.Accept();if e!=nil{done<-e;return};defer c.Close();accepts.Add(1);for i:=0;i<2;i++{var req batchRequest;if e=json.Unmarshal(readFrame(t,c),&req);e!=nil{done<-e;return};writeFrame(t,c,Response{ProtocolVersion:1,OK:true,Message:"batch_applied",ProcessedEvents:len(req.Events)})};done<-nil}()
- c:=&Client{SocketPath:path,Timeout:time.Second};for i:=0;i<2;i++{r,e:=c.CallBatch(context.Background(),[]Event{{Type:"tick"}});if e!=nil{t.Fatal(e)};if r.ProcessedEvents!=1{t.Fatalf("processed=%d",r.ProcessedEvents)}};if e=<-done;e!=nil{t.Fatal(e)};if accepts.Load()!=1{t.Fatalf("connections=%d, want 1",accepts.Load())};_ = c.Close()}
-func TestBridgeFlushesQueuedEventsOnClose(t *testing.T){path:=filepath.Join(t.TempDir(),"bridge.sock");l,e:=net.Listen("unix",path);if e!=nil{t.Fatal(e)};defer l.Close();got:=make(chan int,1);go func(){c,e:=l.Accept();if e!=nil{return};defer c.Close();var req batchRequest;if json.Unmarshal(readFrame(t,c),&req)!=nil{return};writeFrame(t,c,Response{ProtocolVersion:1,OK:true,Message:"batch_applied",ProcessedEvents:len(req.Events)});got<-len(req.Events)}()
- b:=NewBridge(path,func(error){});if !b.Enqueue(Event{Type:"player_join",UUID:"u",Name:"p"})||!b.Enqueue(Event{Type:"player_move",UUID:"u"}){t.Fatal("failed to enqueue")};b.Close();select{case n:=<-got:if n!=2{t.Fatalf("got %d events",n)};case<-time.After(time.Second):t.Fatal("bridge did not flush")}
+
+import (
+	"context"
+	"encoding/binary"
+	"encoding/json"
+	"io"
+	"net"
+	"path/filepath"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+func readFrame(t *testing.T, conn net.Conn) []byte {
+	t.Helper()
+	var header [4]byte
+	if _, err := io.ReadFull(conn, header[:]); err != nil {
+		t.Fatal(err)
+	}
+	payload := make([]byte, binary.BigEndian.Uint32(header[:]))
+	if _, err := io.ReadFull(conn, payload); err != nil {
+		t.Fatal(err)
+	}
+	return payload
+}
+
+func writeFrame(t *testing.T, conn net.Conn, response Response) {
+	t.Helper()
+	payload, err := json.Marshal(response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var header [4]byte
+	binary.BigEndian.PutUint32(header[:], uint32(len(payload)))
+	if _, err = conn.Write(header[:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.Write(payload); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClientReusesPersistentConnection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "core.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	var accepts atomic.Int32
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+		accepts.Add(1)
+		for i := 0; i < 2; i++ {
+			var request batchRequest
+			var header [4]byte
+			if _, err := io.ReadFull(conn, header[:]); err != nil {
+				serverDone <- err
+				return
+			}
+			payload := make([]byte, binary.BigEndian.Uint32(header[:]))
+			if _, err := io.ReadFull(conn, payload); err != nil {
+				serverDone <- err
+				return
+			}
+			if err := json.Unmarshal(payload, &request); err != nil {
+				serverDone <- err
+				return
+			}
+			responseBytes, err := json.Marshal(Response{
+				ProtocolVersion: ProtocolVersion, OK: true,
+				Message: "batch_applied", ProcessedEvents: len(request.Events),
+			})
+			if err != nil {
+				serverDone <- err
+				return
+			}
+			binary.BigEndian.PutUint32(header[:], uint32(len(responseBytes)))
+			if _, err = conn.Write(header[:]); err == nil {
+				_, err = conn.Write(responseBytes)
+			}
+			if err != nil {
+				serverDone <- err
+				return
+			}
+		}
+		serverDone <- nil
+	}()
+
+	client := &Client{SocketPath: path, Timeout: time.Second}
+	for i := 0; i < 2; i++ {
+		response, callErr := client.CallBatch(context.Background(), []Event{{Type: "tick"}})
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		if response.ProcessedEvents != 1 {
+			t.Fatalf("processed events = %d, want 1", response.ProcessedEvents)
+		}
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+	if got := accepts.Load(); got != 1 {
+		t.Fatalf("accepted %d connections, want one persistent connection", got)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeFlushesQueuedEventsOnClose(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bridge.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	received := make(chan int, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+		var header [4]byte
+		if _, err := io.ReadFull(conn, header[:]); err != nil {
+			return
+		}
+		payload := make([]byte, binary.BigEndian.Uint32(header[:]))
+		if _, err := io.ReadFull(conn, payload); err != nil {
+			return
+		}
+		var request batchRequest
+		if json.Unmarshal(payload, &request) != nil {
+			return
+		}
+		responseBytes, err := json.Marshal(Response{
+			ProtocolVersion: ProtocolVersion, OK: true,
+			Message: "batch_applied", ProcessedEvents: len(request.Events),
+		})
+		if err != nil {
+			return
+		}
+		binary.BigEndian.PutUint32(header[:], uint32(len(responseBytes)))
+		if _, err = conn.Write(header[:]); err != nil {
+			return
+		}
+		if _, err = conn.Write(responseBytes); err != nil {
+			return
+		}
+		received <- len(request.Events)
+	}()
+
+	bridge := NewBridge(path, func(error) {})
+	if !bridge.Enqueue(Event{Type: "player_join", UUID: "u", Name: "p"}) ||
+		!bridge.Enqueue(Event{Type: "player_move", UUID: "u"}) {
+		t.Fatal("failed to enqueue events")
+	}
+	bridge.Close()
+	select {
+	case count := <-received:
+		if count != 2 {
+			t.Fatalf("received %d events, want 2", count)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("bridge did not flush its queue on close")
+	}
 }

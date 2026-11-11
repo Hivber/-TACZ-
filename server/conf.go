@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/df-mc/dragonfly/server/gamecore"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 	_ "unsafe"
 
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/internal/packbuilder"

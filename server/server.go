@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/df-mc/dragonfly/server/gamecore"
 	"context"
 	_ "embed"
 	"encoding/base64"
@@ -17,7 +16,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"golang.org/x/text/language"
 
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"github.com/df-mc/dragonfly/server/internal/blockinternal"
 	"github.com/df-mc/dragonfly/server/internal/iteminternal"
 	"github.com/df-mc/dragonfly/server/internal/sliceutil"
@@ -35,7 +36,6 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
-	"golang.org/x/text/language"
 )
 
 // Server implements a Dragonfly server. It runs the main server loop and

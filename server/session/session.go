@@ -1,7 +1,6 @@
 package session
 
 import (
-	"github.com/df-mc/dragonfly/server/gamecore"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/item/inventory"
