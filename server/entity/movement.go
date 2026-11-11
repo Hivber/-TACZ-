@@ -13,7 +13,9 @@ import (
 // the movement is computed for must be passed.
 type MovementComputer struct {
 	Gravity, Drag     float64
+	// StepHeight is the maximum height this entity may automatically step up while grounded.
 	DragBeforeGravity bool
+	StepHeight         float64
 
 	onGround bool
 }
@@ -155,14 +157,15 @@ func (c *MovementComputer) applyHorizontalForces(tx *world.Tx, pos, vel mgl64.Ve
 // The final velocity and the Vec3 that the entity should move is returned.
 func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel mgl64.Vec3) (mgl64.Vec3, mgl64.Vec3) {
 	deltaX, deltaY, deltaZ := vel[0], vel[1], vel[2]
+	wasOnGround := c.onGround
 
 	// Entities only ever have a single bounding box.
 	entityBBox := e.H().Type().BBox(e).Translate(pos)
 	blocks := blockBBoxsAround(tx, entityBBox.Extend(vel))
 
-	// Query by the swept bounding box, not just entity origins. This avoids
-	// missing wide entities whose origin lies outside the movement path.
-	searchBox := entityBBox.Extend(vel).Grow(epsilon)
+	// Query by the swept bounding box, not just entity origins. Include the
+	// possible step-up volume so entities above the initial movement path count.
+	searchBox := entityBBox.Extend(vel).Grow(c.StepHeight + epsilon)
 	var entityBoxes []cube.BBox
 	if collidable, ok := e.H().Type().(interface {
 		CanCollideWith(world.Entity) bool
@@ -204,6 +207,16 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 			deltaZ = entityBBox.ZOffset(otherBBox, deltaZ)
 		}
 	}
+	if wasOnGround && c.StepHeight > epsilon && (!mgl64.FloatEqual(deltaX, vel[0]) || !mgl64.FloatEqual(deltaZ, vel[2])) {
+		stepBlocks := blockBBoxsAround(tx, entityBBox.Grow(c.StepHeight))
+		if steppedBox, stepX, stepY, stepZ, ok := tryStepUp(entityBBox, stepBlocks, entityBoxes, vel[0], vel[2], c.StepHeight); ok &&
+			stepX*stepX+stepZ*stepZ > deltaX*deltaX+deltaZ*deltaZ+epsilon {
+			entityBBox = steppedBox
+			deltaX, deltaY, deltaZ = stepX, deltaY+stepY, stepZ
+			c.onGround = true
+		}
+	}
+
 	if !mgl64.FloatEqual(vel[1], 0) {
 		// The Y velocity of the entity is currently not 0, meaning it is moving either up or down. We can
 		// then assume the entity is not currently on the ground.
@@ -224,6 +237,52 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 		vel[2] = 0
 	}
 	return mgl64.Vec3{deltaX, deltaY, deltaZ}, vel
+}
+
+// tryStepUp tests an alternate grounded path: lift, move horizontally, then settle onto the
+// first collision surface below. It succeeds only when the downward phase finds support.
+func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight float64) (cube.BBox, float64, float64, float64, bool) {
+	up := stepHeight
+	for _, obstacle := range blocks {
+		up = box.YOffset(obstacle, up)
+	}
+	for _, obstacle := range entities {
+		up = box.YOffset(obstacle, up)
+	}
+	if up <= epsilon {
+		return box, 0, 0, 0, false
+	}
+
+	raised := box.Translate(mgl64.Vec3{0, up})
+	stepX := dx
+	for _, obstacle := range blocks {
+		stepX = raised.XOffset(obstacle, stepX)
+	}
+	for _, obstacle := range entities {
+		stepX = raised.XOffset(obstacle, stepX)
+	}
+	raised = raised.Translate(mgl64.Vec3{stepX})
+
+	stepZ := dz
+	for _, obstacle := range blocks {
+		stepZ = raised.ZOffset(obstacle, stepZ)
+	}
+	for _, obstacle := range entities {
+		stepZ = raised.ZOffset(obstacle, stepZ)
+	}
+	raised = raised.Translate(mgl64.Vec3{0, 0, stepZ})
+
+	down := -up
+	for _, obstacle := range blocks {
+		down = raised.YOffset(obstacle, down)
+	}
+	for _, obstacle := range entities {
+		down = raised.YOffset(obstacle, down)
+	}
+	if down <= -up+epsilon {
+		return box, 0, 0, 0, false
+	}
+	return raised.Translate(mgl64.Vec3{0, down}), stepX, up + down, stepZ, true
 }
 
 // blockBBoxsAround returns all blocks around the entity passed, using the BBox passed to make a prediction of

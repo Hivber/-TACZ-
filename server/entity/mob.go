@@ -217,6 +217,7 @@ func newMobBehaviour(kind mobKind, natural bool) *mobBehaviour {
 			Gravity:           0.08,
 			Drag:              0.02,
 			DragBeforeGravity: true,
+			StepHeight:        0.6,
 		},
 	}
 }

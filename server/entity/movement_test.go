@@ -80,6 +80,42 @@ func TestMovementComputerTriggersEntityStepper(t *testing.T) {
 	}
 }
 
+func TestMovementComputerStepsUpSlabs(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	w.Do(func(tx *world.Tx) {
+		tx.SetBlock(cube.Pos{1, 1, 0}, block.Slab{Block: block.Stone{}}, nil)
+		e := newMovementTestEntity(mgl64.Vec3{0.5, 1, 0.5}, 0)
+		computer := MovementComputer{StepHeight: 0.6, onGround: true}
+		delta, _ := computer.CheckCollision(tx, e, e.Position(), mgl64.Vec3{0.8, 0, 0})
+		if delta[0] < 0.79 {
+			t.Fatalf("expected entity to step over a bottom slab, moved %v", delta[0])
+		}
+		if math.Abs(delta[1]-0.5) > 0.0001 {
+			t.Fatalf("expected step movement to raise entity by 0.5, got %v", delta[1])
+		}
+		if !computer.OnGround() {
+			t.Fatal("entity should remain grounded after stepping onto the slab")
+		}
+	}).Wait(context.Background())
+}
+
+func TestMovementComputerDoesNotStepOverFullBlocks(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	w.Do(func(tx *world.Tx) {
+		tx.SetBlock(cube.Pos{1, 1, 0}, block.Stone{}, nil)
+		e := newMovementTestEntity(mgl64.Vec3{0.5, 1, 0.5}, 0)
+		computer := MovementComputer{StepHeight: 0.6, onGround: true}
+		delta, _ := computer.CheckCollision(tx, e, e.Position(), mgl64.Vec3{0.8, 0, 0})
+		if math.Abs(delta[0]-0.2) > 0.0001 {
+			t.Fatalf("expected full block to remain an obstacle, moved %v", delta[0])
+		}
+	}).Wait(context.Background())
+}
+
 func TestMovementComputerCollidesWithOtherEntitiesVertically(t *testing.T) {
 	w := world.Config{Synchronous: true}.New()
 	defer w.Close()
