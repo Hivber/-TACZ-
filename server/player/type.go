@@ -43,7 +43,7 @@ func (t ptype) Open(tx *world.Tx, handle *world.EntityHandle, data *world.Entity
 	return p
 }
 
-func (ptype) EncodeEntity() string   { return "minecraft:player" }
+func (ptype) EncodeEntity() string { return "minecraft:player" }
 
 func (ptype) CanCollideWith(other world.Entity) bool {
 	_, living := other.(entity.Living)
