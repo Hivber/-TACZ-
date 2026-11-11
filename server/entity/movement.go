@@ -281,7 +281,7 @@ func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight f
 		down = raised.YOffset(obstacle, down)
 	}
 	if down <= -up+epsilon {
-		return box, 0, 0, 0, false
+		return 0, 0, 0, false
 	}
 	return stepX, up + down, stepZ, true
 }
