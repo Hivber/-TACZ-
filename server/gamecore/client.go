@@ -75,21 +75,38 @@ func (c *Client) Call(ctx context.Context, event Event) (Response, error) {
 }
 
 func (c *Client) CallBatch(ctx context.Context, events []Event) (Response, error) {
+	if c == nil {
+		return Response{}, errors.New("game core client is nil")
+	}
 	if len(events) == 0 {
 		return Response{ProtocolVersion: ProtocolVersion, OK: true, Message: "empty_batch"}, nil
 	}
 	if len(events) > maxBatchEvents {
 		return Response{}, fmt.Errorf("game core batch has %d events; maximum is %d", len(events), maxBatchEvents)
 	}
-	for i := range events {
-		events[i].ProtocolVersion = ProtocolVersion
+	normalized := append([]Event(nil), events...)
+	for i := range normalized {
+		normalized[i].ProtocolVersion = ProtocolVersion
 	}
-	return c.call(ctx, batchRequest{Type: "batch", ProtocolVersion: ProtocolVersion, Events: events})
+	response, err := c.call(ctx, batchRequest{Type: "batch", ProtocolVersion: ProtocolVersion, Events: normalized})
+	if err != nil {
+		return response, err
+	}
+	if response.ProcessedEvents != len(normalized) {
+		return response, fmt.Errorf("game core processed %d of %d events", response.ProcessedEvents, len(normalized))
+	}
+	return response, nil
 }
 
 func (c *Client) call(ctx context.Context, request any) (Response, error) {
-	if c.SocketPath == "" {
+	if c == nil || c.SocketPath == "" {
 		return Response{}, errors.New("game core socket path is empty")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return Response{}, err
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -154,6 +171,10 @@ func (c *Client) call(ctx context.Context, request any) (Response, error) {
 		c.resetLocked()
 		return Response{}, fmt.Errorf("game core protocol mismatch: Go=%d Rust=%d", ProtocolVersion, response.ProtocolVersion)
 	}
+	if err = c.conn.SetDeadline(time.Time{}); err != nil {
+		c.resetLocked()
+		return Response{}, fmt.Errorf("clear IPC deadline: %w", err)
+	}
 	if !response.OK {
 		return response, fmt.Errorf("rust gameplay core rejected request: %s", response.Message)
 	}
@@ -182,6 +203,9 @@ func (c *Client) resetLocked() {
 }
 
 func (c *Client) Close() error {
+	if c == nil {
+		return nil
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.conn == nil {

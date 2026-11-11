@@ -95,7 +95,7 @@ func TestClientReusesPersistentConnection(t *testing.T) {
 		serverDone <- nil
 	}()
 
-	client := &Client{SocketPath: path, Timeout: time.Second}
+	client := &Client{SocketPath: path, Timeout: 50 * time.Millisecond}
 	for i := 0; i < 2; i++ {
 		response, callErr := client.CallBatch(context.Background(), []Event{{Type: "tick"}})
 		if callErr != nil {
@@ -103,6 +103,11 @@ func TestClientReusesPersistentConnection(t *testing.T) {
 		}
 		if response.ProcessedEvents != 1 {
 			t.Fatalf("processed events = %d, want 1", response.ProcessedEvents)
+		}
+		if i == 0 {
+			// The connection must remain usable after the previous call's
+			// deadline has elapsed; each exchange clears its temporary deadline.
+			time.Sleep(75 * time.Millisecond)
 		}
 	}
 	if err := <-serverDone; err != nil {
