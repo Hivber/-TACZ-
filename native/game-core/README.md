@@ -41,7 +41,8 @@ BlockBreakProfile derives hardness and tool requirements from the active
 permutation. The mining model includes correct-tool/harvest-level checks,
 Efficiency, Haste, Mining Fatigue, airborne and underwater penalties, plus
 tool durability and Unbreaking. resolve_block_drops supports explicit weighted
-outcomes, optional silk-touch outcomes and configurable Fortune bonus ranges.
+outcomes, optional silk-touch outcomes and configurable Fortune bonus ranges. The mining state machine handles start,
+continue, per-tick progress, crack stages, target/reach validation, abort and completion.
 Without a LootComponent, survival defaults to dropping the block itself; an
 explicit empty LootComponent means no drops.
 

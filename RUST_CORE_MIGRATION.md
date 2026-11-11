@@ -125,3 +125,21 @@ entities/AI/combat, chunks/world ticking, persistence, and the remaining
 vanilla systems. Old Go gameplay paths remain authoritative for live sessions;
 no Go gameplay code was removed. Go still owns the complete 1.26.60 network and
 protocol path (gophertunnel protocol 2225).
+
+
+## Block-interaction state machine (2026-11-12)
+
+The Rust core now includes a deterministic block-mining state machine that:
+- validates Bedrock block face values and caller-provided interaction reach;
+- starts one block-break session per player and binds it to the target position;
+- increments mining progress at most once for each server tick, preventing
+  duplicate client continuation actions from accelerating the break;
+- derives crack stages from authoritative progress and validates the block's
+  current break profile on each step;
+- aborts on target changes, reach violations, invalid actions or unbreakable
+  blocks, and reports semantic completion for the Go adapter to translate into
+  normal Dragonfly/gophertunnel effects and block/item packets.
+
+This state machine is unit-tested but is not yet called from Dragonfly's live
+packet/session handler. It does not send packets itself and therefore does not
+change the Bedrock 1.26.60 network boundary.

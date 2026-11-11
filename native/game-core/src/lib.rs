@@ -6,6 +6,7 @@
 
 pub mod block_break;
 pub mod block_drops;
+pub mod block_interaction;
 pub mod block_id;
 pub mod block_registry;
 pub mod block_state;
