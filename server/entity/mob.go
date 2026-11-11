@@ -91,6 +91,11 @@ var (
 
 type mobType struct{ kind mobKind }
 
+func (mobType) CanCollideWith(other world.Entity) bool {
+	_, living := other.(Living)
+	return living
+}
+
 func (t mobType) Open(tx *world.Tx, handle *world.EntityHandle, data *world.EntityData) world.Entity {
 	return &Mob{Ent: Open(tx, handle, data), kind: t.kind}
 }

@@ -2,6 +2,7 @@ package player
 
 import (
 	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 )
@@ -43,6 +44,11 @@ func (t ptype) Open(tx *world.Tx, handle *world.EntityHandle, data *world.Entity
 }
 
 func (ptype) EncodeEntity() string   { return "minecraft:player" }
+
+func (ptype) CanCollideWith(other world.Entity) bool {
+	_, living := other.(entity.Living)
+	return living
+}
 func (ptype) NetworkOffset() float64 { return 1.621 }
 func (ptype) BBox(e world.Entity) cube.BBox {
 	p := e.(*Player)

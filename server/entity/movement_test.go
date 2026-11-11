@@ -18,6 +18,10 @@ func (movementTestEntityType) Open(_ *world.Tx, handle *world.EntityHandle, data
 	return &movementTestEntity{handle: handle, pos: data.Pos}
 }
 func (movementTestEntityType) EncodeEntity() string { return "dragonfly:movement_test" }
+
+func (movementTestEntityType) CanCollideWith(other world.Entity) bool {
+	return other.H().Type().EncodeEntity() == "dragonfly:movement_test"
+}
 func (movementTestEntityType) BBox(world.Entity) cube.BBox {
 	return cube.Box(-0.3, 0, -0.3, 0.3, 1.8, 0.3)
 }
@@ -77,6 +81,23 @@ func TestMovementComputerTriggersEntityStepper(t *testing.T) {
 }
 
 
+
+
+func TestMovementComputerCollidesWithOtherEntitiesVertically(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	w.Do(func(tx *world.Tx) {
+		moving := tx.AddEntity(newMovementTestEntity(mgl64.Vec3{0.5, 0.5, 0.5}, 0).handle)
+		_ = tx.AddEntity(newMovementTestEntity(mgl64.Vec3{0.5, 2.5, 0.5}, 0).handle)
+
+		computer := MovementComputer{}
+		delta, _ := computer.CheckCollision(tx, moving, moving.Position(), mgl64.Vec3{0, 3, 0})
+		if math.Abs(delta[1]-0.2) > 0.0001 {
+			t.Fatalf("expected upward movement to stop at entity boundary (0.2), got %v", delta[1])
+		}
+	}).Wait(context.Background())
+}
 
 func TestMovementComputerCollidesWithOtherEntities(t *testing.T) {
 	w := world.Config{Synchronous: true}.New()

@@ -166,17 +166,24 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 	const entitySearchMargin = 2.0
 	searchBox := entityBBox.Extend(vel).Grow(entitySearchMargin)
 	var entityBoxes []cube.BBox
-	for other := range tx.EntitiesWithin(searchBox) {
-		if other.H() == e.H() {
-			continue
+	if collidable, ok := e.H().Type().(interface {
+		CanCollideWith(world.Entity) bool
+	}); ok {
+		for other := range tx.EntitiesWithin(searchBox) {
+			if other.H() == e.H() || !collidable.CanCollideWith(other) {
+				continue
+			}
+			entityBoxes = append(entityBoxes, other.H().Type().BBox(other).Translate(other.Position()))
 		}
-		entityBoxes = append(entityBoxes, other.H().Type().BBox(other).Translate(other.Position()))
 	}
 
 	if !mgl64.FloatEqualThreshold(deltaY, 0, epsilon) {
 		// First we move the entity BBox on the Y axis.
 		for _, blockBBox := range blocks {
 			deltaY = entityBBox.YOffset(blockBBox, deltaY)
+		}
+		for _, otherBBox := range entityBoxes {
+			deltaY = entityBBox.YOffset(otherBBox, deltaY)
 		}
 		entityBBox = entityBBox.Translate(mgl64.Vec3{0, deltaY})
 	}
