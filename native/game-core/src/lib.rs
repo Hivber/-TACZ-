@@ -7,6 +7,8 @@
 
 pub mod block_break;
 pub mod block_id;
+pub mod block_registry;
+pub mod block_state;
 pub mod ipc;
 pub mod player;
 
