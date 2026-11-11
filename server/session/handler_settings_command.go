@@ -22,6 +22,12 @@ func (SettingsCommandHandler) Handle(p packet.Packet, s *Session, _ *world.Tx, c
 	if line == "" {
 		return nil
 	}
+	// Bedrock SettingsCommand may contain a command without the slash used by
+	// Player.ExecuteCommand. Normalise it before entering the regular command
+	// pipeline so settings-menu changes behave exactly like chat commands.
+	if !strings.HasPrefix(line, "/") {
+		line = "/" + line
+	}
 
 	origin, ok := s.handlers[packet.IDCommandRequest].(*CommandRequestHandler)
 	if !ok {
@@ -34,9 +40,10 @@ func (SettingsCommandHandler) Handle(p packet.Packet, s *Session, _ *world.Tx, c
 		Origin: protocol.CommandOriginPlayer,
 		UUID:   c.UUID(),
 	}
+	previousSuppressOutput := s.suppressCommandOutput.Load()
 	s.suppressCommandOutput.Store(pk.SuppressOutput)
 	defer func() {
-		s.suppressCommandOutput.Store(false)
+		s.suppressCommandOutput.Store(previousSuppressOutput)
 		origin.origin = previousOrigin
 	}()
 

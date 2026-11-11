@@ -475,6 +475,22 @@ func (srv *Server) finaliseConn(ctx context.Context, conn session.Conn, l Listen
 		d.GameMode = w.DefaultGameMode()
 	}
 
+	if w == nil {
+		w = srv.world
+	}
+	if d.GameMode == nil {
+		d.GameMode = w.DefaultGameMode()
+	}
+	if modeID, ok := world.GameModeID(d.GameMode); ok {
+		if d.GameMode == world.GameModeSpectator {
+			modeID = packet.GameTypeSpectator
+		}
+		data.PlayerGameMode = int32(modeID)
+	}
+	if difficultyID, ok := world.DifficultyID(w.Difficulty()); ok {
+		data.Difficulty = int32(difficultyID)
+	}
+
 	data.PlayerPosition = vec64To32(d.Position).Add(mgl32.Vec3{0, 1.62})
 	dim, _ := world.DimensionID(w.Dimension())
 	data.Dimension = int32(dim)

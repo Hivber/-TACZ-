@@ -517,6 +517,19 @@ func (s *Session) SendGameMode(c Controllable) {
 	s.SendAbilities(c)
 }
 
+// SendDifficulty updates the difficulty shown by the Bedrock client. Difficulty
+// remains authoritative on the world; this packet only synchronises the UI.
+func (s *Session) SendDifficulty(d world.Difficulty) {
+	if s == Nop {
+		return
+	}
+	id, ok := world.DifficultyID(d)
+	if !ok {
+		return
+	}
+	s.writePacket(&packet.SetDifficulty{Difficulty: uint32(id)})
+}
+
 // SendAbilities sends the abilities of the Controllable entity of the session to the client.
 func (s *Session) SendAbilities(c Controllable) {
 	operator := false

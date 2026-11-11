@@ -1609,6 +1609,11 @@ func (p *Player) GameMode() world.GameMode {
 	return p.gameMode
 }
 
+// SendDifficulty synchronises the current world's difficulty with this player.
+func (p *Player) SendDifficulty(d world.Difficulty) {
+	p.session().SendDifficulty(d)
+}
+
 // HasCooldown returns true if the item passed has an active cooldown, meaning it currently cannot be used again. If the
 // world.Item passed is nil, HasCooldown always returns false.
 func (p *Player) HasCooldown(item world.Item) bool {
