@@ -143,3 +143,12 @@ The Rust core now includes a deterministic block-mining state machine that:
 This state machine is unit-tested but is not yet called from Dragonfly's live
 packet/session handler. It does not send packets itself and therefore does not
 change the Bedrock 1.26.60 network boundary.
+
+
+## Persistent shadow bridge integration (2026-11-12)
+
+The Go/Rust local IPC is persistent and batched. Go reuses one Unix-domain socket connection, applies frame and batch limits, validates protocol versions, and reconnects after transport failures. The Rust daemon accepts multiple frames per connection, handles clients concurrently, serializes mutations against shared state, validates finite player positions, limits batches, sets socket permissions to 0600, and refuses to unlink a pre-existing non-socket path.
+
+An optional `GameCoreSocket` setting enables a bounded asynchronous Go bridge. Session spawn, accepted movement snapshots and disconnect enqueue semantic player lifecycle events. Events are batched (up to 256 / 10 ms) and flushed at shutdown. Packet/session owners never wait for Rust; queue saturation or daemon failure is logged and does not affect the existing Go gameplay path.
+
+**This is shadow-state mirroring, not gameplay authority.** Dragonfly still validates movement and executes block actions, inventory, entities and world ticks in Go. Rust does not yet return authoritative corrections or outbound gameplay effects. The optional bridge is disabled unless configured.

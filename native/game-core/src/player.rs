@@ -22,6 +22,12 @@ pub struct PlayerState {
     pub ticks_alive: u64,
 }
 
+impl Position {
+    pub fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.is_finite() && self.z.is_finite() && self.yaw.is_finite() && self.pitch.is_finite()
+    }
+}
+
 impl PlayerState {
     pub fn new(uuid: String, name: String, dimension: i32, game_mode: u8, position: Position) -> Self {
         Self {
