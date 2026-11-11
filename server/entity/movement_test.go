@@ -80,9 +80,6 @@ func TestMovementComputerTriggersEntityStepper(t *testing.T) {
 	}
 }
 
-
-
-
 func TestMovementComputerCollidesWithOtherEntitiesVertically(t *testing.T) {
 	w := world.Config{Synchronous: true}.New()
 	defer w.Close()
