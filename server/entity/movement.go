@@ -188,6 +188,7 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 		}
 		entityBBox = entityBBox.Translate(mgl64.Vec3{0, deltaY})
 	}
+	groundedBox := entityBBox
 	if !mgl64.FloatEqualThreshold(deltaX, 0, epsilon) {
 		// Then on the X axis.
 		for _, blockBBox := range blocks {
@@ -208,8 +209,9 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 		}
 	}
 	if wasOnGround && c.StepHeight > epsilon && (!mgl64.FloatEqual(deltaX, vel[0]) || !mgl64.FloatEqual(deltaZ, vel[2])) {
-		stepBlocks := blockBBoxsAround(tx, entityBBox.Grow(c.StepHeight))
-		if steppedBox, stepX, stepY, stepZ, ok := tryStepUp(entityBBox, stepBlocks, entityBoxes, vel[0], vel[2], c.StepHeight); ok &&
+		stepPath := groundedBox.Extend(mgl64.Vec3{vel[0], 0, vel[2]}).Grow(c.StepHeight)
+		stepBlocks := blockBBoxsAround(tx, stepPath)
+		if steppedBox, stepX, stepY, stepZ, ok := tryStepUp(groundedBox, stepBlocks, entityBoxes, vel[0], vel[2], c.StepHeight); ok &&
 			stepX*stepX+stepZ*stepZ > deltaX*deltaX+deltaZ*deltaZ+epsilon {
 			entityBBox = steppedBox
 			deltaX, deltaY, deltaZ = stepX, deltaY+stepY, stepZ
