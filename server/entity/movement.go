@@ -15,7 +15,7 @@ type MovementComputer struct {
 	Gravity, Drag     float64
 	DragBeforeGravity bool
 	// StepHeight is the maximum height this entity may automatically step up while grounded.
-	StepHeight float64
+	StepHeight         float64
 
 	onGround bool
 }
@@ -211,9 +211,8 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 	if wasOnGround && c.StepHeight > epsilon && (!mgl64.FloatEqual(deltaX, vel[0]) || !mgl64.FloatEqual(deltaZ, vel[2])) {
 		stepPath := groundedBox.Extend(mgl64.Vec3{vel[0], 0, vel[2]}).Grow(c.StepHeight)
 		stepBlocks := blockBBoxsAround(tx, stepPath)
-		if steppedBox, stepX, stepY, stepZ, ok := tryStepUp(groundedBox, stepBlocks, entityBoxes, vel[0], vel[2], c.StepHeight); ok &&
+		if stepX, stepY, stepZ, ok := tryStepUp(groundedBox, stepBlocks, entityBoxes, vel[0], vel[2], c.StepHeight); ok &&
 			stepX*stepX+stepZ*stepZ > deltaX*deltaX+deltaZ*deltaZ+epsilon {
-			entityBBox = steppedBox
 			deltaX, deltaY, deltaZ = stepX, deltaY+stepY, stepZ
 			c.onGround = true
 		}
@@ -243,7 +242,7 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 
 // tryStepUp tests an alternate grounded path: lift, move horizontally, then settle onto the
 // first collision surface below. It succeeds only when the downward phase finds support.
-func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight float64) (cube.BBox, float64, float64, float64, bool) {
+func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight float64) (float64, float64, float64, bool) {
 	up := stepHeight
 	for _, obstacle := range blocks {
 		up = box.YOffset(obstacle, up)
@@ -252,7 +251,7 @@ func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight f
 		up = box.YOffset(obstacle, up)
 	}
 	if up <= epsilon {
-		return box, 0, 0, 0, false
+		return 0, 0, 0, false
 	}
 
 	raised := box.Translate(mgl64.Vec3{0, up})
@@ -284,7 +283,7 @@ func tryStepUp(box cube.BBox, blocks, entities []cube.BBox, dx, dz, stepHeight f
 	if down <= -up+epsilon {
 		return box, 0, 0, 0, false
 	}
-	return raised.Translate(mgl64.Vec3{0, down}), stepX, up + down, stepZ, true
+	return stepX, up + down, stepZ, true
 }
 
 // blockBBoxsAround returns all blocks around the entity passed, using the BBox passed to make a prediction of
