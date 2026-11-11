@@ -6,6 +6,7 @@
 //! Bedrock packet decoding here.
 
 pub mod block_break;
+pub mod block_id;
 pub mod ipc;
 pub mod player;
 
