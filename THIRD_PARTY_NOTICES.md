@@ -49,3 +49,11 @@ Mining compatibility, break-time modifiers, Efficiency enchantment and tool
 durability calculations in native/game-core/src/block_break.rs are adapted
 from this source. MC-RS's 1.26.52.3 sampled block/drop JSON is not imported as
 1.26.60 game data.
+
+
+## Bundled third-party license texts
+
+- Chorus Apache License 2.0: `third_party/licenses/Chorus-Apache-2.0.txt`
+- MC-RS MIT License: `third_party/licenses/MC-RS-MIT.txt`
+
+The complete license texts are retained with this repository for redistribution.
