@@ -99,3 +99,38 @@ The IPC schema must have an explicit protocol version, message length limits, co
 - No MC-RS or Chorus gameplay source has yet been copied into this repository.
 - No Dragonfly network/protocol code has been replaced.
 - Next implementation step: introduce the Rust workspace and versioned local IPC contract, then complete the player/session vertical slice before migrating any existing gameplay ownership.
+
+
+## Implementation status update (2026-11-12)
+
+The following code is now present on dev-settings:
+
+- A Chorus-derived, data-only block component model covers mineable hardness,
+  item-specific hardness, loot, collision boxes, flammability, friction,
+  internal friction, light dampening/emission, map color, piston movement,
+  replaceability, solidity and transparency.
+- Block definitions can provide base components and ordered state predicates.
+  Matching permutation overrides merge into the active permutation, replacing
+  components of the same kind; repeated override combinations share storage.
+- The MC-RS-derived mining slice now derives break profiles from active
+  permutation components and includes Efficiency, correct-tool/harvest checks,
+  Haste, Mining Fatigue, airborne/water penalties and Unbreaking/tool wear.
+- The Rust core includes deterministic weighted block-drop resolution,
+  silk-touch overrides, configurable Fortune bonus ranges and the vanilla
+  fallback rule for blocks without an explicit loot component.
+- CI now formats, tests and release-builds native/game-core. A CI pass validates
+  this crate on the CI host only; it does not prove Termux compilation or
+  1.26.60 client behavior.
+
+Version boundary: MC-RS's block_break.json and block_drops_bds.json sampling is
+for Bedrock 1.26.52.3. It has not been copied into the 1.26.60 runtime. The
+generic resolver requires a validated 1.26.60 block/loot data source before it
+can be considered exhaustive vanilla drop parity.
+
+Still not migrated: live Dragonfly session/packet event hooks, a persistent
+bidirectional IPC connection with batching/backpressure, player movement
+authority, block action handling and world mutation, inventory/containers,
+entities/AI/combat, chunks/world ticking, persistence, and the remaining
+vanilla systems. Old Go gameplay paths remain authoritative for live sessions;
+no Go gameplay code was removed. Go still owns the complete 1.26.60 network and
+protocol path (gophertunnel protocol 2225).

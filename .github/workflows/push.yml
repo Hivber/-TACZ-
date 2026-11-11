@@ -29,6 +29,12 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Test Rust gameplay core
+        run: |
+          cargo fmt --manifest-path native/game-core/Cargo.toml
+          cargo test --manifest-path native/game-core/Cargo.toml
+          cargo build --release --manifest-path native/game-core/Cargo.toml
+
       - name: Test Rust redstone kernel
         run: |
           cargo fmt --manifest-path native/redstone-rs/Cargo.toml -- --check

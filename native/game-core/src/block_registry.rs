@@ -1,34 +1,106 @@
-//! Data-only block definitions, permutations, and registry.
-//! Adapted from Chorus block_definition.rs, block_permutation.rs and block_registry.rs
+//! Data-only block definitions, state permutations, component overrides, and registry.
+//! Adapted from Chorus block_definition.rs, block_permutation.rs and component storage
 //! at bedrock-crustaceans/Chorus revision c8115402a3bacf2014af2ce72fa5c35729040aa8.
 //! Apache-2.0. No Bevy ECS, packet handlers, transport, NBT or Chorus runtime IDs
 //! are imported. Permutation indices here are local state-combination indices,
 //! not Bedrock runtime IDs or network palette IDs.
 
 use crate::block_state::{BlockState, BlockStateDefinition};
-use std::collections::{BTreeMap, HashMap};
+use crate::components::{BlockComponent, BlockComponents};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StateCondition {
+    Equals(BlockState),
+    NotEquals(BlockState),
+    OneOf(Vec<BlockState>),
+}
+
+impl StateCondition {
+    fn matches(&self, state: Option<&BlockState>) -> bool {
+        match (self, state) {
+            (Self::Equals(expected), Some(actual)) => actual == expected,
+            (Self::NotEquals(expected), Some(actual)) => actual != expected,
+            (Self::OneOf(expected), Some(actual)) => expected.contains(actual),
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BlockPermutationDefinition {
+    conditions: BTreeMap<String, StateCondition>,
+    components: Vec<BlockComponent>,
+}
+
+impl BlockPermutationDefinition {
+    pub fn new<I>(conditions: I, components: impl IntoIterator<Item = BlockComponent>) -> Self
+    where I: IntoIterator<Item = (String, StateCondition)> {
+        Self {
+            conditions: conditions.into_iter().collect(),
+            components: components.into_iter().collect(),
+        }
+    }
+
+    pub fn when_state(
+        identifier: impl Into<String>,
+        condition: StateCondition,
+        components: impl IntoIterator<Item = BlockComponent>,
+    ) -> Self {
+        Self::new([(identifier.into(), condition)], components)
+    }
+
+    fn matches(&self, states: &BTreeMap<String, BlockState>) -> bool {
+        self.conditions.iter().all(|(name, condition)| condition.matches(states.get(name)))
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct BlockDefinition {
     identifier: String,
     states: Vec<BlockStateDefinition>,
+    components: Vec<BlockComponent>,
+    permutations: Vec<BlockPermutationDefinition>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BlockPermutation {
     identifier: String,
     states: BTreeMap<String, BlockState>,
     index: u16,
+    components: Arc<BlockComponents>,
 }
 
 impl BlockDefinition {
     pub fn new<I>(identifier: impl Into<String>, states: I) -> Self
     where I: IntoIterator<Item = BlockStateDefinition> {
-        Self { identifier: identifier.into(), states: states.into_iter().collect() }
+        Self::with_components(identifier, states, [], [])
+    }
+
+    pub fn with_components<I, C, P>(
+        identifier: impl Into<String>,
+        states: I,
+        components: C,
+        permutations: P,
+    ) -> Self
+    where
+        I: IntoIterator<Item = BlockStateDefinition>,
+        C: IntoIterator<Item = BlockComponent>,
+        P: IntoIterator<Item = BlockPermutationDefinition>,
+    {
+        Self {
+            identifier: identifier.into(),
+            states: states.into_iter().collect(),
+            components: components.into_iter().collect(),
+            permutations: permutations.into_iter().collect(),
+        }
     }
 
     pub fn identifier(&self) -> &str { &self.identifier }
     pub fn states(&self) -> &[BlockStateDefinition] { &self.states }
+    pub fn components(&self) -> &[BlockComponent] { &self.components }
+    pub fn permutation_definitions(&self) -> &[BlockPermutationDefinition] { &self.permutations }
 
     pub fn validate(&self) -> Result<usize, String> {
         let (namespace, name) = self.identifier.split_once(':')
@@ -37,7 +109,7 @@ impl BlockDefinition {
             return Err(format!("invalid block identifier {:?}", self.identifier));
         }
 
-        let mut names = std::collections::HashSet::new();
+        let mut names = HashSet::new();
         let mut count = 1usize;
         for state in &self.states {
             state.validate()?;
@@ -50,6 +122,23 @@ impl BlockDefinition {
                 return Err(format!("block {:?} exceeds 65535 permutations", self.identifier));
             }
         }
+
+        for component in &self.components { component.validate()?; }
+        for permutation in &self.permutations {
+            for component in &permutation.components { component.validate()?; }
+            for (state_name, condition) in &permutation.conditions {
+                let definition = self.states.iter()
+                    .find(|state| state.identifier() == state_name.as_str())
+                    .ok_or_else(|| format!("permutation condition references unknown state {:?}", state_name))?;
+                let values: Vec<&BlockState> = match condition {
+                    StateCondition::Equals(value) | StateCondition::NotEquals(value) => vec![value],
+                    StateCondition::OneOf(values) => values.iter().collect(),
+                };
+                if values.is_empty() || values.iter().any(|value| definition.value_index(value).is_none()) {
+                    return Err(format!("permutation condition for state {:?} contains an invalid value", state_name));
+                }
+            }
+        }
         Ok(count)
     }
 
@@ -58,21 +147,37 @@ impl BlockDefinition {
         let mut ordered: Vec<&BlockStateDefinition> = self.states.iter().collect();
         ordered.sort_by(|a, b| a.identifier().cmp(b.identifier()));
 
+        let mut shared_components: HashMap<Vec<bool>, Arc<BlockComponents>> = HashMap::new();
         let mut permutations = Vec::with_capacity(count);
         for index in 0..count {
             let mut remainder = index;
             let mut states = BTreeMap::new();
-            // Mixed-radix decoding mirrors Chorus's sorted state index order.
             for state in ordered.iter().rev() {
                 let radix = state.values().len();
                 let digit = remainder % radix;
                 remainder /= radix;
                 states.insert(state.identifier().to_string(), state.values()[digit].clone());
             }
+
+            let matched: Vec<bool> = self.permutations.iter()
+                .map(|definition| definition.matches(&states))
+                .collect();
+            let components = shared_components.entry(matched.clone()).or_insert_with(|| {
+                let mut components = BlockComponents::new();
+                for component in &self.components { components.insert(component.clone()); }
+                for (definition, is_matched) in self.permutations.iter().zip(matched.iter()) {
+                    if *is_matched {
+                        for component in &definition.components { components.insert(component.clone()); }
+                    }
+                }
+                Arc::new(components)
+            }).clone();
+
             permutations.push(BlockPermutation {
                 identifier: self.identifier.clone(),
                 states,
                 index: index as u16,
+                components,
             });
         }
         Ok(permutations)
@@ -84,6 +189,7 @@ impl BlockPermutation {
     pub fn states(&self) -> &BTreeMap<String, BlockState> { &self.states }
     pub fn index(&self) -> u16 { self.index }
     pub fn state(&self, identifier: &str) -> Option<&BlockState> { self.states.get(identifier) }
+    pub fn components(&self) -> &BlockComponents { self.components.as_ref() }
 }
 
 #[derive(Default)]
@@ -117,8 +223,13 @@ impl BlockRegistry {
         self.permutations.get(identifier).map(Vec::len)
     }
 
-    pub fn permutation(&self, identifier: &str, states: &BTreeMap<String, BlockState>) -> Option<&BlockPermutation> {
-        self.permutations.get(identifier)?.iter().find(|permutation| &permutation.states == states)
+    pub fn permutation(
+        &self,
+        identifier: &str,
+        states: &BTreeMap<String, BlockState>,
+    ) -> Option<&BlockPermutation> {
+        self.permutations.get(identifier)?.iter()
+            .find(|permutation| &permutation.states == states)
     }
 
     pub fn block_count(&self) -> usize { self.definitions.len() }
@@ -127,6 +238,7 @@ impl BlockRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::components::{BlockComponent, BlockComponentKind, MineableComponent};
 
     fn sample_definition() -> BlockDefinition {
         BlockDefinition::new("minecraft:test_block", [
@@ -138,8 +250,7 @@ mod tests {
 
     #[test]
     fn generates_cartesian_product_with_stable_indices() {
-        let definition = sample_definition();
-        let permutations = definition.generate().unwrap();
+        let permutations = sample_definition().generate().unwrap();
         assert_eq!(permutations.len(), 12);
         let indices: Vec<u16> = permutations.iter().map(BlockPermutation::index).collect();
         assert_eq!(indices, (0..12).collect::<Vec<_>>());
@@ -167,8 +278,7 @@ mod tests {
             ("level".to_string(), BlockState::Int(1)),
             ("open_bit".to_string(), BlockState::Bool(true)),
         ].into_iter().collect();
-        let permutation = registry.permutation("minecraft:test_block", &states).unwrap();
-        assert_eq!(permutation.index(), 9);
+        assert_eq!(registry.permutation("minecraft:test_block", &states).unwrap().index(), 9);
     }
 
     #[test]
@@ -184,5 +294,38 @@ mod tests {
         let state = BlockStateDefinition::integer("wide", 0, 255).unwrap();
         let other = BlockStateDefinition::integer("wide2", 0, 255).unwrap();
         assert!(BlockDefinition::new("minecraft:too_many", [state, other]).generate().is_err());
+    }
+
+    #[test]
+    fn conditional_component_overrides_merge_on_matching_states_only() {
+        let definition = BlockDefinition::with_components(
+            "minecraft:lamp",
+            [BlockStateDefinition::boolean("lit", false)],
+            [BlockComponent::Mineable(MineableComponent::hardness(1.0)), BlockComponent::Friction(0.6)],
+            [BlockPermutationDefinition::when_state(
+                "lit",
+                StateCondition::Equals(BlockState::Bool(true)),
+                [BlockComponent::Mineable(MineableComponent::hardness(0.5)), BlockComponent::Solid(false)],
+            )],
+        );
+        let permutations = definition.generate().unwrap();
+        assert_eq!(permutations[0].components().mineable().unwrap().hardness, 1.0);
+        assert_eq!(permutations[1].components().mineable().unwrap().hardness, 0.5);
+        assert_eq!(permutations[0].components().get(BlockComponentKind::Solid), None);
+        assert_eq!(permutations[1].components().get(BlockComponentKind::Solid), Some(&BlockComponent::Solid(false)));
+        assert_eq!(permutations[0].components().len(), 2);
+    }
+
+    #[test]
+    fn invalid_permutation_state_conditions_are_rejected() {
+        let definition = BlockDefinition::with_components(
+            "minecraft:lamp",
+            [BlockStateDefinition::boolean("lit", false)],
+            [],
+            [BlockPermutationDefinition::when_state(
+                "lit", StateCondition::Equals(BlockState::Int(1)), [],
+            )],
+        );
+        assert!(definition.generate().is_err());
     }
 }
