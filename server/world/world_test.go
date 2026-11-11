@@ -53,6 +53,28 @@ func TestSynchronousWorldAdvanceTick(t *testing.T) {
 	}
 }
 
+func TestEntitiesIntersectingFindsBoundingBoxesAcrossChunkBoundaries(t *testing.T) {
+	w := Config{Synchronous: true}.New()
+	defer w.Close()
+
+	var found bool
+	w.Do(func(tx *Tx) {
+		// The local entity box extends one block in +X from its origin.
+		h := EntitySpawnOpts{Position: mgl64.Vec3{15.8, 4, 4}}.New(testEntityType{}, testEntityConfig{})
+		tx.AddEntity(h)
+		query := cube.Box(16.2, 4, 4, 16.5, 4.9, 4.9)
+		for e := range tx.EntitiesIntersecting(query) {
+			if e.H() == h {
+				found = true
+			}
+		}
+	}).Wait(context.Background())
+
+	if !found {
+		t.Fatal("entity bounding box crossing a chunk boundary was not found")
+	}
+}
+
 func TestEntitiesIntersectingUsesBoundingBoxes(t *testing.T) {
 	w := Config{Synchronous: true}.New()
 	defer w.Close()

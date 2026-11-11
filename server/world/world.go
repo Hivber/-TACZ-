@@ -954,13 +954,28 @@ func (w *World) entitiesWithin(tx *Tx, box cube.BBox) iter.Seq[Entity] {
 }
 
 // entitiesIntersecting returns entities whose world-space bounding boxes intersect box.
-// The one-chunk search halo includes entities whose origins are in an adjacent chunk
-// while part of their bounding boxes extends into the requested area.
+// A two-block chunk-boundary margin covers the local extents of the built-in entity types
+// without scanning neighbouring chunks when the query is well inside a chunk.
 func (w *World) entitiesIntersecting(tx *Tx, box cube.BBox) iter.Seq[Entity] {
 	return func(yield func(Entity) bool) {
-		minPos, maxPos := chunkPosFromVec3(box.Min()), chunkPosFromVec3(box.Max())
-		for x := minPos[0] - 1; x <= maxPos[0]+1; x++ {
-			for z := minPos[1] - 1; z <= maxPos[1]+1; z++ {
+		min, max := box.Min(), box.Max()
+		minPos, maxPos := chunkPosFromVec3(min), chunkPosFromVec3(max)
+		minX, maxX, minZ, maxZ := minPos[0], maxPos[0], minPos[1], maxPos[1]
+		const entityBoundsMargin = 2.0
+		if min[0]-float64(minX*16) < entityBoundsMargin {
+			minX--
+		}
+		if float64((maxX+1)*16)-max[0] < entityBoundsMargin {
+			maxX++
+		}
+		if min[2]-float64(minZ*16) < entityBoundsMargin {
+			minZ--
+		}
+		if float64((maxZ+1)*16)-max[2] < entityBoundsMargin {
+			maxZ++
+		}
+		for x := minX; x <= maxX; x++ {
+			for z := minZ; z <= maxZ; z++ {
 				c, ok := w.chunks[ChunkPos{x, z}]
 				if !ok {
 					continue
