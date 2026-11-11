@@ -84,13 +84,13 @@ impl SemanticEvent {
             Self::MiningStart { uuid, profile, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
                     && eye_position.iter().all(|v| v.is_finite())
-                    && max_reach.is_finite() && max_reach > 0.0,
+                    && max_reach.is_finite() && *max_reach > 0.0,
             Self::MiningAdvance { uuid, profile, tool, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
                     && tool.efficiency_correct.is_finite()
                     && tool.efficiency_incorrect.is_finite()
                     && eye_position.iter().all(|v| v.is_finite())
-                    && max_reach.is_finite() && max_reach > 0.0,
+                    && max_reach.is_finite() && *max_reach > 0.0,
         }
     }
 }
