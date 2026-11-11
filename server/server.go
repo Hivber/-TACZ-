@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"context"
 	_ "embed"
 	"encoding/base64"
@@ -41,6 +42,7 @@ import (
 // handles the connections of players trying to join the server.
 type Server struct {
 	conf Config
+	gameCore *gamecore.Bridge
 
 	once    sync.Once
 	started atomic.Pointer[time.Time]
@@ -329,6 +331,10 @@ func (srv *Server) close() {
 		p.Disconnect(chat.MessageServerDisconnect.Resolve(p.Locale()))
 	}
 	srv.pwg.Wait()
+	if srv.gameCore != nil {
+		srv.conf.Log.Debug("Draining Rust game-core shadow bridge...")
+		srv.gameCore.Close()
+	}
 
 	srv.conf.Log.Debug("Closing player provider...")
 	if err := srv.conf.PlayerProvider.Close(); err != nil {
@@ -600,6 +606,7 @@ func (srv *Server) createPlayer(id uuid.UUID, conn session.Conn, conf player.Con
 		JoinMessage:            srv.conf.JoinMessage,
 		QuitMessage:            srv.conf.QuitMessage,
 		HandleStop:             srv.handleSessionClose,
+		GameCore:               srv.gameCore,
 		BlockRegistry:          w.BlockRegistry(),
 	}.New(conn)
 

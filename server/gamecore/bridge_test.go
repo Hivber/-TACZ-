@@ -1,5 +1,5 @@
 package gamecore
-import("encoding/binary";"encoding/json";"io";"net";"path/filepath";"sync/atomic";"testing";"time")
+import("context";"encoding/binary";"encoding/json";"io";"net";"path/filepath";"sync/atomic";"testing";"time")
 func readFrame(t *testing.T,c net.Conn)[]byte{t.Helper();var h[4]byte;if _,e:=io.ReadFull(c,h[:]);e!=nil{t.Fatal(e)};p:=make([]byte,binary.BigEndian.Uint32(h[:]));if _,e:=io.ReadFull(c,p);e!=nil{t.Fatal(e)};return p}
 func writeFrame(t *testing.T,c net.Conn,r Response){t.Helper();p,e:=json.Marshal(r);if e!=nil{t.Fatal(e)};var h[4]byte;binary.BigEndian.PutUint32(h[:],uint32(len(p)));if _,e=c.Write(h[:]);e!=nil{t.Fatal(e)};if _,e=c.Write(p);e!=nil{t.Fatal(e)}}
 func TestClientReusesPersistentConnection(t *testing.T){path:=filepath.Join(t.TempDir(),"core.sock");l,e:=net.Listen("unix",path);if e!=nil{t.Fatal(e)};defer l.Close();var accepts atomic.Int32;done:=make(chan error,1);go func(){c,e:=l.Accept();if e!=nil{done<-e;return};defer c.Close();accepts.Add(1);for i:=0;i<2;i++{var req batchRequest;if e=json.Unmarshal(readFrame(t,c),&req);e!=nil{done<-e;return};writeFrame(t,c,Response{ProtocolVersion:1,OK:true,Message:"batch_applied",ProcessedEvents:len(req.Events)})};done<-nil}()

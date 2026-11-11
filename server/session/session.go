@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"context"
 	"errors"
 	"fmt"
@@ -46,6 +47,7 @@ type outgoingPacket struct {
 
 type Session struct {
 	conf           Config
+	gameCore       *gamecore.Bridge
 	once, connOnce sync.Once
 
 	ent              *world.EntityHandle
@@ -227,6 +229,9 @@ type Config struct {
 	// PerformanceDiagnostics enables optional packet and client diagnostics.
 	PerformanceDiagnostics bool
 
+	// GameCore asynchronously mirrors player state to the optional Rust core.
+	GameCore *gamecore.Bridge
+
 	JoinMessage, QuitMessage chat.Translation
 
 	// HandleStop is called once when the Session is closed. The transaction is
@@ -267,6 +272,7 @@ func (conf Config) New(conn Conn) *Session {
 		heldSlot:               new(uint32),
 		recipes:                make(map[uint32]recipe.Recipe),
 		conf:                   conf,
+		gameCore:               conf.GameCore,
 		hudUpdates:             make(map[hud.Element]bool),
 		hiddenHud:              make(map[hud.Element]struct{}),
 		debugShapes:            make(map[int]debug.Shape),
@@ -331,6 +337,7 @@ func (s *Session) SetHandle(handle *world.EntityHandle, skin skin.Skin) {
 // Spawn makes the Controllable passed spawn in the world.World.
 // The function passed will be called when the session stops running.
 func (s *Session) Spawn(c Controllable, tx *world.Tx) {
+	s.emitGameCorePlayerJoin(c, tx.World().Dimension())
 	s.SendHealth(c.Health(), c.MaxHealth(), c.Absorption())
 	s.SendExperience(c.ExperienceLevel(), c.ExperienceProgress())
 	s.SendFood(c.Food(), 0, 0)
@@ -382,6 +389,7 @@ func (s *Session) Close(tx *world.Tx, c Controllable) {
 // close closes the session, which in turn closes the controllable and the connection that the session
 // manages.
 func (s *Session) close(tx *world.Tx, c Controllable) {
+	s.emitGameCorePlayerLeave(c)
 	if tx != nil {
 		c.MoveItemsToInventory()
 		s.closeCurrentContainer(tx, false)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"fmt"
 	"log/slog"
 	"os"
@@ -37,6 +38,8 @@ type FeatureFlags struct {
 	Pprof bool
 	// PprofAddress is the loopback address used by pprof when enabled.
 	PprofAddress string
+	// GameCoreSocket enables optional asynchronous Rust shadow-state mirroring.
+	GameCoreSocket string
 }
 
 // Config contains options for starting a Minecraft server.
@@ -211,6 +214,12 @@ func (conf Config) New() *Server {
 		incoming: make(chan incoming),
 		p:        make(map[uuid.UUID]*onlinePlayer),
 		world:    &world.World{}, nether: &world.World{}, end: &world.World{},
+	}
+	if socket := strings.TrimSpace(conf.Features.GameCoreSocket); socket != "" {
+		srv.gameCore = gamecore.NewBridge(socket, func(err error) {
+			conf.Log.Warn("Rust game-core shadow bridge", "error", err)
+		})
+		conf.Log.Info("Rust game-core shadow bridge enabled", "socket", socket)
 	}
 	for _, lf := range conf.Listeners {
 		l, err := lf(conf)
