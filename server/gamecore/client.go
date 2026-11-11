@@ -107,7 +107,7 @@ type Response struct {
 	Message         string `json:"message"`
 	OnlinePlayers   int    `json:"online_players"`
 	ProcessedEvents int    `json:"processed_events"`
-	MiningResults   []MiningResult `json:"mining_results,omitempty"
+	MiningResults   []MiningResult `json:"mining_results,omitempty"`
 }
 
 // Client serializes access to one persistent local IPC connection. A failed
