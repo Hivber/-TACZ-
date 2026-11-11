@@ -13,8 +13,8 @@ import (
 
 type movementTestEntityType struct{}
 
-func (movementTestEntityType) Open(*world.Tx, *world.EntityHandle, *world.EntityData) world.Entity {
-	return nil
+func (movementTestEntityType) Open(_ *world.Tx, handle *world.EntityHandle, data *world.EntityData) world.Entity {
+	return &movementTestEntity{handle: handle, pos: data.Pos}
 }
 func (movementTestEntityType) EncodeEntity() string { return "dragonfly:movement_test" }
 func (movementTestEntityType) BBox(world.Entity) cube.BBox {
@@ -73,6 +73,40 @@ func TestMovementComputerTriggersEntityStepper(t *testing.T) {
 	if !lit {
 		t.Fatal("standing on redstone ore did not invoke EntityStepOn")
 	}
+}
+
+
+
+func TestMovementComputerCollidesWithOtherEntities(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	w.Do(func(tx *world.Tx) {
+		moving := tx.AddEntity(newMovementTestEntity(mgl64.Vec3{0.5, 1, 0.5}, 0).handle)
+		_ = tx.AddEntity(newMovementTestEntity(mgl64.Vec3{1.3, 1, 0.5}, 0).handle)
+
+		computer := MovementComputer{}
+		delta, _ := computer.CheckCollision(tx, moving, moving.Position(), mgl64.Vec3{0.5, 0, 0})
+		if math.Abs(delta[0]-0.2) > 0.0001 {
+			t.Fatalf("expected horizontal movement to stop at entity boundary (0.2), got %v", delta[0])
+		}
+	}).Wait(context.Background())
+}
+
+func TestMovementComputerIgnoresEntitiesOutsideVerticalOverlap(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	defer w.Close()
+
+	w.Do(func(tx *world.Tx) {
+		moving := tx.AddEntity(newMovementTestEntity(mgl64.Vec3{0.5, 1, 0.5}, 0).handle)
+		_ = tx.AddEntity(newMovementTestEntity(mgl64.Vec3{1.3, 4, 0.5}, 0).handle)
+
+		computer := MovementComputer{}
+		delta, _ := computer.CheckCollision(tx, moving, moving.Position(), mgl64.Vec3{0.5, 0, 0})
+		if math.Abs(delta[0]-0.5) > 0.0001 {
+			t.Fatalf("expected no horizontal collision without vertical overlap, got %v", delta[0])
+		}
+	}).Wait(context.Background())
 }
 
 func TestMovementComputerTriggersEntityInsider(t *testing.T) {

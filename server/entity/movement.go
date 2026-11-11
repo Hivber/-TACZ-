@@ -154,12 +154,24 @@ func (c *MovementComputer) applyHorizontalForces(tx *world.Tx, pos, vel mgl64.Ve
 // happens to collide with a block.
 // The final velocity and the Vec3 that the entity should move is returned.
 func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel mgl64.Vec3) (mgl64.Vec3, mgl64.Vec3) {
-	// TODO: Implement collision with other entities.
 	deltaX, deltaY, deltaZ := vel[0], vel[1], vel[2]
 
 	// Entities only ever have a single bounding box.
 	entityBBox := e.H().Type().BBox(e).Translate(pos)
 	blocks := blockBBoxsAround(tx, entityBBox.Extend(vel))
+
+	// EntitiesWithin currently indexes entities by their position rather than
+	// their bounding box. Grow the search area enough to include nearby entity
+	// origins whose bounding boxes may overlap the swept movement box.
+	const entitySearchMargin = 2.0
+	searchBox := entityBBox.Extend(vel).Grow(entitySearchMargin)
+	var entityBoxes []cube.BBox
+	for other := range tx.EntitiesWithin(searchBox) {
+		if other.H() == e.H() {
+			continue
+		}
+		entityBoxes = append(entityBoxes, other.H().Type().BBox(other).Translate(other.Position()))
+	}
 
 	if !mgl64.FloatEqualThreshold(deltaY, 0, epsilon) {
 		// First we move the entity BBox on the Y axis.
@@ -173,12 +185,18 @@ func (c *MovementComputer) CheckCollision(tx *world.Tx, e world.Entity, pos, vel
 		for _, blockBBox := range blocks {
 			deltaX = entityBBox.XOffset(blockBBox, deltaX)
 		}
+		for _, otherBBox := range entityBoxes {
+			deltaX = entityBBox.XOffset(otherBBox, deltaX)
+		}
 		entityBBox = entityBBox.Translate(mgl64.Vec3{deltaX})
 	}
 	if !mgl64.FloatEqualThreshold(deltaZ, 0, epsilon) {
 		// And finally on the Z axis.
 		for _, blockBBox := range blocks {
 			deltaZ = entityBBox.ZOffset(blockBBox, deltaZ)
+		}
+		for _, otherBBox := range entityBoxes {
+			deltaZ = entityBBox.ZOffset(otherBBox, deltaZ)
 		}
 	}
 	if !mgl64.FloatEqual(vel[1], 0) {
