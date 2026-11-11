@@ -69,8 +69,10 @@ func (c difficultySet) Run(_ Source, out *Output, tx *world.Tx) {
 		return
 	}
 	tx.World().SetDifficulty(difficulty)
-	for p := range tx.Players() {
-		p.SendDifficulty(difficulty)
+	for entity := range tx.Players() {
+		if player, ok := entity.(interface{ SendDifficulty(world.Difficulty) }); ok {
+			player.SendDifficulty(difficulty)
+		}
 	}
 	id, _ := world.DifficultyID(difficulty)
 	out.Printf("The world difficulty has been updated to %s (%d).", c.Difficulty, id)
@@ -80,7 +82,7 @@ type gameModeName string
 
 func (gameModeName) Type() string { return "GameMode" }
 func (gameModeName) Options(Source) []string {
-	return []string{"survival", "creative", "adventure", "spectator", "0", "1", "2", "3", "s", "c", "a", "sp"}
+	return []string{"survival", "creative", "adventure", "spectator", "default", "0", "1", "2", "5", "s", "c", "a", "d", "sp"}
 }
 
 func parseGameModeName(name string) (world.GameMode, bool) {
@@ -91,7 +93,7 @@ func parseGameModeName(name string) (world.GameMode, bool) {
 		return world.GameModeCreative, true
 	case "2", "adventure", "a":
 		return world.GameModeAdventure, true
-	case "3", "spectator", "sp", "view":
+	case "spectator", "sp", "view":
 		return world.GameModeSpectator, true
 	default:
 		return nil, false
@@ -139,8 +141,19 @@ type gameModeSet struct {
 
 func (gameModeSet) Allow(src Source) bool { return commandOperator(src) }
 
-func (c gameModeSet) Run(src Source, out *Output, _ *world.Tx) {
-	mode, ok := parseGameModeName(string(c.Mode))
+func (c gameModeSet) Run(src Source, out *Output, tx *world.Tx) {
+	var mode world.GameMode
+	var ok bool
+	switch strings.ToLower(string(c.Mode)) {
+	case "default", "d", "5":
+		if tx == nil {
+			out.Error("gamemode default requires a world.")
+			return
+		}
+		mode, ok = tx.World().DefaultGameMode(), true
+	default:
+		mode, ok = parseGameModeName(string(c.Mode))
+	}
 	if !ok {
 		out.Errorf("Unknown game mode: %s", c.Mode)
 		return

@@ -42,7 +42,6 @@ func TestParseGameModeName(t *testing.T) {
 		{"creative", world.GameModeCreative},
 		{"2", world.GameModeAdventure},
 		{"adventure", world.GameModeAdventure},
-		{"3", world.GameModeSpectator},
 		{"spectator", world.GameModeSpectator},
 	}
 	for _, test := range tests {
@@ -50,6 +49,9 @@ func TestParseGameModeName(t *testing.T) {
 		if !ok || got != test.want {
 			t.Errorf("parseGameModeName(%q) = (%v, %t), want (%v, true)", test.input, got, ok, test.want)
 		}
+	}
+	if _, ok := parseGameModeName("3"); ok {
+		t.Fatal("parseGameModeName accepted the non-Bedrock numeric spectator mode")
 	}
 	if _, ok := parseGameModeName("unknown"); ok {
 		t.Fatal("parseGameModeName accepted an invalid game mode")
