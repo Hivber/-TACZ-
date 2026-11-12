@@ -186,3 +186,19 @@ slot validators, item-stack request logic, crafting/furnace behavior and
 persistence remain authoritative. Rust inventory operation results are not
 applied to Dragonfly or returned as client packets. No Rust-driven inventory
 transaction authority or restart persistence is claimed.
+
+
+## Cross-inventory transfer primitive (2026-11-12)
+
+The Rust inventory core now exposes an exact-count transfer between two distinct
+inventory mirrors, including player-carried and world-container IDs. It validates
+source count, destination slot, stack identity, metadata/user-data identity and
+maximum stack capacity before mutating either side. Failed transfers leave both
+inventories unchanged. The versioned IPC schema carries source/destination
+inventory IDs and slots and returns the updated source snapshot. Same-inventory
+moves reuse the existing move operation.
+
+This is a tested core primitive and IPC event contract, not yet a live Bedrock
+transaction authority. The Dragonfly ItemStackRequest and legacy transaction
+handlers still validate and apply client actions on the Go world owner; no Rust
+response is yet translated into live inventory mutations or packet responses.

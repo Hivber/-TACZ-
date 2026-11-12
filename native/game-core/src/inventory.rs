@@ -85,6 +85,43 @@ impl Inventory {
         Ok(())
     }
 
+    /// Transfer an exact count between two distinct inventories without losing items.
+    /// Validation is completed before either inventory is mutated.
+    pub fn transfer_slot_to(
+        &mut self,
+        destination: &mut Inventory,
+        source_slot: usize,
+        destination_slot: usize,
+        count: u16,
+    ) -> Result<(), String> {
+        if count == 0 { return Err("transfer count must be positive".into()); }
+        let source = self.slots.get(source_slot)
+            .ok_or_else(|| format!("source slot {source_slot} out of range"))?
+            .as_ref().ok_or_else(|| "source slot is empty".to_string())?;
+        if count > source.count { return Err("transfer count exceeds source stack".into()); }
+        let target = destination.slots.get(destination_slot)
+            .ok_or_else(|| format!("destination slot {destination_slot} out of range"))?;
+        match target {
+            None => {
+                if count > source.max_count() { return Err("transfer exceeds destination stack limit".into()); }
+            }
+            Some(existing) => {
+                if !existing.same_kind(source) { return Err("destination stack is incompatible".into()); }
+                if existing.count.saturating_add(count) > existing.max_count() {
+                    return Err("destination stack capacity exceeded".into());
+                }
+            }
+        }
+        let mut moved = source.clone();
+        moved.count = count;
+        self.decrease_slot(source_slot, count);
+        match destination.slots[destination_slot].as_mut() {
+            Some(existing) => existing.count += count,
+            None => destination.slots[destination_slot] = Some(moved),
+        }
+        Ok(())
+    }
+
     fn decrease_slot(&mut self, slot: usize, count: u16) {
         if let Some(stack) = self.slots[slot].as_mut() {
             stack.count -= count;
@@ -122,6 +159,30 @@ mod tests {
         assert_eq!(inventory.remove(0, 7).unwrap().unwrap().count, 7);
         assert!(inventory.get(0).is_none());
     }
+    #[test]
+    fn cross_inventory_transfer_is_exact_and_preserves_item_data() {
+        let mut source = Inventory::new(2);
+        let mut destination = Inventory::new(2);
+        source.set(0, Some(ItemStack::new("minecraft:diamond_sword", 1, 7, vec![1, 2]).unwrap())).unwrap();
+        source.transfer_slot_to(&mut destination, 0, 1, 1).unwrap();
+        assert!(source.get(0).is_none());
+        let moved = destination.get(1).unwrap();
+        assert_eq!(moved.identifier, "minecraft:diamond_sword");
+        assert_eq!(moved.metadata, 7);
+        assert_eq!(moved.user_data, vec![1, 2]);
+    }
+
+    #[test]
+    fn failed_cross_inventory_transfer_does_not_mutate_either_side() {
+        let mut source = Inventory::new(1);
+        let mut destination = Inventory::new(1);
+        source.set(0, Some(stack("minecraft:diamond", 4))).unwrap();
+        destination.set(0, Some(stack("minecraft:emerald", 3))).unwrap();
+        assert!(source.transfer_slot_to(&mut destination, 0, 0, 2).is_err());
+        assert_eq!(source.get(0).unwrap().count, 4);
+        assert_eq!(destination.get(0).unwrap().count, 3);
+    }
+
     #[test]
     fn metadata_prevents_incompatible_merges() {
         let mut inventory = Inventory::new(2);

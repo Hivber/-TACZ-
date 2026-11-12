@@ -49,6 +49,10 @@ enum SemanticEvent {
     InventoryInsert { inventory_id: String, stack: ItemStack },
     InventoryRemove { inventory_id: String, slot: usize, count: u16 },
     InventoryMove { inventory_id: String, source: usize, destination: usize, count: u16 },
+    InventoryTransfer {
+        source_inventory_id: String, destination_inventory_id: String,
+        source_slot: usize, destination_slot: usize, count: u16,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -109,6 +113,10 @@ impl SemanticEvent {
             Self::InventoryRemove { inventory_id, slot, count } => !inventory_id.is_empty() && inventory_id.len() <= 256 && *slot < 256 && *count > 0,
             Self::InventoryMove { inventory_id, source, destination, count } =>
                 !inventory_id.is_empty() && inventory_id.len() <= 256 && *source < 256 && *destination < 256 && *count > 0,
+            Self::InventoryTransfer { source_inventory_id, destination_inventory_id, source_slot, destination_slot, count } =>
+                !source_inventory_id.is_empty() && source_inventory_id.len() <= 256
+                    && !destination_inventory_id.is_empty() && destination_inventory_id.len() <= 256
+                    && *source_slot < 256 && *destination_slot < 256 && *count > 0,
             Self::Tick => true,
             Self::MiningStart { uuid, profile, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
@@ -251,6 +259,46 @@ impl CoreState {
                     None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
                 };
                 return (None, Some(InventoryResult { inventory_id, outcome }));
+            }
+            SemanticEvent::InventoryTransfer { source_inventory_id, destination_inventory_id, source_slot, destination_slot, count } => {
+                if source_inventory_id == destination_inventory_id {
+                    let outcome = match self.inventories.get_mut(&source_inventory_id) {
+                        Some(inventory) => match inventory.move_items(source_slot, destination_slot, count) {
+                            Ok(()) => InventoryOutcome::Updated { slots: inventory.slots().to_vec() },
+                            Err(error) => InventoryOutcome::Error { error },
+                        },
+                        None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
+                    };
+                    return (None, Some(InventoryResult { inventory_id: source_inventory_id, outcome }));
+                }
+                let (Some(mut source), Some(mut destination)) = (
+                    self.inventories.remove(&source_inventory_id),
+                    self.inventories.remove(&destination_inventory_id),
+                ) else {
+                    return (None, Some(InventoryResult {
+                        inventory_id: source_inventory_id,
+                        outcome: InventoryOutcome::Error { error: "inventory_not_initialized".into() },
+                    }));
+                };
+                let result = source.transfer_slot_to(&mut destination, source_slot, destination_slot, count);
+                let source_slots = source.slots().to_vec();
+                let destination_slots = destination.slots().to_vec();
+                self.inventories.insert(source_inventory_id.clone(), source);
+                self.inventories.insert(destination_inventory_id.clone(), destination);
+                match result {
+                    Ok(()) => {
+                        return (None, Some(InventoryResult {
+                            inventory_id: source_inventory_id,
+                            outcome: InventoryOutcome::Updated { slots: source_slots },
+                        }));
+                    }
+                    Err(error) => {
+                        return (None, Some(InventoryResult {
+                            inventory_id: source_inventory_id,
+                            outcome: InventoryOutcome::Error { error },
+                        }));
+                    }
+                }
             }
         }
         (None, None)

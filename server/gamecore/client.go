@@ -40,6 +40,10 @@ type Event struct {
 	ProtocolVersion uint16             `json:"protocol_version,omitempty"`
 	UUID            string             `json:"uuid,omitempty"`
 	InventoryID     string             `json:"inventory_id,omitempty"`
+	SourceInventoryID string           `json:"source_inventory_id,omitempty"`
+	DestinationInventoryID string      `json:"destination_inventory_id,omitempty"`
+	SourceSlot      int                `json:"source_slot,omitempty"`
+	DestinationSlot int                `json:"destination_slot,omitempty"`
 	Name            string             `json:"name,omitempty"`
 	Dimension       int32              `json:"dimension,omitempty"`
 	GameMode        uint8              `json:"game_mode,omitempty"`
