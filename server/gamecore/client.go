@@ -16,8 +16,8 @@ import (
 
 const (
 	ProtocolVersion	uint16 = 2
-	maxFrameSize	= 1 << 20
-	maxBatchEvents	= 4096
+	maxFrameSize		= 1 << 20
+	maxBatchEvents		= 4096
 )
 
 type Position struct {
