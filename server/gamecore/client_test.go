@@ -100,9 +100,13 @@ func TestInventorySyncSnapshotJSONPreservesEmptySlots(t *testing.T) {
 func TestInventoryTransferEventJSON(t *testing.T) {
 	in := Event{Type: "inventory_transfer", SourceInventoryID: "player:alice:carried", DestinationInventoryID: "world-container:0:1:64:2", SourceSlot: 4, DestinationSlot: 8, Count: 3}
 	data, err := json.Marshal(in)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	var out Event
-	if err = json.Unmarshal(data, &out); err != nil { t.Fatal(err) }
+	if err = json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
 	if out.Type != in.Type || out.SourceInventoryID != in.SourceInventoryID || out.DestinationInventoryID != in.DestinationInventoryID || out.SourceSlot != 4 || out.DestinationSlot != 8 || out.Count != 3 {
 		t.Fatalf("inventory transfer event round-trip mismatch: %#v", out)
 	}
@@ -111,8 +115,14 @@ func TestInventoryTransferEventJSON(t *testing.T) {
 func TestInventoryTransferResponseJSON(t *testing.T) {
 	in := InventoryResult{InventoryID: "player:alice:carried", Status: "transferred", RelatedInventoryID: "world-container:0:1:64:2", Slots: []*ItemStack{nil}, RelatedSlots: []*ItemStack{{Identifier: "minecraft:diamond", Count: 2}}}
 	data, err := json.Marshal(in)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	var out InventoryResult
-	if err = json.Unmarshal(data, &out); err != nil { t.Fatal(err) }
-	if out.RelatedInventoryID != in.RelatedInventoryID || len(out.RelatedSlots) != 1 || out.RelatedSlots[0].Count != 2 { t.Fatalf("related inventory snapshot lost: %#v", out) }
+	if err = json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.RelatedInventoryID != in.RelatedInventoryID || len(out.RelatedSlots) != 1 || out.RelatedSlots[0].Count != 2 {
+		t.Fatalf("related inventory snapshot lost: %#v", out)
+	}
 }
