@@ -59,10 +59,10 @@ func (s *Session) emitGameCorePlayerLeave(c Controllable) {
 // main inventory, off-hand, then armour. Dragonfly remains authoritative until
 // item metadata and transaction handling have been fully migrated.
 func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
-	if s.gameCore == nil || s.inv == nil || s.offHand == nil || s.armour == nil {
+	if s.gameCore == nil || s.inv == nil || s.offHand == nil || s.enderChest == nil || s.armour == nil {
 		return
 	}
-	snapshot := make([]*gamecore.ItemStack, 0, s.inv.Size()+s.offHand.Size()+s.armour.Inventory().Size())
+	snapshot := make([]*gamecore.ItemStack, 0, s.inv.Size()+s.offHand.Size()+s.enderChest.Size()+s.armour.Inventory().Size())
 	appendSlots := func(stacks []item.Stack) error {
 		for _, stack := range stacks {
 			encoded, err := gamecore.EncodeItemStack(stack)
@@ -77,6 +77,9 @@ func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 		return
 	}
 	if err := appendSlots(s.offHand.Slots()); err != nil {
+		return
+	}
+	if err := appendSlots(s.enderChest.Slots()); err != nil {
 		return
 	}
 	if err := appendSlots(s.armour.Inventory().Slots()); err != nil {

@@ -711,12 +711,12 @@ func (s *Session) broadcastInvFunc(tx *world.Tx, c Controllable) inventory.SlotF
 		if !s.inTransaction.Load() {
 			s.sendItem(after, slot, protocol.WindowIDInventory)
 		}
-		s.emitGameCoreInventorySnapshot(c)
 	}
 }
 
-func (s *Session) broadcastEnderChestFunc(tx *world.Tx, _ Controllable) inventory.SlotFunc {
+func (s *Session) broadcastEnderChestFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
 	return func(slot int, _, after item.Stack) {
+		s.emitGameCoreInventorySnapshot(c)
 		if !s.inTransaction.Load() {
 			if _, ok := tx.Block(*s.openedPos.Load()).(block.EnderChest); ok {
 				s.ViewSlotChange(slot, after)
