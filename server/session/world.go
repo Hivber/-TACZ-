@@ -1239,6 +1239,8 @@ func (s *Session) openNormalContainer(b block.Container, pos cube.Pos, tx *world
 	inv := b.Inventory(tx, pos)
 	s.openedWindow.Store(inv)
 	s.openedPos.Store(&pos)
+	s.openedInventoryID = worldContainerInventoryID(tx.World().Dimension(), pos)
+	s.emitGameCoreWorldContainerSnapshot(s.openedInventoryID, inv)
 
 	var containerType byte
 	switch b.(type) {
@@ -1268,6 +1270,11 @@ func (s *Session) openNormalContainer(b block.Container, pos cube.Pos, tx *world
 func (s *Session) ViewSlotChange(slot int, newItem item.Stack) {
 	if !s.containerOpened.Load() {
 		return
+	}
+	// Container slot notifications are emitted by the block-owned inventory for
+	// every viewer, including the player performing the transaction.
+	if s.openedInventoryID != "" {
+		s.emitGameCoreWorldContainerSnapshot(s.openedInventoryID, s.openedWindow.Load())
 	}
 	if s.inTransaction.Load() {
 		// Don't send slot changes to the player itself.
@@ -1410,6 +1417,7 @@ func (s *Session) closeWindow(clientRequested bool) bool {
 	windowID := byte(s.openedWindowID.Load())
 
 	s.openedContainerID.Store(0)
+	s.openedInventoryID = ""
 	s.openedWindow.Store(inventory.New(1, nil))
 	if !clientRequested {
 		s.writePacket(&packet.ContainerClose{

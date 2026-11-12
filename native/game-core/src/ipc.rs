@@ -102,13 +102,13 @@ impl SemanticEvent {
                 !uuid.is_empty() && !name.is_empty() && position.is_finite(),
             Self::PlayerMove { position, .. } => position.is_finite(),
             Self::PlayerLeave { uuid } | Self::MiningAbort { uuid } => !uuid.is_empty(),
-            Self::InventoryInit { inventory_id, slot_count } => !inventory_id.is_empty() && *slot_count > 0 && *slot_count <= 256,
-            Self::InventorySync { inventory_id, slots } => !inventory_id.is_empty() && !slots.is_empty() && slots.len() <= 256
+            Self::InventoryInit { inventory_id, slot_count } => !inventory_id.is_empty() && inventory_id.len() <= 256 && *slot_count > 0 && *slot_count <= 256,
+            Self::InventorySync { inventory_id, slots } => !inventory_id.is_empty() && inventory_id.len() <= 256 && !slots.is_empty() && slots.len() <= 256
                 && slots.iter().flatten().all(ItemStack::is_valid),
-            Self::InventoryInsert { inventory_id, stack } => !inventory_id.is_empty() && stack.is_valid(),
-            Self::InventoryRemove { inventory_id, slot, count } => !inventory_id.is_empty() && *slot < 256 && *count > 0,
+            Self::InventoryInsert { inventory_id, stack } => !inventory_id.is_empty() && inventory_id.len() <= 256 && stack.is_valid(),
+            Self::InventoryRemove { inventory_id, slot, count } => !inventory_id.is_empty() && inventory_id.len() <= 256 && *slot < 256 && *count > 0,
             Self::InventoryMove { inventory_id, source, destination, count } =>
-                !inventory_id.is_empty() && *source < 256 && *destination < 256 && *count > 0,
+                !inventory_id.is_empty() && inventory_id.len() <= 256 && *source < 256 && *destination < 256 && *count > 0,
             Self::Tick => true,
             Self::MiningStart { uuid, profile, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
@@ -463,7 +463,7 @@ mod tests {
             inventory_id: "player:p:carried".into(), slots: vec![None; 257],
         };
         assert!(!too_many.is_valid());
-        assert_eq!(state.inventories.get("p").unwrap().len(), 1);
+        assert_eq!(state.inventories.get("player:p:carried").unwrap().len(), 1);
     }
 
     #[test]
@@ -498,5 +498,38 @@ mod tests {
         assert!(!response.ok);
         assert!(state.players.is_empty());
         assert!(state.mining.is_empty());
+    }
+}
+
+
+#[cfg(test)]
+mod scoped_inventory_tests {
+    use super::*;
+
+    #[test]
+    fn player_disconnect_keeps_world_container_but_cleans_player_inventory() {
+        let mut state = CoreState::default();
+        state.inventories.insert("player:alice:carried".into(), Inventory::new(41));
+        state.inventories.insert("world-container:0:12:64:-8".into(), Inventory::new(27));
+        state.apply(SemanticEvent::PlayerLeave { uuid: "alice".into() });
+        assert!(!state.inventories.contains_key("player:alice:carried"));
+        assert!(state.inventories.contains_key("world-container:0:12:64:-8"));
+    }
+
+    #[test]
+    fn two_world_containers_at_different_coordinates_are_isolated() {
+        let mut state = CoreState::default();
+        let first = "world-container:0:12:64:-8".to_string();
+        let second = "world-container:0:13:64:-8".to_string();
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: first.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:diamond", 1, 0, vec![]).unwrap())],
+        });
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: second.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:emerald", 2, 0, vec![]).unwrap())],
+        });
+        assert_eq!(state.inventories.get(&first).unwrap().get(0).unwrap().identifier, "minecraft:diamond");
+        assert_eq!(state.inventories.get(&second).unwrap().get(0).unwrap().identifier, "minecraft:emerald");
     }
 }

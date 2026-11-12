@@ -137,6 +137,7 @@ type Session struct {
 	openedWindowID                 atomic.Uint32
 	openedContainerID              atomic.Uint32
 	openedWindow                   atomic.Pointer[inventory.Inventory]
+	openedInventoryID              string
 	openedPos                      atomic.Pointer[cube.Pos]
 	swingingArm                    atomic.Bool
 	changingSlot                   atomic.Bool

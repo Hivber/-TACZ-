@@ -154,3 +154,35 @@ An optional `GameCoreSocket` setting enables a bounded asynchronous Go bridge. S
 Player inventory mirroring now snapshots the main inventory, off-hand, ender chest and armour slots on spawn and after slot mutations. The fixed slot order is main inventory, off-hand, ender chest, then armour. Empty slots retain their indices. Each non-empty stack carries its item identifier, count, encoded metadata and a versioned `dragonfly-item-nbt-json-v1` payload generated from Dragonfly's disk item codec. This preserves display name/lore, durability, enchantments, repair cost, unbreakable state, item-specific NBT and Dragonfly custom values in the shadow representation. Payloads above the IPC item-data limit or invalid stack counts cause that snapshot to be skipped rather than sending a partial inventory. The Rust core currently stores this payload as opaque bytes; it does not decode it into authoritative item components or apply inventory actions.
 
 **This is shadow-state mirroring, not gameplay authority.** Dragonfly still validates movement and executes block actions, inventory, entities and world ticks in Go. Rust does not yet return authoritative corrections or outbound gameplay effects. The optional bridge is disabled unless configured.
+
+
+## Scoped inventory/container shadow mirrors (2026-11-12)
+
+The inventory IPC schema uses a stable `inventory_id` instead of treating a
+player UUID as the identity of every inventory. Player-carried inventory uses
+`player:<uuid>:carried`; block-owned inventories use
+`world-container:<dimension-id>:<x>:<y>:<z>`. Bedrock window IDs are
+transient transport/UI identifiers and are never used as persistent inventory
+keys. Player disconnect removes only that player's carried mirror; world
+container mirrors are retained.
+
+When a normal Dragonfly block container is opened, the Go session emits a full
+slot-preserving snapshot. Subsequent block-container viewer slot notifications
+emit fresh snapshots, including changes made by other viewers. This covers
+containers implemented through Dragonfly's `block.Container` interface,
+including paired chests and supported block inventories such as barrels,
+shulker boxes, hoppers, furnaces, smokers, blast furnaces and brewing stands.
+The mirror is still optional and asynchronous.
+
+Ender chests remain part of the player's carried inventory mirror. Crafting,
+anvil, smithing, loom, stonecutter, grindstone, enchanting and beacon UI
+inventories are transient UI state and are intentionally not mislabeled as
+persistent block containers. The current key is position-based; if a block
+container is replaced at the same dimension/position, its mirror key is reused
+and the next complete snapshot replaces the previous slots.
+
+This is still a **shadow mirror**. Go's inventory transaction handlers,
+slot validators, item-stack request logic, crafting/furnace behavior and
+persistence remain authoritative. Rust inventory operation results are not
+applied to Dragonfly or returned as client packets. No Rust-driven inventory
+transaction authority or restart persistence is claimed.

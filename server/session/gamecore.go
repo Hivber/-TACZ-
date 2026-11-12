@@ -2,7 +2,11 @@ package session
 
 import (
 	"github.com/df-mc/dragonfly/server/gamecore"
+	"fmt"
+
+	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/inventory"
 	"github.com/df-mc/dragonfly/server/world"
 )
 
@@ -90,4 +94,36 @@ func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 		InventoryID: "player:" + c.UUID().String() + ":carried",
 		Slots:       snapshot,
 	})
+}
+
+
+// emitGameCoreWorldContainerSnapshot mirrors a persistent block-owned inventory.
+// The key is independent of the transient Bedrock window ID and player session.
+func (s *Session) emitGameCoreWorldContainerSnapshot(inventoryID string, inv *inventory.Inventory) {
+	if s.gameCore == nil || inventoryID == "" || inv == nil {
+		return
+	}
+	snapshot := make([]*gamecore.ItemStack, 0, inv.Size())
+	for _, stack := range inv.Slots() {
+		encoded, err := gamecore.EncodeItemStack(stack)
+		if err != nil {
+			return
+		}
+		snapshot = append(snapshot, encoded)
+	}
+	s.gameCore.Enqueue(gamecore.Event{
+		Type:        "inventory_sync",
+		InventoryID: inventoryID,
+		Slots:       snapshot,
+	})
+}
+
+// worldContainerInventoryID identifies a block container by dimension and block
+// coordinates. It deliberately excludes the Bedrock window ID and viewer UUID.
+func worldContainerInventoryID(dimension world.Dimension, pos cube.Pos) string {
+	dimensionID, ok := world.DimensionID(dimension)
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("world-container:%d:%d:%d:%d", dimensionID, pos[0], pos[1], pos[2])
 }

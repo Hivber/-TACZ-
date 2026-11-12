@@ -61,7 +61,7 @@ func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 	if err := json.Unmarshal(payload, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded["type"] != "inventory_insert" || decoded["uuid"] != "player-uuid" {
+	if decoded["type"] != "inventory_insert" || decoded["inventory_id"] != "player:player-uuid:carried" {
 		t.Fatalf("unexpected inventory event JSON: %s", payload)
 	}
 	var response Response
