@@ -36,32 +36,32 @@ type ItemStack struct {
 }
 
 type Event struct {
-	Type                    string             `json:"type"`
-	ProtocolVersion         uint16             `json:"protocol_version,omitempty"`
-	UUID                    string             `json:"uuid,omitempty"`
-	InventoryID             string             `json:"inventory_id,omitempty"`
-	SourceInventoryID       string             `json:"source_inventory_id,omitempty"`
-	DestinationInventoryID  string             `json:"destination_inventory_id,omitempty"`
-	SourceSlot              int                `json:"source_slot,omitempty"`
-	DestinationSlot         int                `json:"destination_slot,omitempty"`
-	Name                    string             `json:"name,omitempty"`
-	Dimension               int32              `json:"dimension,omitempty"`
-	GameMode                uint8              `json:"game_mode,omitempty"`
-	Position                Position           `json:"position,omitempty"`
-	Target                  *BlockTarget       `json:"target,omitempty"`
-	Profile                 *BlockBreakProfile `json:"profile,omitempty"`
-	Tool                    *MiningTool        `json:"tool,omitempty"`
-	Miner                   *MinerState        `json:"miner,omitempty"`
-	EyePosition             [3]float32         `json:"eye_position,omitempty"`
-	MaxReach                float32            `json:"max_reach,omitempty"`
-	Tick                    uint64             `json:"tick,omitempty"`
-	SlotCount               int                `json:"slot_count,omitempty"`
-	Slots                   []*ItemStack       `json:"slots,omitempty"`
-	Slot                    int                `json:"slot,omitempty"`
-	Stack                   *ItemStack         `json:"stack,omitempty"`
-	Source                  int                `json:"source,omitempty"`
-	Destination             int                `json:"destination,omitempty"`
-	Count                   uint16             `json:"count,omitempty"`
+	Type	string	`json:"type"`
+	ProtocolVersion	uint16	`json:"protocol_version,omitempty"`
+	UUID	string	`json:"uuid,omitempty"`
+	InventoryID	string	`json:"inventory_id,omitempty"`
+	SourceInventoryID	string	`json:"source_inventory_id,omitempty"`
+	DestinationInventoryID	string	`json:"destination_inventory_id,omitempty"`
+	SourceSlot	int	`json:"source_slot,omitempty"`
+	DestinationSlot	int	`json:"destination_slot,omitempty"`
+	Name	string	`json:"name,omitempty"`
+	Dimension	int32	`json:"dimension,omitempty"`
+	GameMode	uint8	`json:"game_mode,omitempty"`
+	Position	Position	`json:"position,omitempty"`
+	Target	*BlockTarget	`json:"target,omitempty"`
+	Profile	*BlockBreakProfile	`json:"profile,omitempty"`
+	Tool	*MiningTool	`json:"tool,omitempty"`
+	Miner	*MinerState	`json:"miner,omitempty"`
+	EyePosition	[3]float32	`json:"eye_position,omitempty"`
+	MaxReach	float32	`json:"max_reach,omitempty"`
+	Tick	uint64	`json:"tick,omitempty"`
+	SlotCount	int	`json:"slot_count,omitempty"`
+	Slots	[]*ItemStack	`json:"slots,omitempty"`
+	Slot	int	`json:"slot,omitempty"`
+	Stack	*ItemStack	`json:"stack,omitempty"`
+	Source	int	`json:"source,omitempty"`
+	Destination	int	`json:"destination,omitempty"`
+	Count	uint16	`json:"count,omitempty"`
 }
 
 type BlockPos struct {
@@ -110,14 +110,14 @@ type MiningResult struct {
 }
 
 type InventoryResult struct {
-	InventoryID         string       `json:"inventory_id"`
-	Status              string       `json:"status"`
-	Error               string       `json:"error,omitempty"`
-	Slots               []*ItemStack `json:"slots,omitempty"`
-	RelatedInventoryID  string       `json:"related_inventory_id,omitempty"`
-	RelatedSlots        []*ItemStack `json:"related_slots,omitempty"`
-	Remainder           *ItemStack   `json:"remainder,omitempty"`
-	Removed             *ItemStack   `json:"removed,omitempty"`
+	InventoryID	string	`json:"inventory_id"`
+	Status	string	`json:"status"`
+	Error	string	`json:"error,omitempty"`
+	Slots	[]*ItemStack	`json:"slots,omitempty"`
+	RelatedInventoryID	string	`json:"related_inventory_id,omitempty"`
+	RelatedSlots	[]*ItemStack	`json:"related_slots,omitempty"`
+	Remainder	*ItemStack	`json:"remainder,omitempty"`
+	Removed	*ItemStack	`json:"removed,omitempty"`
 }
 
 type batchRequest struct {
