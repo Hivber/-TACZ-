@@ -29,9 +29,9 @@ type Position struct {
 }
 
 type ItemStack struct {
-	Identifier string `json:"identifier"`
-	Count      uint16 `json:"count"`
-	Metadata   uint32 `json:"metadata"`
+	Identifier string   `json:"identifier"`
+	Count      uint16   `json:"count"`
+	Metadata   uint32   `json:"metadata"`
 	UserData   []uint16 `json:"user_data,omitempty"`
 }
 
