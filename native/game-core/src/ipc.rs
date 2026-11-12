@@ -240,7 +240,7 @@ impl CoreState {
                     },
                     None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
                 };
-                return (None, Some(InventoryResult { uuid, outcome }));
+                return (None, Some(InventoryResult { inventory_id, outcome }));
             }
             SemanticEvent::InventoryMove { inventory_id, source, destination, count } => {
                 let outcome = match self.inventories.get_mut(&inventory_id) {
@@ -250,7 +250,7 @@ impl CoreState {
                     },
                     None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
                 };
-                return (None, Some(InventoryResult { uuid, outcome }));
+                return (None, Some(InventoryResult { inventory_id, outcome }));
             }
         }
         (None, None)
