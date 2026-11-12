@@ -61,6 +61,6 @@ mod tests {
 
     #[test]
     fn feather_falling_reduction_is_capped() {
-        assert_eq!(compute_damage(10.0, u8::MAX), 1.4);
+        assert!((compute_damage(10.0, u8::MAX) - 1.4).abs() < 0.0001);
     }
 }

@@ -117,6 +117,7 @@ mod tests {
     #[test]
     fn invalid_exhaustion_and_saturation_are_ignored() {
         let mut h = HungerState::new();
+        h.hunger = 10;
         let before = h.clone();
         h.add_exhaustion(f32::NAN);
         h.add_exhaustion(f32::INFINITY);
