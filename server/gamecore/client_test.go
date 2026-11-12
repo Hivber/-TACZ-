@@ -78,7 +78,7 @@ func TestInventorySyncSnapshotJSONPreservesEmptySlots(t *testing.T) {
 	event := Event{
 		Type:        "inventory_sync",
 		InventoryID: "player:player-uuid:carried",
-		Slots:       []*ItemStack{
+		Slots: []*ItemStack{
 			{Identifier: "minecraft:diamond", Count: 3},
 			nil,
 		},
