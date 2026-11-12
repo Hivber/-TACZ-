@@ -63,33 +63,25 @@ func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 		return
 	}
 	snapshot := make([]*gamecore.ItemStack, 0, s.inv.Size()+s.offHand.Size()+s.armour.Inventory().Size())
-	appendSlots := func(stacks []item.Stack) {
+	appendSlots := func(stacks []item.Stack) error {
 		for _, stack := range stacks {
-			if stack.Empty() {
-				snapshot = append(snapshot, nil)
-				continue
+			encoded, err := gamecore.EncodeItemStack(stack)
+			if err != nil {
+				return err
 			}
-			it := stack.Item()
-			if it == nil {
-				snapshot = append(snapshot, nil)
-				continue
-			}
-			identifier, metadata := it.EncodeItem()
-			count := stack.Count()
-			if count <= 0 || count > 65535 {
-				snapshot = append(snapshot, nil)
-				continue
-			}
-			snapshot = append(snapshot, &gamecore.ItemStack{
-				Identifier: identifier,
-				Count:      uint16(count),
-				Metadata:   uint32(uint16(metadata)),
-			})
+			snapshot = append(snapshot, encoded)
 		}
+		return nil
 	}
-	appendSlots(s.inv.Slots())
-	appendSlots(s.offHand.Slots())
-	appendSlots(s.armour.Inventory().Slots())
+	if err := appendSlots(s.inv.Slots()); err != nil {
+		return
+	}
+	if err := appendSlots(s.offHand.Slots()); err != nil {
+		return
+	}
+	if err := appendSlots(s.armour.Inventory().Slots()); err != nil {
+		return
+	}
 	s.gameCore.Enqueue(gamecore.Event{
 		Type:  "inventory_sync",
 		UUID:  c.UUID().String(),
