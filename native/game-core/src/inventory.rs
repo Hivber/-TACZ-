@@ -8,6 +8,7 @@ impl Inventory {
     pub fn new(slot_count: usize) -> Self { Self { slots: vec![None; slot_count] } }
     pub fn len(&self) -> usize { self.slots.len() }
     pub fn is_empty(&self) -> bool { self.slots.is_empty() }
+    pub fn slots(&self) -> &[Option<ItemStack>] { &self.slots }
     pub fn get(&self, slot: usize) -> Option<&ItemStack> {
         self.slots.get(slot).and_then(Option::as_ref)
     }

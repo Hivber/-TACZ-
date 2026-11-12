@@ -2,8 +2,9 @@
 //! Inspired by Chorus crates/item/src/item_stack.rs; packet descriptors,
 //! network IDs and protocol-specific user-data envelopes are intentionally excluded.
 use crate::stack_size::max_stack_size;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ItemStack {
     pub identifier: String,
     pub count: u16,
@@ -23,6 +24,12 @@ impl ItemStack {
     }
 
     pub fn max_count(&self) -> u16 { max_stack_size(&self.identifier) }
+
+    /// Validate values received over IPC; deserialization does not call new().
+    pub fn is_valid(&self) -> bool {
+        validate_identifier(&self.identifier).is_ok() && self.count > 0
+            && self.count <= self.max_count() && self.user_data.len() <= 65_536
+    }
 
     pub fn same_kind(&self, other: &Self) -> bool {
         self.identifier == other.identifier
