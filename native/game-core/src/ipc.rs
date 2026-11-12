@@ -2,6 +2,8 @@
 use crate::{
     block_break::{BlockBreakProfile, MinerState, MiningTool},
     block_interaction::{BlockMiningMachine, BlockTarget, MiningError, MiningUpdate},
+    inventory::Inventory,
+    item_stack::ItemStack,
     player::{PlayerState, Position},
     CORE_PROTOCOL_VERSION,
 };
@@ -42,6 +44,10 @@ enum SemanticEvent {
         max_reach: f32, tick: u64,
     },
     MiningAbort { uuid: String },
+    InventoryInit { uuid: String, slot_count: usize },
+    InventoryInsert { uuid: String, stack: ItemStack },
+    InventoryRemove { uuid: String, slot: usize, count: u16 },
+    InventoryMove { uuid: String, source: usize, destination: usize, count: u16 },
 }
 
 #[derive(Debug, Serialize)]
@@ -58,6 +64,19 @@ enum MiningOutcome {
 struct MiningResult { uuid: String, #[serde(flatten)] outcome: MiningOutcome }
 
 #[derive(Debug, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum InventoryOutcome {
+    Snapshot { slots: Vec<Option<ItemStack>> },
+    Inserted { remainder: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
+    Removed { removed: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
+    Updated { slots: Vec<Option<ItemStack>> },
+    Error { error: String },
+}
+
+#[derive(Debug, Serialize)]
+struct InventoryResult { uuid: String, #[serde(flatten)] outcome: InventoryOutcome }
+
+#[derive(Debug, Serialize)]
 struct Response {
     protocol_version: u16,
     ok: bool,
@@ -65,12 +84,14 @@ struct Response {
     online_players: usize,
     processed_events: usize,
     mining_results: Vec<MiningResult>,
+    inventory_results: Vec<InventoryResult>,
 }
 
 #[derive(Default)]
 struct CoreState {
     players: HashMap<String, PlayerState>,
     mining: HashMap<String, BlockMiningMachine>,
+    inventories: HashMap<String, Inventory>,
 }
 
 impl SemanticEvent {
@@ -80,6 +101,11 @@ impl SemanticEvent {
                 !uuid.is_empty() && !name.is_empty() && position.is_finite(),
             Self::PlayerMove { position, .. } => position.is_finite(),
             Self::PlayerLeave { uuid } | Self::MiningAbort { uuid } => !uuid.is_empty(),
+            Self::InventoryInit { uuid, slot_count } => !uuid.is_empty() && *slot_count > 0 && *slot_count <= 256,
+            Self::InventoryInsert { uuid, stack } => !uuid.is_empty() && stack.is_valid(),
+            Self::InventoryRemove { uuid, slot, count } => !uuid.is_empty() && *slot < 256 && *count > 0,
+            Self::InventoryMove { uuid, source, destination, count } =>
+                !uuid.is_empty() && *source < 256 && *destination < 256 && *count > 0,
             Self::Tick => true,
             Self::MiningStart { uuid, profile, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
@@ -99,28 +125,31 @@ impl CoreState {
     fn handle(&mut self, request: Request) -> Response {
         match request {
             Request::Ping { protocol_version } =>
-                self.response(protocol_version == CORE_PROTOCOL_VERSION, "pong", 0, Vec::new()),
+                self.response(protocol_version == CORE_PROTOCOL_VERSION, "pong", 0, Vec::new(), Vec::new()),
             Request::Batch { protocol_version, events } => {
                 if protocol_version != CORE_PROTOCOL_VERSION {
-                    return self.response(false, "protocol_mismatch", 0, Vec::new());
+                    return self.response(false, "protocol_mismatch", 0, Vec::new(), Vec::new());
                 }
                 if events.len() > MAX_BATCH_EVENTS {
-                    return self.response(false, "batch_too_large", 0, Vec::new());
+                    return self.response(false, "batch_too_large", 0, Vec::new(), Vec::new());
                 }
                 if !events.iter().all(SemanticEvent::is_valid) {
-                    return self.response(false, "invalid_event", 0, Vec::new());
+                    return self.response(false, "invalid_event", 0, Vec::new(), Vec::new());
                 }
                 let processed = events.len();
                 let mut mining_results = Vec::new();
+                let mut inventory_results = Vec::new();
                 for event in events {
-                    if let Some(result) = self.apply(event) { mining_results.push(result); }
+                    let (mining, inventory) = self.apply(event);
+                    if let Some(result) = mining { mining_results.push(result); }
+                    if let Some(result) = inventory { inventory_results.push(result); }
                 }
-                self.response(true, "batch_applied", processed, mining_results)
+                self.response(true, "batch_applied", processed, mining_results, inventory_results)
             }
         }
     }
 
-    fn apply(&mut self, event: SemanticEvent) -> Option<MiningResult> {
+    fn apply(&mut self, event: SemanticEvent) -> (Option<MiningResult>, Option<InventoryResult>) {
         match event {
             SemanticEvent::PlayerJoin { uuid, name, dimension, game_mode, position } => {
                 self.players.insert(uuid.clone(), PlayerState::new(uuid, name, dimension, game_mode, position));
@@ -131,6 +160,7 @@ impl CoreState {
             SemanticEvent::PlayerLeave { uuid } => {
                 self.players.remove(&uuid);
                 self.mining.remove(&uuid);
+                self.inventories.remove(&uuid);
             }
             SemanticEvent::Tick => {
                 for player in self.players.values_mut() { player.tick(); }
@@ -146,7 +176,7 @@ impl CoreState {
                     Ok(MiningUpdate::Aborted) => MiningOutcome::Aborted,
                     Err(error) => MiningOutcome::Error { error },
                 };
-                return Some(MiningResult { uuid, outcome });
+                return (Some(MiningResult { uuid, outcome }), None);
             }
             SemanticEvent::MiningAdvance { uuid, target, profile, tool, miner, eye_position, max_reach, tick } => {
                 let machine = self.mining.entry(uuid.clone()).or_default();
@@ -170,14 +200,51 @@ impl CoreState {
                 return Some(MiningResult { uuid, outcome });
             }
         }
-        None
+            SemanticEvent::InventoryInit { uuid, slot_count } => {
+                let inventory = Inventory::new(slot_count);
+                let slots = inventory.slots().to_vec();
+                self.inventories.insert(uuid.clone(), inventory);
+                return (None, Some(InventoryResult { uuid, outcome: InventoryOutcome::Snapshot { slots } }));
+            }
+            SemanticEvent::InventoryInsert { uuid, stack } => {
+                let outcome = match self.inventories.get_mut(&uuid) {
+                    Some(inventory) => {
+                        let remainder = inventory.insert(stack);
+                        InventoryOutcome::Inserted { remainder, slots: inventory.slots().to_vec() }
+                    }
+                    None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
+                };
+                return (None, Some(InventoryResult { uuid, outcome }));
+            }
+            SemanticEvent::InventoryRemove { uuid, slot, count } => {
+                let outcome = match self.inventories.get_mut(&uuid) {
+                    Some(inventory) => match inventory.remove(slot, count) {
+                        Ok(removed) => InventoryOutcome::Removed { removed, slots: inventory.slots().to_vec() },
+                        Err(error) => InventoryOutcome::Error { error },
+                    },
+                    None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
+                };
+                return (None, Some(InventoryResult { uuid, outcome }));
+            }
+            SemanticEvent::InventoryMove { uuid, source, destination, count } => {
+                let outcome = match self.inventories.get_mut(&uuid) {
+                    Some(inventory) => match inventory.move_items(source, destination, count) {
+                        Ok(()) => InventoryOutcome::Updated { slots: inventory.slots().to_vec() },
+                        Err(error) => InventoryOutcome::Error { error },
+                    },
+                    None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
+                };
+                return (None, Some(InventoryResult { uuid, outcome }));
+            }
+        }
+        (None, None)
     }
 
     fn response(&self, ok: bool, message: &'static str, processed_events: usize,
-        mining_results: Vec<MiningResult>) -> Response {
+        mining_results: Vec<MiningResult>, inventory_results: Vec<InventoryResult>) -> Response {
         Response {
             protocol_version: CORE_PROTOCOL_VERSION, ok, message,
-            online_players: self.players.len(), processed_events, mining_results,
+            online_players: self.players.len(), processed_events, mining_results, inventory_results,
         }
     }
 }
@@ -213,7 +280,7 @@ fn handle_connection(mut stream: UnixStream, state: Arc<Mutex<CoreState>>) -> st
         let response = match serde_json::from_slice::<Request>(&payload) {
             Ok(request) => state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).handle(request),
             Err(_) => state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
-                .response(false, "invalid_request", 0, Vec::new()),
+                .response(false, "invalid_request", 0, Vec::new(), Vec::new()),
         };
         write_frame(&mut stream, &serde_json::to_vec(&response).map_err(std::io::Error::other)?)?;
     }
@@ -289,12 +356,12 @@ mod tests {
             tool: MiningTool::default(), miner: MinerState { on_ground: true, ..Default::default() },
             eye_position: eye(), max_reach: 7.0, tick: 11,
         };
-        let first = state.apply(advance()).unwrap();
-        let duplicate = state.apply(advance()).unwrap();
+        let first = state.apply(advance()).0.unwrap();
+        let duplicate = state.apply(advance()).0.unwrap();
         assert_eq!(serde_json::to_value(first).unwrap(), serde_json::to_value(duplicate).unwrap());
-        let aborted = state.apply(SemanticEvent::MiningAbort { uuid: "player-1".into() }).unwrap();
+        let aborted = state.apply(SemanticEvent::MiningAbort { uuid: "player-1".into() }).0.unwrap();
         assert!(matches!(aborted.outcome, MiningOutcome::Aborted));
-        let after_abort = state.apply(advance()).unwrap();
+        let after_abort = state.apply(advance()).0.unwrap();
         assert!(matches!(after_abort.outcome, MiningOutcome::Error { error: MiningError::NoActiveSession }));
     }
 
