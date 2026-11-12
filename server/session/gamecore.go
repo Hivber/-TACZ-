@@ -56,7 +56,7 @@ func (s *Session) emitGameCorePlayerLeave(c Controllable) {
 }
 
 // emitGameCoreInventorySnapshot mirrors the player's persistent carried slots:
-// main inventory, off-hand, then armour. Dragonfly remains authoritative until
+// main inventory, off-hand, ender chest, then armour. Dragonfly remains authoritative until
 // item metadata and transaction handling have been fully migrated.
 func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 	if s.gameCore == nil || s.inv == nil || s.offHand == nil || s.enderChest == nil || s.armour == nil {
