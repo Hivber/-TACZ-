@@ -55,7 +55,6 @@ func (s *Session) emitGameCorePlayerLeave(c Controllable) {
 	})
 }
 
-
 // emitGameCoreInventorySnapshot mirrors the player's persistent carried slots:
 // main inventory, off-hand, then armour. Dragonfly remains authoritative until
 // item metadata and transaction handling have been fully migrated.
