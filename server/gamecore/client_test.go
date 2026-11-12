@@ -37,7 +37,7 @@ func TestMiningSemanticEventAndResultJSON(t *testing.T) {
 	if err := json.Unmarshal(payload, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded["type"] != "mining_start" || decoded["uuid"] != "player-uuid" {
+	if decoded["type"] != "mining_start" || decoded["inventory_id"] != "player:player-uuid:carried" {
 		t.Fatalf("unexpected semantic event JSON: %s", payload)
 	}
 	var response Response
@@ -52,7 +52,7 @@ func TestMiningSemanticEventAndResultJSON(t *testing.T) {
 
 func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 	stack := &ItemStack{Identifier: "minecraft:cobblestone", Count: 32}
-	event := Event{Type: "inventory_insert", UUID: "player-uuid", Stack: stack}
+	event := Event{Type: "inventory_insert", InventoryID: "player:player-uuid:carried", Stack: stack}
 	payload, err := json.Marshal(event)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 		t.Fatalf("unexpected inventory event JSON: %s", payload)
 	}
 	var response Response
-	raw := []byte(`{"protocol_version":1,"ok":true,"message":"batch_applied","online_players":1,"processed_events":1,"inventory_results":[{"uuid":"player-uuid","status":"inserted","slots":[{"identifier":"minecraft:cobblestone","count":32,"metadata":0}],"remainder":null}]}`)
+	raw := []byte(`{"protocol_version":1,"ok":true,"message":"batch_applied","online_players":1,"processed_events":1,"inventory_results":[{"inventory_id":"player:player-uuid:carried","status":"inserted","slots":[{"identifier":"minecraft:cobblestone","count":32,"metadata":0}],"remainder":null}]}`)
 	if err := json.Unmarshal(raw, &response); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 func TestInventorySyncSnapshotJSONPreservesEmptySlots(t *testing.T) {
 	event := Event{
 		Type: "inventory_sync",
-		UUID: "player-uuid",
+		InventoryID: "player:player-uuid:carried",
 		Slots: []*ItemStack{
 			{Identifier: "minecraft:diamond", Count: 3},
 			nil,

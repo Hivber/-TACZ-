@@ -86,8 +86,8 @@ func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 		return
 	}
 	s.gameCore.Enqueue(gamecore.Event{
-		Type:  "inventory_sync",
-		UUID:  c.UUID().String(),
+		Type:        "inventory_sync",
+		InventoryID: "player:" + c.UUID().String() + ":carried",
 		Slots: snapshot,
 	})
 }

@@ -18,4 +18,4 @@ pub mod player;
 pub mod stack_size;
 pub mod random;
 
-pub const CORE_PROTOCOL_VERSION: u16 = 1;
+pub const CORE_PROTOCOL_VERSION: u16 = 2;

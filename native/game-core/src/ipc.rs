@@ -44,11 +44,11 @@ enum SemanticEvent {
         max_reach: f32, tick: u64,
     },
     MiningAbort { uuid: String },
-    InventoryInit { uuid: String, slot_count: usize },
-    InventorySync { uuid: String, slots: Vec<Option<ItemStack>> },
-    InventoryInsert { uuid: String, stack: ItemStack },
-    InventoryRemove { uuid: String, slot: usize, count: u16 },
-    InventoryMove { uuid: String, source: usize, destination: usize, count: u16 },
+    InventoryInit { inventory_id: String, slot_count: usize },
+    InventorySync { inventory_id: String, slots: Vec<Option<ItemStack>> },
+    InventoryInsert { inventory_id: String, stack: ItemStack },
+    InventoryRemove { inventory_id: String, slot: usize, count: u16 },
+    InventoryMove { inventory_id: String, source: usize, destination: usize, count: u16 },
 }
 
 #[derive(Debug, Serialize)]
@@ -75,7 +75,7 @@ enum InventoryOutcome {
 }
 
 #[derive(Debug, Serialize)]
-struct InventoryResult { uuid: String, #[serde(flatten)] outcome: InventoryOutcome }
+struct InventoryResult { inventory_id: String, #[serde(flatten)] outcome: InventoryOutcome }
 
 #[derive(Debug, Serialize)]
 struct Response {
@@ -102,13 +102,13 @@ impl SemanticEvent {
                 !uuid.is_empty() && !name.is_empty() && position.is_finite(),
             Self::PlayerMove { position, .. } => position.is_finite(),
             Self::PlayerLeave { uuid } | Self::MiningAbort { uuid } => !uuid.is_empty(),
-            Self::InventoryInit { uuid, slot_count } => !uuid.is_empty() && *slot_count > 0 && *slot_count <= 256,
-            Self::InventorySync { uuid, slots } => !uuid.is_empty() && !slots.is_empty() && slots.len() <= 256
+            Self::InventoryInit { inventory_id, slot_count } => !inventory_id.is_empty() && *slot_count > 0 && *slot_count <= 256,
+            Self::InventorySync { inventory_id, slots } => !inventory_id.is_empty() && !slots.is_empty() && slots.len() <= 256
                 && slots.iter().flatten().all(ItemStack::is_valid),
-            Self::InventoryInsert { uuid, stack } => !uuid.is_empty() && stack.is_valid(),
-            Self::InventoryRemove { uuid, slot, count } => !uuid.is_empty() && *slot < 256 && *count > 0,
-            Self::InventoryMove { uuid, source, destination, count } =>
-                !uuid.is_empty() && *source < 256 && *destination < 256 && *count > 0,
+            Self::InventoryInsert { inventory_id, stack } => !inventory_id.is_empty() && stack.is_valid(),
+            Self::InventoryRemove { inventory_id, slot, count } => !inventory_id.is_empty() && *slot < 256 && *count > 0,
+            Self::InventoryMove { inventory_id, source, destination, count } =>
+                !inventory_id.is_empty() && *source < 256 && *destination < 256 && *count > 0,
             Self::Tick => true,
             Self::MiningStart { uuid, profile, eye_position, max_reach, .. } =>
                 !uuid.is_empty() && profile.hardness.is_finite()
@@ -165,7 +165,7 @@ impl CoreState {
             SemanticEvent::PlayerLeave { uuid } => {
                 self.players.remove(&uuid);
                 self.mining.remove(&uuid);
-                self.inventories.remove(&uuid);
+                self.inventories.retain(|inventory_id, _| !inventory_id.starts_with(&format!("player:{uuid}:")));
             }
             SemanticEvent::Tick => {
                 for player in self.players.values_mut() {
@@ -202,13 +202,13 @@ impl CoreState {
                 };
                 return (Some(MiningResult { uuid, outcome }), None);
             }
-            SemanticEvent::InventoryInit { uuid, slot_count } => {
+            SemanticEvent::InventoryInit { inventory_id, slot_count } => {
                 let inventory = Inventory::new(slot_count);
                 let slots = inventory.slots().to_vec();
-                self.inventories.insert(uuid.clone(), inventory);
-                return (None, Some(InventoryResult { uuid, outcome: InventoryOutcome::Snapshot { slots } }));
+                self.inventories.insert(inventory_id.clone(), inventory);
+                return (None, Some(InventoryResult { inventory_id, outcome: InventoryOutcome::Snapshot { slots } }));
             }
-            SemanticEvent::InventorySync { uuid, slots } => {
+            SemanticEvent::InventorySync { inventory_id, slots } => {
                 let mut inventory = Inventory::new(slots.len());
                 for (slot, stack) in slots.into_iter().enumerate() {
                     if let Some(stack) = stack {
@@ -216,24 +216,24 @@ impl CoreState {
                     }
                 }
                 let snapshot = inventory.slots().to_vec();
-                self.inventories.insert(uuid.clone(), inventory);
+                self.inventories.insert(inventory_id.clone(), inventory);
                 return (None, Some(InventoryResult {
-                    uuid,
+                    inventory_id,
                     outcome: InventoryOutcome::Snapshot { slots: snapshot },
                 }));
             }
-            SemanticEvent::InventoryInsert { uuid, stack } => {
-                let outcome = match self.inventories.get_mut(&uuid) {
+            SemanticEvent::InventoryInsert { inventory_id, stack } => {
+                let outcome = match self.inventories.get_mut(&inventory_id) {
                     Some(inventory) => {
                         let remainder = inventory.insert(stack);
                         InventoryOutcome::Inserted { remainder, slots: inventory.slots().to_vec() }
                     }
                     None => InventoryOutcome::Error { error: "inventory_not_initialized".into() },
                 };
-                return (None, Some(InventoryResult { uuid, outcome }));
+                return (None, Some(InventoryResult { inventory_id, outcome }));
             }
-            SemanticEvent::InventoryRemove { uuid, slot, count } => {
-                let outcome = match self.inventories.get_mut(&uuid) {
+            SemanticEvent::InventoryRemove { inventory_id, slot, count } => {
+                let outcome = match self.inventories.get_mut(&inventory_id) {
                     Some(inventory) => match inventory.remove(slot, count) {
                         Ok(removed) => InventoryOutcome::Removed { removed, slots: inventory.slots().to_vec() },
                         Err(error) => InventoryOutcome::Error { error },
@@ -242,8 +242,8 @@ impl CoreState {
                 };
                 return (None, Some(InventoryResult { uuid, outcome }));
             }
-            SemanticEvent::InventoryMove { uuid, source, destination, count } => {
-                let outcome = match self.inventories.get_mut(&uuid) {
+            SemanticEvent::InventoryMove { inventory_id, source, destination, count } => {
+                let outcome = match self.inventories.get_mut(&inventory_id) {
                     Some(inventory) => match inventory.move_items(source, destination, count) {
                         Ok(()) => InventoryOutcome::Updated { slots: inventory.slots().to_vec() },
                         Err(error) => InventoryOutcome::Error { error },
@@ -386,44 +386,44 @@ mod tests {
         let mut state = CoreState::default();
         let init = state.handle(Request::Batch {
             protocol_version: 1,
-            events: vec![SemanticEvent::InventoryInit { uuid: "player-1".into(), slot_count: 2 }],
+            events: vec![SemanticEvent::InventoryInit { inventory_id: "player:player-1:carried".into(), slot_count: 2 }],
         });
         assert!(init.ok);
         assert_eq!(init.inventory_results.len(), 1);
         let stack = ItemStack::new("minecraft:cobblestone", 10, 0, vec![]).unwrap();
         let inserted = state.handle(Request::Batch {
             protocol_version: 1,
-            events: vec![SemanticEvent::InventoryInsert { uuid: "player-1".into(), stack }],
+            events: vec![SemanticEvent::InventoryInsert { inventory_id: "player:player-1:carried".into(), stack }],
         });
         assert!(matches!(inserted.inventory_results[0].outcome,
             InventoryOutcome::Inserted { remainder: None, .. }));
         let removed = state.handle(Request::Batch {
             protocol_version: 1,
             events: vec![SemanticEvent::InventoryRemove {
-                uuid: "player-1".into(), slot: 0, count: 4,
+                inventory_id: "player:player-1:carried".into(), slot: 0, count: 4,
             }],
         });
         assert!(matches!(removed.inventory_results[0].outcome,
             InventoryOutcome::Removed { removed: Some(ItemStack { count: 4, .. }), .. }));
         state.apply(SemanticEvent::PlayerLeave { uuid: "player-1".into() });
-        assert!(!state.inventories.contains_key("player-1"));
+        assert!(!state.inventories.contains_key("player:player-1:carried"));
     }
 
     #[test]
     fn inventory_sync_atomically_replaces_the_complete_slot_snapshot() {
         let mut state = CoreState::default();
-        state.apply(SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 2 });
+        state.apply(SemanticEvent::InventoryInit { inventory_id: "player:p:carried".into(), slot_count: 2 });
         let snapshot = vec![
             Some(ItemStack::new("minecraft:diamond", 3, 0, vec![]).unwrap()),
             None,
             ];
         let response = state.handle(Request::Batch {
             protocol_version: 1,
-            events: vec![SemanticEvent::InventorySync { uuid: "p".into(), slots: snapshot }],
+            events: vec![SemanticEvent::InventorySync { inventory_id: "player:p:carried".into(), slots: snapshot }],
         });
         assert!(response.ok);
         assert!(matches!(response.inventory_results[0].outcome, InventoryOutcome::Snapshot { .. }));
-        let inventory = state.inventories.get("p").unwrap();
+        let inventory = state.inventories.get("player:p:carried").unwrap();
         assert_eq!(inventory.len(), 2);
         assert_eq!(inventory.get(0).unwrap().identifier, "minecraft:diamond");
         assert!(inventory.get(1).is_none());
@@ -432,16 +432,16 @@ mod tests {
     #[test]
     fn inventory_sync_rejects_invalid_or_oversized_snapshots_before_mutation() {
         let mut state = CoreState::default();
-        state.apply(SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 1 });
+        state.apply(SemanticEvent::InventoryInit { inventory_id: "player:p:carried".into(), slot_count: 1 });
         let invalid = SemanticEvent::InventorySync {
-            uuid: "p".into(),
+            inventory_id: "player:p:carried".into(),
             slots: vec![Some(ItemStack {
                 identifier: "minecraft:diamond_sword".into(), count: 2, metadata: 0, user_data: vec![],
             })],
         };
         assert!(!invalid.is_valid());
         let too_many = SemanticEvent::InventorySync {
-            uuid: "p".into(), slots: vec![None; 257],
+            inventory_id: "player:p:carried".into(), slots: vec![None; 257],
         };
         assert!(!too_many.is_valid());
         assert_eq!(state.inventories.get("p").unwrap().len(), 1);
@@ -453,16 +453,16 @@ mod tests {
         let response = state.handle(Request::Batch {
             protocol_version: 1,
             events: vec![
-                SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 9 },
+                SemanticEvent::InventoryInit { inventory_id: "player:p:carried".into(), slot_count: 9 },
                 SemanticEvent::InventoryInsert {
-                    uuid: "p".into(),
+                    inventory_id: "player:p:carried".into(),
                     stack: ItemStack { identifier: "minecraft:diamond_sword".into(),
                         count: 2, metadata: 0, user_data: vec![] },
                 },
             ],
         });
         assert!(!response.ok);
-        assert!(!state.inventories.contains_key("p"));
+        assert!(!state.inventories.contains_key("player:p:carried"));
     }
 
     #[test]

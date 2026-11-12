@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ProtocolVersion uint16 = 1
+	ProtocolVersion uint16 = 2
 	maxFrameSize           = 1 << 20
 	maxBatchEvents         = 4096
 )
@@ -39,6 +39,7 @@ type Event struct {
 	Type            string             `json:"type"`
 	ProtocolVersion uint16             `json:"protocol_version,omitempty"`
 	UUID            string             `json:"uuid,omitempty"`
+	InventoryID     string             `json:"inventory_id,omitempty"`
 	Name            string             `json:"name,omitempty"`
 	Dimension       int32              `json:"dimension,omitempty"`
 	GameMode        uint8              `json:"game_mode,omitempty"`
@@ -105,7 +106,7 @@ type MiningResult struct {
 }
 
 type InventoryResult struct {
-	UUID      string       `json:"uuid"`
+	InventoryID string       `json:"inventory_id"`
 	Status    string       `json:"status"`
 	Error     string       `json:"error,omitempty"`
 	Slots     []*ItemStack `json:"slots,omitempty"`
