@@ -114,6 +114,8 @@ type InventoryResult struct {
 	Status      string       `json:"status"`
 	Error       string       `json:"error,omitempty"`
 	Slots       []*ItemStack `json:"slots,omitempty"`
+	RelatedInventoryID string `json:"related_inventory_id,omitempty"`
+	RelatedSlots []*ItemStack `json:"related_slots,omitempty"`
 	Remainder   *ItemStack   `json:"remainder,omitempty"`
 	Removed     *ItemStack   `json:"removed,omitempty"`
 }

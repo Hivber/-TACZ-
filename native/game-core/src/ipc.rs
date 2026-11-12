@@ -75,6 +75,11 @@ enum InventoryOutcome {
     Inserted { remainder: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
     Removed { removed: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
     Updated { slots: Vec<Option<ItemStack>> },
+    Transferred {
+        slots: Vec<Option<ItemStack>>,
+        related_inventory_id: String,
+        related_slots: Vec<Option<ItemStack>>,
+    },
     Error { error: String },
 }
 
@@ -271,15 +276,15 @@ impl CoreState {
                     };
                     return (None, Some(InventoryResult { inventory_id: source_inventory_id, outcome }));
                 }
-                let (Some(mut source), Some(mut destination)) = (
-                    self.inventories.remove(&source_inventory_id),
-                    self.inventories.remove(&destination_inventory_id),
-                ) else {
+                if !self.inventories.contains_key(&source_inventory_id)
+                    || !self.inventories.contains_key(&destination_inventory_id) {
                     return (None, Some(InventoryResult {
                         inventory_id: source_inventory_id,
                         outcome: InventoryOutcome::Error { error: "inventory_not_initialized".into() },
                     }));
-                };
+                }
+                let mut source = self.inventories.remove(&source_inventory_id).expect("checked source inventory");
+                let mut destination = self.inventories.remove(&destination_inventory_id).expect("checked destination inventory");
                 let result = source.transfer_slot_to(&mut destination, source_slot, destination_slot, count);
                 let source_slots = source.slots().to_vec();
                 let destination_slots = destination.slots().to_vec();
@@ -289,7 +294,11 @@ impl CoreState {
                     Ok(()) => {
                         return (None, Some(InventoryResult {
                             inventory_id: source_inventory_id,
-                            outcome: InventoryOutcome::Updated { slots: source_slots },
+                            outcome: InventoryOutcome::Transferred {
+                                slots: source_slots,
+                                related_inventory_id: destination_inventory_id,
+                                related_slots: destination_slots,
+                            },
                         }));
                     }
                     Err(error) => {
@@ -579,5 +588,40 @@ mod scoped_inventory_tests {
         });
         assert_eq!(state.inventories.get(&first).unwrap().get(0).unwrap().identifier, "minecraft:diamond");
         assert_eq!(state.inventories.get(&second).unwrap().get(0).unwrap().identifier, "minecraft:emerald");
+    }
+}
+
+#[cfg(test)]
+mod inventory_transfer_ipc_tests {
+    use super::*;
+
+    #[test]
+    fn cross_inventory_transfer_updates_both_scoped_inventories() {
+        let mut state = CoreState::default();
+        let source_id = "player:alice:carried".to_string();
+        let destination_id = "world-container:0:1:64:2".to_string();
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: source_id.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap())],
+        });
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: destination_id.clone(), slots: vec![None],
+        });
+        let (mining, result) = state.apply(SemanticEvent::InventoryTransfer {
+            source_inventory_id: source_id.clone(), destination_inventory_id: destination_id.clone(),
+            source_slot: 0, destination_slot: 0, count: 2,
+        });
+        assert!(mining.is_none());
+        let result = result.unwrap();
+        match result.outcome {
+            InventoryOutcome::Transferred { slots, related_inventory_id, related_slots } => {
+                assert!(slots[0].as_ref().unwrap().count == 3);
+                assert_eq!(related_inventory_id, destination_id);
+                assert_eq!(related_slots[0].as_ref().unwrap().count, 2);
+            }
+            other => panic!("unexpected transfer result: {other:?}"),
+        }
+        assert_eq!(state.inventories.get(&source_id).unwrap().get(0).unwrap().count, 3);
+        assert_eq!(state.inventories.get(&destination_id).unwrap().get(0).unwrap().count, 2);
     }
 }
