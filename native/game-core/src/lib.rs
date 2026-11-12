@@ -11,8 +11,11 @@ pub mod block_id;
 pub mod block_registry;
 pub mod block_state;
 pub mod components;
+pub mod inventory;
 pub mod ipc;
+pub mod item_stack;
 pub mod player;
+pub mod stack_size;
 pub mod random;
 
 pub const CORE_PROTOCOL_VERSION: u16 = 1;
