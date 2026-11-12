@@ -361,6 +361,7 @@ func (s *Session) Spawn(c Controllable, tx *world.Tx) {
 	s.ViewEntityState(c)
 
 	s.sendInv(s.inv, protocol.WindowIDInventory)
+	s.emitGameCoreInventorySnapshot(c)
 	s.sendInv(s.ui, protocol.WindowIDUI)
 	s.sendInv(s.offHand, protocol.WindowIDOffHand)
 	s.sendInv(s.armour.Inventory(), protocol.WindowIDArmour)

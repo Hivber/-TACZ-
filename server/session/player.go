@@ -710,6 +710,7 @@ func (s *Session) broadcastInvFunc(tx *world.Tx, c Controllable) inventory.SlotF
 		if !s.inTransaction.Load() {
 			s.sendItem(after, slot, protocol.WindowIDInventory)
 		}
+		s.emitGameCoreInventorySnapshot(c)
 	}
 }
 

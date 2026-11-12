@@ -53,3 +53,39 @@ func (s *Session) emitGameCorePlayerLeave(c Controllable) {
 		UUID: c.UUID().String(),
 	})
 }
+
+
+// emitGameCoreInventorySnapshot mirrors the player's primary inventory (hotbar
+// and main storage) to Rust. Dragonfly remains authoritative until item-stack
+// metadata and transaction handling have been fully migrated.
+func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
+	if s.gameCore == nil || s.inv == nil {
+		return
+	}
+	slots := s.inv.Slots()
+	snapshot := make([]*gamecore.ItemStack, len(slots))
+	for slot, stack := range slots {
+		if stack.Empty() {
+			continue
+		}
+		it := stack.Item()
+		if it == nil {
+			continue
+		}
+		identifier, metadata := it.EncodeItem()
+		count := stack.Count()
+		if count <= 0 || count > 65535 {
+			continue
+		}
+		snapshot[slot] = &gamecore.ItemStack{
+			Identifier: identifier,
+			Count:      uint16(count),
+			Metadata:   uint32(uint16(metadata)),
+		}
+	}
+	s.gameCore.Enqueue(gamecore.Event{
+		Type:  "inventory_sync",
+		UUID:  c.UUID().String(),
+		Slots: snapshot,
+	})
+}
