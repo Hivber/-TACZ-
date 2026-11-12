@@ -279,3 +279,10 @@ yet connected to Dragonfly's live block placement/break handlers.
 The imported hunger, fall-damage and world-border helpers also reject non-finite
 or invalid inputs at their public calculation boundaries. Unit tests cover
 NaN/infinity handling, saturation bounds, and invalid border configuration.
+
+
+The first imported block-attachment revision referenced MC-RS's concrete
+`ChunkCache` and block registry. Those world-runtime calls were removed from
+the standalone gameplay crate; only transport/world-agnostic rule
+classification and block-name predicates remain. The Dragonfly/Rust world
+adapter must provide neighbor reads and apply the resulting break/drop events.

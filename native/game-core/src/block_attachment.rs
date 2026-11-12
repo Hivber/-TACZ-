@@ -339,116 +339,35 @@ pub fn is_replaceable(block_name: &str) -> bool {
     )
 }
 
-/// Vérifie si le bloc à (x,y,z) a toujours son support selon la règle.
-/// Le cache est fourni pour lire les blocs voisins.
-pub fn check_support(
-    cache: &mut crate::world::chunk_cache::ChunkCache,
-    x: i32,
-    y: i32,
-    z: i32,
-    rule: AttachmentRule,
-) -> bool {
-    let name_at =
-        |c: &mut crate::world::chunk_cache::ChunkCache, x: i32, y: i32, z: i32| -> String {
-            let id = c.get_block(x, y, z);
-            crate::world::block_registry::BLOCKS
-                .name_for(id)
-                .unwrap_or("")
-                .to_string()
-        };
 
-    match rule {
-        AttachmentRule::NeedsBlockBelow => {
-            let below = name_at(cache, x, y - 1, z);
-            is_solid_support(&below)
-        }
-        AttachmentRule::Bamboo => {
-            let below = name_at(cache, x, y - 1, z);
-            is_valid_bamboo_ground(&below)
-        }
-        AttachmentRule::SugarCane => {
-            let below = name_at(cache, x, y - 1, z);
-            if below == "minecraft:reeds" || below == "minecraft:sugar_cane" {
-                true
-            } else if is_valid_sugar_cane_ground(&below) {
-                // Eau dans les 4 directions horizontales du bloc en dessous.
-                [
-                    (x + 1, y - 1, z),
-                    (x - 1, y - 1, z),
-                    (x, y - 1, z + 1),
-                    (x, y - 1, z - 1),
-                ]
-                .iter()
-                .any(|(wx, wy, wz)| {
-                    let wname = name_at(cache, *wx, *wy, *wz);
-                    is_water(&wname) || wname == "minecraft:frosted_ice"
-                })
-            } else {
-                false
-            }
-        }
-        AttachmentRule::Cactus => {
-            let below = name_at(cache, x, y - 1, z);
-            if !is_valid_cactus_ground(&below) {
-                return false;
-            }
-            // Pas de bloc solide latéral (sinon cactus push out).
-            ![(x + 1, y, z), (x - 1, y, z), (x, y, z + 1), (x, y, z - 1)]
-                .iter()
-                .any(|(lx, ly, lz)| {
-                    let name = name_at(cache, *lx, *ly, *lz);
-                    is_solid_support(&name)
-                })
-        }
-        AttachmentRule::NeedsBlockAbove => {
-            let above = name_at(cache, x, y + 1, z);
-            is_solid_support(&above)
-        }
-        AttachmentRule::NeedsAnyAdjacentSolid => [
-            (x, y + 1, z),
-            (x, y - 1, z),
-            (x + 1, y, z),
-            (x - 1, y, z),
-            (x, y, z + 1),
-            (x, y, z - 1),
-        ]
-        .iter()
-        .any(|(ax, ay, az)| {
-            let name = name_at(cache, *ax, *ay, *az);
-            is_solid_support(&name)
-        }),
-        AttachmentRule::OnWater => {
-            let below = name_at(cache, x, y - 1, z);
-            is_water(&below)
-        }
-        AttachmentRule::Cocoa => {
-            // Jungle log horizontalement adjacent.
-            [(x + 1, y, z), (x - 1, y, z), (x, y, z + 1), (x, y, z - 1)]
-                .iter()
-                .any(|(jx, jy, jz)| {
-                    let name = name_at(cache, *jx, *jy, *jz);
-                    is_jungle_log(&name)
-                })
-        }
-        AttachmentRule::ChorusPlant => {
-            // Support = end_stone dessous OU chorus adjacent (haut/bas/horiz).
-            let below = name_at(cache, x, y - 1, z);
-            if below == "minecraft:end_stone" {
-                return true;
-            }
-            [
-                (x, y + 1, z),
-                (x, y - 1, z),
-                (x + 1, y, z),
-                (x - 1, y, z),
-                (x, y, z + 1),
-                (x, y, z - 1),
-            ]
-            .iter()
-            .any(|(cx, cy, cz)| {
-                let name = name_at(cache, *cx, *cy, *cz);
-                is_chorus_support(&name)
-            })
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_common_survival_attachments() {
+        assert_eq!(attachment_rule("minecraft:torch"), Some(AttachmentRule::NeedsBlockBelow));
+        assert_eq!(attachment_rule("minecraft:sugar_cane"), Some(AttachmentRule::SugarCane));
+        assert_eq!(attachment_rule("minecraft:cactus"), Some(AttachmentRule::Cactus));
+        assert_eq!(attachment_rule("minecraft:ladder"), Some(AttachmentRule::NeedsAnyAdjacentSolid));
+        assert_eq!(attachment_rule("minecraft:chorus_plant"), Some(AttachmentRule::ChorusPlant));
+        assert_eq!(attachment_rule("minecraft:stone"), None);
+    }
+
+    #[test]
+    fn validates_special_ground_types() {
+        assert!(is_valid_sugar_cane_ground("minecraft:sand"));
+        assert!(is_valid_bamboo_ground("minecraft:gravel"));
+        assert!(is_valid_cactus_ground("minecraft:red_sand"));
+        assert!(is_water("minecraft:flowing_water"));
+        assert!(is_jungle_log("minecraft:stripped_jungle_wood"));
+        assert!(is_chorus_support("minecraft:end_stone"));
+    }
+
+    #[test]
+    fn replaceability_and_support_are_separate() {
+        assert!(is_replaceable("minecraft:air"));
+        assert!(!is_solid_support("minecraft:air"));
+        assert!(is_solid_support("minecraft:stone"));
     }
 }
