@@ -1,10 +1,10 @@
 package session
 
 import (
-	"github.com/df-mc/dragonfly/server/gamecore"
 	"fmt"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/gamecore"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/item/inventory"
 	"github.com/df-mc/dragonfly/server/world"
@@ -95,7 +95,6 @@ func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
 		Slots:       snapshot,
 	})
 }
-
 
 // emitGameCoreWorldContainerSnapshot mirrors a persistent block-owned inventory.
 // The key is independent of the transient Bedrock window ID and player session.
