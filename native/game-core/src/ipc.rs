@@ -365,6 +365,52 @@ mod tests {
     }
 
     #[test]
+    fn inventory_ipc_initializes_inserts_removes_and_cleans_up() {
+        let mut state = CoreState::default();
+        let init = state.handle(Request::Batch {
+            protocol_version: 1,
+            events: vec![SemanticEvent::InventoryInit { uuid: "player-1".into(), slot_count: 2 }],
+        });
+        assert!(init.ok);
+        assert_eq!(init.inventory_results.len(), 1);
+        let stack = ItemStack::new("minecraft:cobblestone", 10, 0, vec![]).unwrap();
+        let inserted = state.handle(Request::Batch {
+            protocol_version: 1,
+            events: vec![SemanticEvent::InventoryInsert { uuid: "player-1".into(), stack }],
+        });
+        assert!(matches!(inserted.inventory_results[0].outcome,
+            InventoryOutcome::Inserted { remainder: None, .. }));
+        let removed = state.handle(Request::Batch {
+            protocol_version: 1,
+            events: vec![SemanticEvent::InventoryRemove {
+                uuid: "player-1".into(), slot: 0, count: 4,
+            }],
+        });
+        assert!(matches!(removed.inventory_results[0].outcome,
+            InventoryOutcome::Removed { removed: Some(ItemStack { count: 4, .. }), .. }));
+        state.apply(SemanticEvent::PlayerLeave { uuid: "player-1".into() });
+        assert!(!state.inventories.contains_key("player-1"));
+    }
+
+    #[test]
+    fn invalid_inventory_item_is_rejected_before_batch_mutation() {
+        let mut state = CoreState::default();
+        let response = state.handle(Request::Batch {
+            protocol_version: 1,
+            events: vec![
+                SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 9 },
+                SemanticEvent::InventoryInsert {
+                    uuid: "p".into(),
+                    stack: ItemStack { identifier: "minecraft:diamond_sword".into(),
+                        count: 2, metadata: 0, user_data: vec![] },
+                },
+            ],
+        });
+        assert!(!response.ok);
+        assert!(!state.inventories.contains_key("p"));
+    }
+
+    #[test]
     fn invalid_batch_does_not_partially_apply_player_or_mining_events() {
         let mut state = CoreState::default();
         let events = vec![
