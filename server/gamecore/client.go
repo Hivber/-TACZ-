@@ -28,6 +28,13 @@ type Position struct {
 	Pitch float32 `json:"pitch"`
 }
 
+type ItemStack struct {
+	Identifier string `json:"identifier"`
+	Count      uint16 `json:"count"`
+	Metadata   uint32 `json:"metadata"`
+	UserData   []byte `json:"user_data,omitempty"`
+}
+
 type Event struct {
 	Type            string             `json:"type"`
 	ProtocolVersion uint16             `json:"protocol_version,omitempty"`
@@ -43,6 +50,12 @@ type Event struct {
 	EyePosition     [3]float32         `json:"eye_position,omitempty"`
 	MaxReach        float32            `json:"max_reach,omitempty"`
 	Tick            uint64             `json:"tick,omitempty"`
+	SlotCount       int                `json:"slot_count,omitempty"`
+	Slot            int                `json:"slot,omitempty"`
+	Stack           *ItemStack         `json:"stack,omitempty"`
+	Source          int                `json:"source,omitempty"`
+	Destination     int                `json:"destination,omitempty"`
+	Count           uint16             `json:"count,omitempty"`
 }
 
 type BlockPos struct {
@@ -88,6 +101,15 @@ type MiningResult struct {
 	Progress   float32 `json:"progress,omitempty"`
 	CrackStage uint8   `json:"crack_stage,omitempty"`
 	Error      string  `json:"error,omitempty"`
+}
+
+type InventoryResult struct {
+	UUID string `json:"uuid"`
+	Status string `json:"status"`
+	Error string `json:"error,omitempty"`
+	Slots []*ItemStack `json:"slots,omitempty"`
+	Remainder *ItemStack `json:"remainder,omitempty"`
+	Removed *ItemStack `json:"removed,omitempty"`
 }
 
 type batchRequest struct {
