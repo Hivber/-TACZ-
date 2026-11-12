@@ -2,6 +2,7 @@ package session
 
 import (
 	"github.com/df-mc/dragonfly/server/gamecore"
+	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/world"
 )
 
@@ -55,34 +56,41 @@ func (s *Session) emitGameCorePlayerLeave(c Controllable) {
 }
 
 
-// emitGameCoreInventorySnapshot mirrors the player's primary inventory (hotbar
-// and main storage) to Rust. Dragonfly remains authoritative until item-stack
-// metadata and transaction handling have been fully migrated.
+// emitGameCoreInventorySnapshot mirrors the player's persistent carried slots:
+// main inventory, off-hand, then armour. Dragonfly remains authoritative until
+// item metadata and transaction handling have been fully migrated.
 func (s *Session) emitGameCoreInventorySnapshot(c Controllable) {
-	if s.gameCore == nil || s.inv == nil {
+	if s.gameCore == nil || s.inv == nil || s.offHand == nil || s.armour == nil {
 		return
 	}
-	slots := s.inv.Slots()
-	snapshot := make([]*gamecore.ItemStack, len(slots))
-	for slot, stack := range slots {
-		if stack.Empty() {
-			continue
-		}
-		it := stack.Item()
-		if it == nil {
-			continue
-		}
-		identifier, metadata := it.EncodeItem()
-		count := stack.Count()
-		if count <= 0 || count > 65535 {
-			continue
-		}
-		snapshot[slot] = &gamecore.ItemStack{
-			Identifier: identifier,
-			Count:      uint16(count),
-			Metadata:   uint32(uint16(metadata)),
+	snapshot := make([]*gamecore.ItemStack, 0, s.inv.Size()+s.offHand.Size()+s.armour.Inventory().Size())
+	appendSlots := func(stacks []item.Stack) {
+		for _, stack := range stacks {
+			if stack.Empty() {
+				snapshot = append(snapshot, nil)
+				continue
+			}
+			it := stack.Item()
+			if it == nil {
+				snapshot = append(snapshot, nil)
+				continue
+			}
+			identifier, metadata := it.EncodeItem()
+			count := stack.Count()
+			if count <= 0 || count > 65535 {
+				snapshot = append(snapshot, nil)
+				continue
+			}
+			snapshot = append(snapshot, &gamecore.ItemStack{
+				Identifier: identifier,
+				Count:      uint16(count),
+				Metadata:   uint32(uint16(metadata)),
+			})
 		}
 	}
+	appendSlots(s.inv.Slots())
+	appendSlots(s.offHand.Slots())
+	appendSlots(s.armour.Inventory().Slots())
 	s.gameCore.Enqueue(gamecore.Event{
 		Type:  "inventory_sync",
 		UUID:  c.UUID().String(),

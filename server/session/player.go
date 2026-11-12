@@ -702,6 +702,7 @@ func (s *Session) HandleInventories(tx *world.Tx, c Controllable, inv, offHand, 
 
 func (s *Session) broadcastInvFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
 	return func(slot int, _, after item.Stack) {
+		s.emitGameCoreInventorySnapshot(c)
 		if slot == int(*s.heldSlot) {
 			for _, viewer := range tx.Viewers(c.Position()) {
 				viewer.ViewEntityItems(c)
@@ -726,6 +727,7 @@ func (s *Session) broadcastEnderChestFunc(tx *world.Tx, _ Controllable) inventor
 
 func (s *Session) broadcastOffHandFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
 	return func(slot int, _, after item.Stack) {
+		s.emitGameCoreInventorySnapshot(c)
 		for _, viewer := range tx.Viewers(c.Position()) {
 			viewer.ViewEntityItems(c)
 		}
@@ -741,6 +743,7 @@ func (s *Session) broadcastOffHandFunc(tx *world.Tx, c Controllable) inventory.S
 
 func (s *Session) broadcastArmourFunc(tx *world.Tx, c Controllable) inventory.SlotFunc {
 	return func(slot int, before, after item.Stack) {
+		s.emitGameCoreInventorySnapshot(c)
 		inTransaction := s.inTransaction.Load()
 		if !inTransaction {
 			s.sendItem(after, slot, protocol.WindowIDArmour)
