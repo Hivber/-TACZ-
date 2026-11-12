@@ -124,12 +124,12 @@ type pingRequest struct {
 }
 
 type Response struct {
-	ProtocolVersion uint16         `json:"protocol_version"`
-	OK              bool           `json:"ok"`
-	Message         string         `json:"message"`
-	OnlinePlayers   int            `json:"online_players"`
-	ProcessedEvents int            `json:"processed_events"`
-	MiningResults   []MiningResult    `json:"mining_results,omitempty"`
+	ProtocolVersion  uint16            `json:"protocol_version"`
+	OK               bool              `json:"ok"`
+	Message          string            `json:"message"`
+	OnlinePlayers    int               `json:"online_players"`
+	ProcessedEvents  int               `json:"processed_events"`
+	MiningResults    []MiningResult    `json:"mining_results,omitempty"`
 	InventoryResults []InventoryResult `json:"inventory_results,omitempty"`
 }
 
