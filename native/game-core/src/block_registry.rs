@@ -5,8 +5,11 @@
 //! are imported. Permutation indices here are local state-combination indices,
 //! not Bedrock runtime IDs or network palette IDs.
 
+use crate::block_break::{BlockBreakProfile, MiningTool};
+use crate::block_drops::{resolve_block_drops, BlockDropContext, DropStack};
 use crate::block_state::{BlockState, BlockStateDefinition};
 use crate::components::{BlockComponent, BlockComponents};
+use crate::random::RandomSource;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
@@ -190,6 +193,22 @@ impl BlockPermutation {
     pub fn index(&self) -> u16 { self.index }
     pub fn state(&self, identifier: &str) -> Option<&BlockState> { self.states.get(identifier) }
     pub fn components(&self) -> &BlockComponents { self.components.as_ref() }
+
+    /// Resolve the mining profile from this exact state permutation. The held
+    /// item identifier is used for item-specific hardness overrides.
+    pub fn break_profile(&self, held_item: Option<&str>) -> Option<BlockBreakProfile> {
+        BlockBreakProfile::from_components_for_item(self.components(), held_item)
+    }
+
+    /// Resolve drops from this exact state permutation, not from the block's
+    /// base definition. This preserves state-specific loot component overrides.
+    pub fn resolve_drops<R: RandomSource>(
+        &self,
+        context: BlockDropContext,
+        rng: &mut R,
+    ) -> Vec<DropStack> {
+        resolve_block_drops(&self.identifier, self.components(), context, rng)
+    }
 }
 
 #[derive(Default)]
@@ -314,6 +333,61 @@ mod tests {
         assert_eq!(permutations[0].components().get(BlockComponentKind::Solid), None);
         assert_eq!(permutations[1].components().get(BlockComponentKind::Solid), Some(&BlockComponent::Solid(false)));
         assert_eq!(permutations[0].components().len(), 2);
+    }
+
+    #[test]
+    fn permutation_resolves_mining_profile_and_item_specific_hardness() {
+        let definition = BlockDefinition::with_components(
+            "minecraft:custom_ore",
+            [BlockStateDefinition::boolean("deepslate", false)],
+            [BlockComponent::Mineable(
+                MineableComponent::hardness(3.0)
+                    .with_tool_requirement(crate::block_break::tool_type::PICKAXE, 2)
+                    .with_item_hardness("minecraft:diamond_pickaxe", 0.75),
+            )],
+            [],
+        );
+        let permutations = definition.generate().unwrap();
+        let profile = permutations[0].break_profile(Some("minecraft:diamond_pickaxe")).unwrap();
+        assert_eq!(profile.hardness, 0.75);
+        assert_eq!(profile.tool_type, crate::block_break::tool_type::PICKAXE);
+        assert_eq!(profile.harvest_level, 2);
+        assert!(permutations[0].break_profile(Some("minecraft:iron_pickaxe")).unwrap().hardness == 3.0);
+        assert!(permutations[0].break_profile(None).is_some());
+        assert!(BlockDefinition::new("minecraft:non_mineable", []).generate().unwrap()[0]
+            .break_profile(Some("minecraft:diamond_pickaxe")).is_none());
+    }
+
+    #[test]
+    fn permutation_resolves_state_specific_loot_overrides() {
+        use crate::components::{LootComponent, LootStack};
+        use crate::block_drops::BlockDropContext;
+        struct FixedRng;
+        impl RandomSource for FixedRng {
+            fn next_u64(&mut self) -> u64 { 0 }
+        }
+
+        let definition = BlockDefinition::with_components(
+            "minecraft:lamp",
+            [BlockStateDefinition::boolean("lit", false)],
+            [BlockComponent::Loot(LootComponent::item("minecraft:coal"))],
+            [BlockPermutationDefinition::when_state(
+                "lit",
+                StateCondition::Equals(BlockState::Bool(true)),
+                [BlockComponent::Loot(LootComponent::item("minecraft:glowstone_dust"))],
+            )],
+        );
+        let permutations = definition.generate().unwrap();
+        let survival = BlockDropContext { survival: true, ..Default::default() };
+        let mut rng = FixedRng;
+        assert_eq!(permutations[0].resolve_drops(survival, &mut rng),
+            vec![DropStack { item: "minecraft:coal".into(), count: 1 }]);
+        assert_eq!(permutations[1].resolve_drops(survival, &mut rng),
+            vec![DropStack { item: "minecraft:glowstone_dust".into(), count: 1 }]);
+        assert!(permutations[1].resolve_drops(
+            BlockDropContext { survival: false, ..Default::default() }, &mut rng,
+        ).is_empty());
+        let _ = LootStack::fixed("minecraft:stone", 1);
     }
 
     #[test]
