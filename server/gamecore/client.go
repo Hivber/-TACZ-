@@ -107,11 +107,11 @@ type MiningResult struct {
 
 type InventoryResult struct {
 	InventoryID string       `json:"inventory_id"`
-	Status    string       `json:"status"`
-	Error     string       `json:"error,omitempty"`
-	Slots     []*ItemStack `json:"slots,omitempty"`
-	Remainder *ItemStack   `json:"remainder,omitempty"`
-	Removed   *ItemStack   `json:"removed,omitempty"`
+	Status      string       `json:"status"`
+	Error       string       `json:"error,omitempty"`
+	Slots       []*ItemStack `json:"slots,omitempty"`
+	Remainder   *ItemStack   `json:"remainder,omitempty"`
+	Removed     *ItemStack   `json:"removed,omitempty"`
 }
 
 type batchRequest struct {
