@@ -155,7 +155,9 @@ impl CoreState {
                 self.players.insert(uuid.clone(), PlayerState::new(uuid, name, dimension, game_mode, position));
             }
             SemanticEvent::PlayerMove { uuid, dimension, position } => {
-                if let Some(player) = self.players.get_mut(&uuid) { player.apply_move(dimension, position); }
+                if let Some(player) = self.players.get_mut(&uuid) {
+                    player.apply_move(dimension, position);
+                }
             }
             SemanticEvent::PlayerLeave { uuid } => {
                 self.players.remove(&uuid);
@@ -163,15 +165,15 @@ impl CoreState {
                 self.inventories.remove(&uuid);
             }
             SemanticEvent::Tick => {
-                for player in self.players.values_mut() { player.tick(); }
+                for player in self.players.values_mut() {
+                    player.tick();
+                }
             }
             SemanticEvent::MiningStart { uuid, target, profile, eye_position, max_reach, tick } => {
                 let machine = self.mining.entry(uuid.clone()).or_default();
                 let outcome = match machine.start(target, profile, eye_position, max_reach, tick) {
-                    Ok(MiningUpdate::Started { progress, crack_stage }) =>
-                        MiningOutcome::Started { progress, crack_stage },
-                    Ok(MiningUpdate::Progress { progress, crack_stage }) =>
-                        MiningOutcome::Progress { progress, crack_stage },
+                    Ok(MiningUpdate::Started { progress, crack_stage }) => MiningOutcome::Started { progress, crack_stage },
+                    Ok(MiningUpdate::Progress { progress, crack_stage }) => MiningOutcome::Progress { progress, crack_stage },
                     Ok(MiningUpdate::Completed) => MiningOutcome::Completed,
                     Ok(MiningUpdate::Aborted) => MiningOutcome::Aborted,
                     Err(error) => MiningOutcome::Error { error },
@@ -181,15 +183,13 @@ impl CoreState {
             SemanticEvent::MiningAdvance { uuid, target, profile, tool, miner, eye_position, max_reach, tick } => {
                 let machine = self.mining.entry(uuid.clone()).or_default();
                 let outcome = match machine.advance(target, profile, tool, miner, eye_position, max_reach, tick) {
-                    Ok(MiningUpdate::Started { progress, crack_stage }) =>
-                        MiningOutcome::Started { progress, crack_stage },
-                    Ok(MiningUpdate::Progress { progress, crack_stage }) =>
-                        MiningOutcome::Progress { progress, crack_stage },
+                    Ok(MiningUpdate::Started { progress, crack_stage }) => MiningOutcome::Started { progress, crack_stage },
+                    Ok(MiningUpdate::Progress { progress, crack_stage }) => MiningOutcome::Progress { progress, crack_stage },
                     Ok(MiningUpdate::Completed) => MiningOutcome::Completed,
                     Ok(MiningUpdate::Aborted) => MiningOutcome::Aborted,
                     Err(error) => MiningOutcome::Error { error },
                 };
-                return Some(MiningResult { uuid, outcome });
+                return (Some(MiningResult { uuid, outcome }), None);
             }
             SemanticEvent::MiningAbort { uuid } => {
                 let outcome = self.mining.entry(uuid.clone()).or_default().abort();
@@ -197,9 +197,8 @@ impl CoreState {
                     MiningUpdate::Aborted => MiningOutcome::Aborted,
                     _ => unreachable!("abort always returns Aborted"),
                 };
-                return Some(MiningResult { uuid, outcome });
+                return (Some(MiningResult { uuid, outcome }), None);
             }
-        }
             SemanticEvent::InventoryInit { uuid, slot_count } => {
                 let inventory = Inventory::new(slot_count);
                 let slots = inventory.slots().to_vec();
