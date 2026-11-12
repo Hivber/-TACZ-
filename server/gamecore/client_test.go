@@ -55,15 +55,21 @@ func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 	stack := &ItemStack{Identifier: "minecraft:cobblestone", Count: 32}
 	event := Event{Type: "inventory_insert", UUID: "player-uuid", Stack: stack}
 	payload, err := json.Marshal(event)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	var decoded map[string]any
-	if err := json.Unmarshal(payload, &decoded); err != nil { t.Fatal(err) }
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
 	if decoded["type"] != "inventory_insert" || decoded["uuid"] != "player-uuid" {
 		t.Fatalf("unexpected inventory event JSON: %s", payload)
 	}
 	var response Response
 	raw := []byte(`{"protocol_version":1,"ok":true,"message":"batch_applied","online_players":1,"processed_events":1,"inventory_results":[{"uuid":"player-uuid","status":"inserted","slots":[{"identifier":"minecraft:cobblestone","count":32,"metadata":0}],"remainder":null}]}`)
-	if err := json.Unmarshal(raw, &response); err != nil { t.Fatal(err) }
+	if err := json.Unmarshal(raw, &response); err != nil {
+		t.Fatal(err)
+	}
 	if len(response.InventoryResults) != 1 || response.InventoryResults[0].Status != "inserted" {
 		t.Fatalf("unexpected inventory response: %+v", response.InventoryResults)
 	}

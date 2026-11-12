@@ -104,12 +104,12 @@ type MiningResult struct {
 }
 
 type InventoryResult struct {
-	UUID string `json:"uuid"`
-	Status string `json:"status"`
-	Error string `json:"error,omitempty"`
-	Slots []*ItemStack `json:"slots,omitempty"`
-	Remainder *ItemStack `json:"remainder,omitempty"`
-	Removed *ItemStack `json:"removed,omitempty"`
+	UUID      string       `json:"uuid"`
+	Status    string       `json:"status"`
+	Error     string       `json:"error,omitempty"`
+	Slots     []*ItemStack `json:"slots,omitempty"`
+	Remainder *ItemStack   `json:"remainder,omitempty"`
+	Removed   *ItemStack   `json:"removed,omitempty"`
 }
 
 type batchRequest struct {
@@ -129,7 +129,7 @@ type Response struct {
 	Message         string         `json:"message"`
 	OnlinePlayers   int            `json:"online_players"`
 	ProcessedEvents int            `json:"processed_events"`
-	MiningResults   []MiningResult `json:"mining_results,omitempty"`
+	MiningResults    []MiningResult    `json:"mining_results,omitempty"`
 	InventoryResults []InventoryResult `json:"inventory_results,omitempty"`
 }
 
