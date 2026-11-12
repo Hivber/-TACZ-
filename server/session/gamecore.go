@@ -178,9 +178,11 @@ func (s *Session) emitGameCoreInventoryPair(first, second *inventory.Inventory, 
 		return
 	}
 	s.gameCore.Enqueue(gamecore.Event{
-		Type: "inventory_sync_pair",
-		InventoryID: firstID, Slots: firstSlots,
-		RelatedInventoryID: secondID, RelatedSlots: secondSlots,
+		Type:               "inventory_sync_pair",
+		InventoryID:        firstID,
+		Slots:              firstSlots,
+		RelatedInventoryID: secondID,
+		RelatedSlots:       secondSlots,
 	})
 }
 

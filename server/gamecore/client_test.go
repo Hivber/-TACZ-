@@ -127,14 +127,13 @@ func TestInventoryTransferResponseJSON(t *testing.T) {
 	}
 }
 
-
 func TestInventorySyncPairEventJSON(t *testing.T) {
 	in := Event{
-		Type: "inventory_sync_pair",
-		InventoryID: "player:alice:carried",
-		Slots: []*ItemStack{{Identifier: "minecraft:diamond", Count: 2}, nil},
+		Type:               "inventory_sync_pair",
+		InventoryID:        "player:alice:carried",
+		Slots:              []*ItemStack{{Identifier: "minecraft:diamond", Count: 2}, nil},
 		RelatedInventoryID: "world-container:0:1:64:2",
-		RelatedSlots: []*ItemStack{nil, {Identifier: "minecraft:diamond", Count: 2}},
+		RelatedSlots:       []*ItemStack{nil, {Identifier: "minecraft:diamond", Count: 2}},
 	}
 	data, err := json.Marshal(in)
 	if err != nil {
