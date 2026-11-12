@@ -21,7 +21,7 @@ func EncodeItemStack(stack item.Stack) (*ItemStack, error) {
 		return nil, fmt.Errorf("non-empty stack has no item")
 	}
 	count := stack.Count()
-	if count <= 0 || count > it.MaxCount() || count > 65535 {
+	if count <= 0 || count > stack.MaxCount() || count > 65535 {
 		return nil, fmt.Errorf("invalid count %d for item stack", count)
 	}
 	identifier, metadata := it.EncodeItem()
