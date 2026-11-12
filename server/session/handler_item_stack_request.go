@@ -176,6 +176,7 @@ func (h *ItemStackRequestHandler) handleTransfer(from, to protocol.StackRequestS
 
 	h.setItemInSlot(from, i.Grow(-int(count)), s, tx)
 	h.setItemInSlot(to, dest.Grow(int(count)), s, tx)
+	s.emitGameCoreInventoryPair(invA, invB, c)
 	h.collectRewards(s, invA, int(from.Slot), tx, c)
 	return nil
 }
@@ -202,6 +203,7 @@ func (h *ItemStackRequestHandler) handleSwap(a *protocol.SwapStackRequestAction,
 
 	h.setItemInSlot(a.Source, dest, s, tx)
 	h.setItemInSlot(a.Destination, i, s, tx)
+	s.emitGameCoreInventoryPair(invA, invB, c)
 	h.collectRewards(s, invA, int(a.Source.Slot), tx, c)
 	h.collectRewards(s, invA, int(a.Destination.Slot), tx, c)
 	return nil

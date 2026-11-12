@@ -126,3 +126,27 @@ func TestInventoryTransferResponseJSON(t *testing.T) {
 		t.Fatalf("related inventory snapshot lost: %#v", out)
 	}
 }
+
+
+func TestInventorySyncPairEventJSON(t *testing.T) {
+	in := Event{
+		Type: "inventory_sync_pair",
+		InventoryID: "player:alice:carried",
+		Slots: []*ItemStack{{Identifier: "minecraft:diamond", Count: 2}, nil},
+		RelatedInventoryID: "world-container:0:1:64:2",
+		RelatedSlots: []*ItemStack{nil, {Identifier: "minecraft:diamond", Count: 2}},
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out Event
+	if err = json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Type != in.Type || out.InventoryID != in.InventoryID ||
+		out.RelatedInventoryID != in.RelatedInventoryID || len(out.Slots) != 2 ||
+		len(out.RelatedSlots) != 2 || out.RelatedSlots[1].Count != 2 {
+		t.Fatalf("atomic inventory snapshot pair round-trip mismatch: %#v", out)
+	}
+}

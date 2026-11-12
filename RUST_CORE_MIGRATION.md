@@ -202,3 +202,20 @@ This is a tested core primitive and IPC event contract, not yet a live Bedrock
 transaction authority. The Dragonfly ItemStackRequest and legacy transaction
 handlers still validate and apply client actions on the Go world owner; no Rust
 response is yet translated into live inventory mutations or packet responses.
+
+
+## Atomic paired inventory shadow synchronization (2026-11-13)
+
+Accepted Dragonfly ItemStackRequest transfers and swaps now enqueue a final
+paired snapshot for the two affected mirrored inventories. The Go adapter
+continues to validate stack network IDs, run inventory event hooks, and apply
+the actual slot mutations; Dragonfly remains the live authority. Per-slot
+callbacks can enqueue intermediate snapshots during a multi-slot operation,
+so the final pair event replaces both Rust mirrors atomically after the
+transaction. The pair validates both inventory IDs, slot counts, and every
+item payload before replacing either mirror. Transient crafting/UI inventories
+are deliberately excluded.
+
+This closes an intermediate-state consistency gap in the Rust shadow mirror.
+It does **not** move ItemStackRequest validation, event hooks, transaction
+acceptance, item drops, crafting, or inventory ownership into Rust.

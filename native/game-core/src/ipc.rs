@@ -46,6 +46,10 @@ enum SemanticEvent {
     MiningAbort { uuid: String },
     InventoryInit { inventory_id: String, slot_count: usize },
     InventorySync { inventory_id: String, slots: Vec<Option<ItemStack>> },
+    InventorySyncPair {
+        inventory_id: String, slots: Vec<Option<ItemStack>>,
+        related_inventory_id: String, related_slots: Vec<Option<ItemStack>>,
+    },
     InventoryInsert { inventory_id: String, stack: ItemStack },
     InventoryRemove { inventory_id: String, slot: usize, count: u16 },
     InventoryMove { inventory_id: String, source: usize, destination: usize, count: u16 },
@@ -72,6 +76,11 @@ struct MiningResult { uuid: String, #[serde(flatten)] outcome: MiningOutcome }
 #[serde(tag = "status", rename_all = "snake_case")]
 enum InventoryOutcome {
     Snapshot { slots: Vec<Option<ItemStack>> },
+    Synchronized {
+        slots: Vec<Option<ItemStack>>,
+        related_inventory_id: String,
+        related_slots: Vec<Option<ItemStack>>,
+    },
     Inserted { remainder: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
     Removed { removed: Option<ItemStack>, slots: Vec<Option<ItemStack>> },
     Updated { slots: Vec<Option<ItemStack>> },
@@ -114,6 +123,14 @@ impl SemanticEvent {
             Self::InventoryInit { inventory_id, slot_count } => !inventory_id.is_empty() && inventory_id.len() <= 256 && *slot_count > 0 && *slot_count <= 256,
             Self::InventorySync { inventory_id, slots } => !inventory_id.is_empty() && inventory_id.len() <= 256 && !slots.is_empty() && slots.len() <= 256
                 && slots.iter().flatten().all(ItemStack::is_valid),
+            Self::InventorySyncPair { inventory_id, slots, related_inventory_id, related_slots } =>
+                !inventory_id.is_empty() && inventory_id.len() <= 256
+                    && !related_inventory_id.is_empty() && related_inventory_id.len() <= 256
+                    && inventory_id != related_inventory_id
+                    && !slots.is_empty() && slots.len() <= 256
+                    && !related_slots.is_empty() && related_slots.len() <= 256
+                    && slots.iter().flatten().all(ItemStack::is_valid)
+                    && related_slots.iter().flatten().all(ItemStack::is_valid),
             Self::InventoryInsert { inventory_id, stack } => !inventory_id.is_empty() && inventory_id.len() <= 256 && stack.is_valid(),
             Self::InventoryRemove { inventory_id, slot, count } => !inventory_id.is_empty() && inventory_id.len() <= 256 && *slot < 256 && *count > 0,
             Self::InventoryMove { inventory_id, source, destination, count } =>
@@ -233,6 +250,33 @@ impl CoreState {
                 return (None, Some(InventoryResult {
                     inventory_id,
                     outcome: InventoryOutcome::Snapshot { slots: snapshot },
+                }));
+            }
+            SemanticEvent::InventorySyncPair { inventory_id, slots, related_inventory_id, related_slots } => {
+                let mut first = Inventory::new(slots.len());
+                for (slot, stack) in slots.into_iter().enumerate() {
+                    if let Some(stack) = stack {
+                        first.set(slot, Some(stack)).expect("validated first inventory slot");
+                    }
+                }
+                let mut related = Inventory::new(related_slots.len());
+                for (slot, stack) in related_slots.into_iter().enumerate() {
+                    if let Some(stack) = stack {
+                        related.set(slot, Some(stack)).expect("validated related inventory slot");
+                    }
+                }
+                let first_snapshot = first.slots().to_vec();
+                let related_snapshot = related.slots().to_vec();
+                // Construct both replacements before publishing either mirror.
+                self.inventories.insert(inventory_id.clone(), first);
+                self.inventories.insert(related_inventory_id.clone(), related);
+                return (None, Some(InventoryResult {
+                    inventory_id,
+                    outcome: InventoryOutcome::Synchronized {
+                        slots: first_snapshot,
+                        related_inventory_id,
+                        related_slots: related_snapshot,
+                    },
                 }));
             }
             SemanticEvent::InventoryInsert { inventory_id, stack } => {
@@ -623,5 +667,69 @@ mod inventory_transfer_ipc_tests {
         }
         assert_eq!(state.inventories.get(&source_id).unwrap().get(0).unwrap().count, 3);
         assert_eq!(state.inventories.get(&destination_id).unwrap().get(0).unwrap().count, 2);
+    }
+}
+
+
+#[cfg(test)]
+mod inventory_sync_pair_tests {
+    use super::*;
+
+    #[test]
+    fn paired_inventory_sync_replaces_both_mirrors_together() {
+        let mut state = CoreState::default();
+        let player_id = "player:alice:carried".to_string();
+        let chest_id = "world-container:0:1:64:2".to_string();
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: player_id.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap())],
+        });
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: chest_id.clone(),
+            slots: vec![None, Some(ItemStack::new("minecraft:emerald", 1, 0, vec![]).unwrap())],
+        });
+        let response = state.handle(Request::Batch {
+            protocol_version: CORE_PROTOCOL_VERSION,
+            events: vec![SemanticEvent::InventorySyncPair {
+                inventory_id: player_id.clone(),
+                slots: vec![Some(ItemStack::new("minecraft:diamond", 3, 0, vec![]).unwrap())],
+                related_inventory_id: chest_id.clone(),
+                related_slots: vec![Some(ItemStack::new("minecraft:emerald", 1, 0, vec![]).unwrap()), None],
+            }],
+        });
+        assert!(response.ok);
+        assert_eq!(response.inventory_results.len(), 1);
+        assert!(matches!(response.inventory_results[0].outcome, InventoryOutcome::Synchronized { .. }));
+        assert_eq!(state.inventories.get(&player_id).unwrap().get(0).unwrap().count, 3);
+        assert_eq!(state.inventories.get(&chest_id).unwrap().get(0).unwrap().identifier, "minecraft:emerald");
+        assert!(state.inventories.get(&chest_id).unwrap().get(1).is_none());
+    }
+
+    #[test]
+    fn paired_inventory_sync_rejects_invalid_pair_without_mutating_either_side() {
+        let mut state = CoreState::default();
+        let player_id = "player:alice:carried".to_string();
+        let chest_id = "world-container:0:1:64:2".to_string();
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: player_id.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap())],
+        });
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: chest_id.clone(), slots: vec![None],
+        });
+        let invalid = SemanticEvent::InventorySyncPair {
+            inventory_id: player_id.clone(),
+            slots: vec![Some(ItemStack {
+                identifier: "minecraft:diamond_sword".into(), count: 2, metadata: 0, user_data: vec![],
+            })],
+            related_inventory_id: chest_id.clone(), related_slots: vec![None],
+        };
+        assert!(!invalid.is_valid());
+        let response = state.handle(Request::Batch {
+            protocol_version: CORE_PROTOCOL_VERSION, events: vec![invalid],
+        });
+        assert!(!response.ok);
+        assert_eq!(state.inventories.get(&player_id).unwrap().get(0).unwrap().count, 5);
+        assert!(state.inventories.get(&chest_id).unwrap().get(0).is_none());
     }
 }

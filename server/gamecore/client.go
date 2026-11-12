@@ -40,6 +40,7 @@ type Event struct {
 	ProtocolVersion        uint16             `json:"protocol_version,omitempty"`
 	UUID                   string             `json:"uuid,omitempty"`
 	InventoryID            string             `json:"inventory_id,omitempty"`
+	RelatedInventoryID     string             `json:"related_inventory_id,omitempty"`
 	SourceInventoryID      string             `json:"source_inventory_id,omitempty"`
 	DestinationInventoryID string             `json:"destination_inventory_id,omitempty"`
 	SourceSlot             int                `json:"source_slot,omitempty"`
@@ -57,6 +58,7 @@ type Event struct {
 	Tick                   uint64             `json:"tick,omitempty"`
 	SlotCount              int                `json:"slot_count,omitempty"`
 	Slots                  []*ItemStack       `json:"slots,omitempty"`
+	RelatedSlots           []*ItemStack       `json:"related_slots,omitempty"`
 	Slot                   int                `json:"slot,omitempty"`
 	Stack                  *ItemStack         `json:"stack,omitempty"`
 	Source                 int                `json:"source,omitempty"`
