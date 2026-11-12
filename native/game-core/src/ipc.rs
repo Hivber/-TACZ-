@@ -347,7 +347,7 @@ mod tests {
     fn ipc_mining_start_returns_semantic_crack_state() {
         let mut state = CoreState::default();
         let response = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::MiningStart {
                 uuid: "player-1".into(), target: target(), profile: profile(),
                 eye_position: eye(), max_reach: 7.0, tick: 1,
@@ -385,20 +385,20 @@ mod tests {
     fn inventory_ipc_initializes_inserts_removes_and_cleans_up() {
         let mut state = CoreState::default();
         let init = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryInit { inventory_id: "player:player-1:carried".into(), slot_count: 2 }],
         });
         assert!(init.ok);
         assert_eq!(init.inventory_results.len(), 1);
         let stack = ItemStack::new("minecraft:cobblestone", 10, 0, vec![]).unwrap();
         let inserted = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryInsert { inventory_id: "player:player-1:carried".into(), stack }],
         });
         assert!(matches!(inserted.inventory_results[0].outcome,
             InventoryOutcome::Inserted { remainder: None, .. }));
         let removed = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryRemove {
                 inventory_id: "player:player-1:carried".into(), slot: 0, count: 4,
             }],
@@ -418,7 +418,7 @@ mod tests {
             None,
             ];
         let response = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventorySync { inventory_id: "player:p:carried".into(), slots: snapshot }],
         });
         assert!(response.ok);
@@ -427,6 +427,25 @@ mod tests {
         assert_eq!(inventory.len(), 2);
         assert_eq!(inventory.get(0).unwrap().identifier, "minecraft:diamond");
         assert!(inventory.get(1).is_none());
+    }
+
+    #[test]
+    fn player_carried_and_world_container_inventories_are_namespaced_independently() {
+        let mut state = CoreState::default();
+        let player_id = "player:player-1:carried".to_string();
+        let chest_id = "block:overworld:10:64:-4".to_string();
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: player_id.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:diamond", 2, 0, vec![]).unwrap())],
+        });
+        state.apply(SemanticEvent::InventorySync {
+            inventory_id: chest_id.clone(),
+            slots: vec![Some(ItemStack::new("minecraft:chest", 1, 0, vec![]).unwrap())],
+        });
+        assert_eq!(state.inventories.len(), 2);
+        state.apply(SemanticEvent::PlayerLeave { uuid: "player-1".into() });
+        assert!(!state.inventories.contains_key(&player_id));
+        assert!(state.inventories.contains_key(&chest_id));
     }
 
     #[test]
@@ -451,7 +470,7 @@ mod tests {
     fn invalid_inventory_item_is_rejected_before_batch_mutation() {
         let mut state = CoreState::default();
         let response = state.handle(Request::Batch {
-            protocol_version: 1,
+            protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![
                 SemanticEvent::InventoryInit { inventory_id: "player:p:carried".into(), slot_count: 9 },
                 SemanticEvent::InventoryInsert {
@@ -475,7 +494,7 @@ mod tests {
                 eye_position: eye(), max_reach: f32::NAN, tick: 1 },
         ];
         assert!(!events.iter().all(SemanticEvent::is_valid));
-        let response = state.handle(Request::Batch { protocol_version: 1, events });
+        let response = state.handle(Request::Batch { protocol_version: CORE_PROTOCOL_VERSION, events });
         assert!(!response.ok);
         assert!(state.players.is_empty());
         assert!(state.mining.is_empty());
