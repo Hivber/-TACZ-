@@ -73,3 +73,26 @@ func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 		t.Fatalf("unexpected inventory response: %+v", response.InventoryResults)
 	}
 }
+
+func TestInventorySyncSnapshotJSONPreservesEmptySlots(t *testing.T) {
+	event := Event{
+		Type: "inventory_sync",
+		UUID: "player-uuid",
+		Slots: []*ItemStack{
+			{Identifier: "minecraft:diamond", Count: 3},
+			nil,
+		},
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	slots, ok := decoded["slots"].([]any)
+	if !ok || len(slots) != 2 || slots[1] != nil {
+		t.Fatalf("inventory snapshot must preserve empty slot positions: %s", payload)
+	}
+}

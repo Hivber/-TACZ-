@@ -51,6 +51,7 @@ type Event struct {
 	MaxReach        float32            `json:"max_reach,omitempty"`
 	Tick            uint64             `json:"tick,omitempty"`
 	SlotCount       int                `json:"slot_count,omitempty"`
+	Slots           []*ItemStack       `json:"slots,omitempty"`
 	Slot            int                `json:"slot,omitempty"`
 	Stack           *ItemStack         `json:"stack,omitempty"`
 	Source          int                `json:"source,omitempty"`

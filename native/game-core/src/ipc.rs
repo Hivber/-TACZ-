@@ -45,6 +45,7 @@ enum SemanticEvent {
     },
     MiningAbort { uuid: String },
     InventoryInit { uuid: String, slot_count: usize },
+    InventorySync { uuid: String, slots: Vec<Option<ItemStack>> },
     InventoryInsert { uuid: String, stack: ItemStack },
     InventoryRemove { uuid: String, slot: usize, count: u16 },
     InventoryMove { uuid: String, source: usize, destination: usize, count: u16 },
@@ -102,6 +103,8 @@ impl SemanticEvent {
             Self::PlayerMove { position, .. } => position.is_finite(),
             Self::PlayerLeave { uuid } | Self::MiningAbort { uuid } => !uuid.is_empty(),
             Self::InventoryInit { uuid, slot_count } => !uuid.is_empty() && *slot_count > 0 && *slot_count <= 256,
+            Self::InventorySync { uuid, slots } => !uuid.is_empty() && !slots.is_empty() && slots.len() <= 256
+                && slots.iter().flatten().all(ItemStack::is_valid),
             Self::InventoryInsert { uuid, stack } => !uuid.is_empty() && stack.is_valid(),
             Self::InventoryRemove { uuid, slot, count } => !uuid.is_empty() && *slot < 256 && *count > 0,
             Self::InventoryMove { uuid, source, destination, count } =>
@@ -204,6 +207,20 @@ impl CoreState {
                 let slots = inventory.slots().to_vec();
                 self.inventories.insert(uuid.clone(), inventory);
                 return (None, Some(InventoryResult { uuid, outcome: InventoryOutcome::Snapshot { slots } }));
+            }
+            SemanticEvent::InventorySync { uuid, slots } => {
+                let mut inventory = Inventory::new(slots.len());
+                for (slot, stack) in slots.into_iter().enumerate() {
+                    if let Some(stack) = stack {
+                        inventory.set(slot, Some(stack)).expect("validated inventory slot");
+                    }
+                }
+                let snapshot = inventory.slots().to_vec();
+                self.inventories.insert(uuid.clone(), inventory);
+                return (None, Some(InventoryResult {
+                    uuid,
+                    outcome: InventoryOutcome::Snapshot { slots: snapshot },
+                }));
             }
             SemanticEvent::InventoryInsert { uuid, stack } => {
                 let outcome = match self.inventories.get_mut(&uuid) {
@@ -390,6 +407,44 @@ mod tests {
             InventoryOutcome::Removed { removed: Some(ItemStack { count: 4, .. }), .. }));
         state.apply(SemanticEvent::PlayerLeave { uuid: "player-1".into() });
         assert!(!state.inventories.contains_key("player-1"));
+    }
+
+    #[test]
+    fn inventory_sync_atomically_replaces_the_complete_slot_snapshot() {
+        let mut state = CoreState::default();
+        state.apply(SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 2 });
+        let snapshot = vec![
+            Some(ItemStack::new("minecraft:diamond", 3, 0, vec![]).unwrap()),
+            None,
+            ];
+        let response = state.handle(Request::Batch {
+            protocol_version: 1,
+            events: vec![SemanticEvent::InventorySync { uuid: "p".into(), slots: snapshot }],
+        });
+        assert!(response.ok);
+        assert!(matches!(response.inventory_results[0].outcome, InventoryOutcome::Snapshot { .. }));
+        let inventory = state.inventories.get("p").unwrap();
+        assert_eq!(inventory.len(), 2);
+        assert_eq!(inventory.get(0).unwrap().identifier, "minecraft:diamond");
+        assert!(inventory.get(1).is_none());
+    }
+
+    #[test]
+    fn inventory_sync_rejects_invalid_or_oversized_snapshots_before_mutation() {
+        let mut state = CoreState::default();
+        state.apply(SemanticEvent::InventoryInit { uuid: "p".into(), slot_count: 1 });
+        let invalid = SemanticEvent::InventorySync {
+            uuid: "p".into(),
+            slots: vec![Some(ItemStack {
+                identifier: "minecraft:diamond_sword".into(), count: 2, metadata: 0, user_data: vec![],
+            })],
+        };
+        assert!(!invalid.is_valid());
+        let too_many = SemanticEvent::InventorySync {
+            uuid: "p".into(), slots: vec![None; 257],
+        };
+        assert!(!too_many.is_valid());
+        assert_eq!(state.inventories.get("p").unwrap().len(), 1);
     }
 
     #[test]
