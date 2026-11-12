@@ -7,7 +7,7 @@ runtime remains the Bedrock transport adapter:
   packet IDs, packet serialization and connection lifecycle.
 - Rust owns gameplay state and deterministic gameplay calculations. It receives
   semantic events only, never Bedrock packets or client sockets.
-- The current crate contains player lifecycle state, a Chorus-derived data-only
+- The current crate contains player lifecycle state and game-mode capability rules adapted from MC-RS, a transport-independent entity visibility tracker adapted from MC-RS, a Chorus-derived data-only
   block component/permutation registry, MC-RS-derived mining calculations,
   Efficiency/Unbreaking handling, and weighted/silk-touch/Fortune drop resolution.
 
@@ -53,8 +53,11 @@ explicit empty LootComponent means no drops.
   block_permutation.rs at revision
   c8115402a3bacf2014af2ce72fa5c35729040aa8.
 - MC-RS, MIT: mining speed, tool compatibility, potion modifiers and durability
-  algorithms adapted from crates/mc-rs-server/src/block_break.rs at revision
-  da93a9501601fcdc284762fde88c24b44604991e.
+  algorithms adapted from crates/mc-rs-server/src/block_break.rs; game-mode
+  capabilities adapted from src/gamemode.rs; entity visibility transitions
+  adapted from src/entity_culling.rs. All are pinned to revision
+  da93a9501601fcdc284762fde88c24b44604991e. Entity visibility is a decision
+  engine only; Go must still translate transitions into gophertunnel packets.
 - MC-RS's sampled block_break.json and block_drops_bds.json were recorded for
   Bedrock 1.26.52.3. They are deliberately not treated as authoritative 1.26.60
   data. The generic loot resolver requires version-matched block definitions

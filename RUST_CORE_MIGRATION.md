@@ -219,3 +219,26 @@ are deliberately excluded.
 This closes an intermediate-state consistency gap in the Rust shadow mirror.
 It does **not** move ItemStackRequest validation, event hooks, transaction
 acceptance, item drops, crafting, or inventory ownership into Rust.
+
+
+## Additional MC-RS gameplay modules (2026-11-13)
+
+Two transport-independent MC-RS gameplay subsystems have now been copied and
+adapted into this crate:
+
+- `game_mode.rs`: Survival/Creative/Adventure/Spectator identifiers and
+  capability predicates, with safe fallback for unknown identifiers.
+  Adventure block permissions remain metadata-dependent; this module does not
+  replace item CanDestroy/CanPlaceOn checks.
+- `entity_visibility.rs`: horizontal view-distance culling, per-viewer
+  visibility transition classification, independent visible-entity sets, and
+  cleanup on entity/viewer removal. Invalid coordinates remove stale visibility
+  rather than leaving an entity permanently visible.
+
+Both modules are pinned to MC-RS revision
+`da93a9501601fcdc284762fde88c24b44604991e`, with original paths and MIT
+attribution recorded in source headers. The entity visibility module does not
+send packets and is not yet wired to Dragonfly's live entity replication.
+The game-mode capability model is not yet the authoritative source for live
+player game-mode or permission changes. These are reusable imported gameplay
+subsystems, not a claim that the whole MC-RS server has been transplanted.
