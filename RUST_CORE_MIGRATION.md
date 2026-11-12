@@ -264,3 +264,13 @@ module explicitly describes a conceptual server-side model, not a complete
 Bedrock client border implementation. Food values and simplified fall damage
 must be validated against Bedrock 1.26.60 before being treated as exact vanilla
 behavior.
+
+
+## Block attachment rule import (2026-11-13)
+
+Imported MC-RS `block_attachment.rs` at revision `da93a9501601fcdc284762fde88c24b44604991e`. It classifies
+support requirements for plants, crops, rails, torches, signs, doors and other
+attached blocks. It is intentionally only a rule classifier: actual support
+block queries, facing-specific checks, neighbor-change scheduling and block
+drops remain the responsibility of the Rust world implementation and are not
+yet connected to Dragonfly's live block placement/break handlers.
