@@ -35,9 +35,13 @@ func TestEncodeItemStackPreservesDragonflyNBT(t *testing.T) {
 	if envelope.Format != "dragonfly-item-nbt-json-v1" {
 		t.Fatalf("unexpected item payload format %q", envelope.Format)
 	}
-	display, ok := envelope.NBT["display"].(map[string]any)
+	tag, ok := envelope.NBT["tag"].(map[string]any)
+	if !ok {
+		t.Fatalf("disk NBT tag was not preserved: %#v", envelope.NBT)
+	}
+	display, ok := tag["display"].(map[string]any)
 	if !ok || display["Name"] != "Field ration" {
-		t.Fatalf("custom name was not preserved: %#v", envelope.NBT["display"])
+		t.Fatalf("custom name was not preserved: %#v", tag["display"])
 	}
 	lore, ok := display["Lore"].([]any)
 	if !ok || len(lore) != 2 || lore[0] != "Prepared for testing" {
