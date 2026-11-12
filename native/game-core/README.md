@@ -68,3 +68,25 @@ explicit empty LootComponent means no drops.
 This is a tested gameplay-core vertical slice, not yet the authoritative runtime
 for live Dragonfly player sessions. Existing Go gameplay paths remain in place
 until semantic event parity tests and a real 1.26.60 client regression run pass.
+
+
+## MC-RS survival and world utility imports (2026-11-13)
+
+The following transport-independent modules were copied from MC-RS revision
+`da93a9501601fcdc284762fde88c24b44604991e` and added to the crate:
+
+- `hunger.rs`: hunger, saturation, exhaustion, sprint and natural-regeneration
+  capability state.
+- `food.rs`: food restoration values and selected food-effect metadata.
+- `entity_fall.rs`: base fall-damage calculation and material/enchantment
+  modifier constants.
+- `world_time.rs`: tick/day conversion helpers.
+- `world_border.rs`: the upstream conceptual square-border model, including
+  containment, outside-distance, damage threshold and clamping.
+
+These are reusable calculations, not yet connected to live Dragonfly movement,
+food-use, damage, world tick or persistence handlers. The upstream world-border
+module explicitly describes a conceptual server-side model, not a complete
+Bedrock client border implementation. Food values and simplified fall damage
+must be validated against Bedrock 1.26.60 before being treated as exact vanilla
+behavior.
