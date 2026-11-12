@@ -50,7 +50,6 @@ func TestMiningSemanticEventAndResultJSON(t *testing.T) {
 	}
 }
 
-
 func TestInventorySemanticEventAndResultJSON(t *testing.T) {
 	stack := &ItemStack{Identifier: "minecraft:cobblestone", Count: 32}
 	event := Event{Type: "inventory_insert", UUID: "player-uuid", Stack: stack}

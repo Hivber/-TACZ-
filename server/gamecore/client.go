@@ -129,7 +129,7 @@ type Response struct {
 	Message         string         `json:"message"`
 	OnlinePlayers   int            `json:"online_players"`
 	ProcessedEvents int            `json:"processed_events"`
-	MiningResults    []MiningResult    `json:"mining_results,omitempty"`
+	MiningResults   []MiningResult    `json:"mining_results,omitempty"`
 	InventoryResults []InventoryResult `json:"inventory_results,omitempty"`
 }
 
