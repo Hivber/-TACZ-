@@ -32,7 +32,7 @@ type ItemStack struct {
 	Identifier string `json:"identifier"`
 	Count      uint16 `json:"count"`
 	Metadata   uint32 `json:"metadata"`
-	UserData   []byte `json:"user_data,omitempty"`
+	UserData   []uint16 `json:"user_data,omitempty"`
 }
 
 type Event struct {
