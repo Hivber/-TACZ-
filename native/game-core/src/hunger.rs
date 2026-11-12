@@ -47,6 +47,9 @@ impl HungerState {
     }
 
     pub fn add_exhaustion(&mut self, amount: f32) {
+        if !amount.is_finite() || amount <= 0.0 {
+            return;
+        }
         self.exhaustion += amount;
         while self.exhaustion >= EXHAUSTION_THRESHOLD {
             self.exhaustion -= EXHAUSTION_THRESHOLD;
@@ -59,8 +62,12 @@ impl HungerState {
     }
 
     pub fn restore(&mut self, hunger: u8, saturation: f32) {
-        self.hunger = (self.hunger + hunger).min(20);
-        self.saturation = (self.saturation + saturation).min(self.hunger as f32);
+        self.hunger = (u16::from(self.hunger) + u16::from(hunger)).min(20) as u8;
+        if saturation.is_finite() && saturation > 0.0 {
+            self.saturation = (self.saturation.max(0.0) + saturation)
+                .min(self.hunger as f32)
+                .min(20.0);
+        }
     }
 
     pub fn is_starving(&self) -> bool {
@@ -105,5 +112,26 @@ mod tests {
         let mut h = HungerState::new();
         h.hunger = 0;
         assert!(h.is_starving());
+    }
+
+    #[test]
+    fn invalid_exhaustion_and_saturation_are_ignored() {
+        let mut h = HungerState::new();
+        let before = h.clone();
+        h.add_exhaustion(f32::NAN);
+        h.add_exhaustion(f32::INFINITY);
+        h.restore(2, f32::NAN);
+        assert_eq!(h.hunger, before.hunger + 2);
+        assert_eq!(h.saturation, before.saturation);
+    }
+
+    #[test]
+    fn restore_caps_hunger_and_saturation() {
+        let mut h = HungerState::new();
+        h.hunger = 19;
+        h.saturation = 19.0;
+        h.restore(u8::MAX, 100.0);
+        assert_eq!(h.hunger, 20);
+        assert_eq!(h.saturation, 20.0);
     }
 }

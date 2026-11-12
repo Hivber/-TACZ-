@@ -17,6 +17,9 @@ pub fn feather_falling_reduction(level: u8) -> f32 {
 
 /// Compute fall damage.
 pub fn compute_damage(fall_distance: f32, feather_falling: u8) -> f32 {
+    if !fall_distance.is_finite() || fall_distance <= 0.0 {
+        return 0.0;
+    }
     let base = (fall_distance - FALL_THRESHOLD).max(0.0) * FALL_DAMAGE_PER_BLOCK;
     let reduction = feather_falling_reduction(feather_falling).min(0.8);
     base * (1.0 - reduction)
@@ -47,5 +50,17 @@ mod tests {
         let with = compute_damage(10.0, 4);
         let without = compute_damage(10.0, 0);
         assert!(with < without);
+    }
+
+    #[test]
+    fn invalid_fall_distances_do_not_create_nan_damage() {
+        assert_eq!(compute_damage(f32::NAN, 0), 0.0);
+        assert_eq!(compute_damage(f32::INFINITY, 0), 0.0);
+        assert_eq!(compute_damage(-10.0, 0), 0.0);
+    }
+
+    #[test]
+    fn feather_falling_reduction_is_capped() {
+        assert_eq!(compute_damage(10.0, u8::MAX), 1.4);
     }
 }

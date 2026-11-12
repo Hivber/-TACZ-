@@ -274,3 +274,8 @@ attached blocks. It is intentionally only a rule classifier: actual support
 block queries, facing-specific checks, neighbor-change scheduling and block
 drops remain the responsibility of the Rust world implementation and are not
 yet connected to Dragonfly's live block placement/break handlers.
+
+
+The imported hunger, fall-damage and world-border helpers also reject non-finite
+or invalid inputs at their public calculation boundaries. Unit tests cover
+NaN/infinity handling, saturation bounds, and invalid border configuration.

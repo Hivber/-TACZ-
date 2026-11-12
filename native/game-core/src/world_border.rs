@@ -31,7 +31,22 @@ impl Default for WorldBorder {
 }
 
 impl WorldBorder {
+    /// Returns false for malformed border settings or non-finite coordinates.
+    pub fn is_valid(&self) -> bool {
+        self.center_x.is_finite()
+            && self.center_z.is_finite()
+            && self.radius.is_finite()
+            && self.radius >= 0.0
+            && self.damage_per_second.is_finite()
+            && self.damage_per_second >= 0.0
+            && self.damage_buffer.is_finite()
+            && self.damage_buffer >= 0.0
+    }
+
     pub fn contains(&self, x: f64, z: f64) -> bool {
+        if !self.is_valid() || !x.is_finite() || !z.is_finite() {
+            return false;
+        }
         let dx = (x - self.center_x).abs();
         let dz = (z - self.center_z).abs();
         dx <= self.radius && dz <= self.radius
@@ -39,6 +54,9 @@ impl WorldBorder {
 
     /// Distance hors-border (0 si dans la border).
     pub fn distance_outside(&self, x: f64, z: f64) -> f64 {
+        if !self.is_valid() || !x.is_finite() || !z.is_finite() {
+            return f64::INFINITY;
+        }
         let dx = (x - self.center_x).abs();
         let dz = (z - self.center_z).abs();
         let ox = (dx - self.radius).max(0.0);
@@ -48,6 +66,9 @@ impl WorldBorder {
 
     /// Retourne Some(damage) si le joueur doit prendre damage ce tick (20 TPS).
     pub fn damage_for_position(&self, x: f64, z: f64) -> Option<f32> {
+        if !self.is_valid() {
+            return None;
+        }
         let dist = self.distance_outside(x, z);
         if dist > self.damage_buffer {
             Some(self.damage_per_second / 20.0)
@@ -58,6 +79,9 @@ impl WorldBorder {
 
     /// Clamp position to border edge (teleport back inside).
     pub fn clamp(&self, x: f64, z: f64) -> (f64, f64) {
+        if !self.is_valid() || !x.is_finite() || !z.is_finite() {
+            return (x, z);
+        }
         let cx = x.clamp(self.center_x - self.radius, self.center_x + self.radius);
         let cz = z.clamp(self.center_z - self.radius, self.center_z + self.radius);
         (cx, cz)
@@ -104,5 +128,13 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(wb.clamp(150.0, -200.0), (100.0, -100.0));
+    }
+
+    #[test]
+    fn invalid_border_configuration_is_rejected_safely() {
+        let wb = WorldBorder { radius: f64::NAN, ..Default::default() };
+        assert!(!wb.contains(0.0, 0.0));
+        assert_eq!(wb.damage_for_position(1000.0, 1000.0), None);
+        assert_eq!(wb.clamp(1.0, 2.0), (1.0, 2.0));
     }
 }
