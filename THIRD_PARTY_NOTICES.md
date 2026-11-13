@@ -126,3 +126,16 @@ Additional selectively ported/adapted gameplay modules from MC-RS revision
   and item identifiers instead of copied numeric runtime IDs.
 - \`native/game-core/src/wall.rs\` adapts
   \`crates/mc-rs-server/src/block_wall.rs\` for data-only wall connection state.
+
+
+## Chorus dropped-item entity gameplay
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/item/src/item_entity.rs\`
+- Destination: \`native/game-core/src/item_entity.rs\`
+
+The item entity's pickup delay, despawn age, compatible stack absorption and
+pickup reach rules are adapted to the local semantic ItemStack type. The Bevy
+ECS component and glam vector dependencies are not included.

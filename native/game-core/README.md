@@ -46,6 +46,15 @@ world-state migration input where applicable; it is not a complete or
 authoritative Bedrock 1.26.60 upgrade table. Newer schemas must be sourced and
 validated separately before applying them to live worlds.
 
+## Dropped-item entity mechanics
+
+The Chorus-derived item entity stores the semantic item stack, pickup delay,
+age, on-ground state and opaque item data. It implements normal/thrown pickup
+delays, 6,000-tick despawn lifetime, compatible stack merging, 3D pickup reach,
+and persistence restore. The Bevy ECS component and glam vector dependencies
+were removed; Dragonfly/Rust world scheduling remains responsible for ticking
+and spawning these item states.
+
 ## Tool durability, ore XP and wall state
 
 The item-survival slice adds identifier-based vanilla tool durability tiers,

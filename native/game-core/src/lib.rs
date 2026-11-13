@@ -7,6 +7,7 @@
 pub mod block_break;
 pub mod armor_tier;
 pub mod item_durability;
+pub mod item_entity;
 pub mod ore_xp;
 pub mod wall;
 pub mod armor;
