@@ -167,3 +167,16 @@ macros and atomicow/Bevy dependencies are excluded.
 The bit-array implementation is adapted with checked construction and index
 helpers. The biome constants are copied as data; the rest of Chorus Level's
 storage and packet codec integration are not included in this slice.
+
+
+## Chorus block and biome palette implementation
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/level/src/palette.rs\`
+- Destination: \`native/game-core/src/palette.rs\`
+
+Uniform/indexed palette state, palette counts, packed indices and disk
+serialization helpers are adapted to standard-library collections and the
+local BitArray. The Bedrock ProtoCodec implementation is intentionally omitted.

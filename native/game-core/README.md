@@ -80,6 +80,14 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus block/biome palette state
+
+The adapted Palette model adds uniform and indexed 4,096-entry palettes,
+palette index packing, value-frequency accounting, stable/lazy removal of dead
+entries, width growth/shrink, array conversion and Chorus disk palette writes.
+The Bedrock ProtoCodec layer is deliberately omitted, so this does not alter Go
+packet encoding or imply a live chunk-storage cutover.
+
 ## Chunk palette and biome primitives
 
 The Chorus level slice adds its 32-bit packed BitArray implementation with
