@@ -1,0 +1,3 @@
+Repository: https://github.com/pedrokarim/mc-rs
+Commit: da93a9501601fcdc284762fde88c24b44604991e
+License: MIT
