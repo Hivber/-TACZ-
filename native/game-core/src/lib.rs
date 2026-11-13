@@ -14,6 +14,8 @@ pub mod food;
 pub mod hunger;
 pub mod world_border;
 pub mod world_time;
+pub mod difficulty;
+pub mod despawn_rules;
 pub mod block_interaction;
 pub mod block_id;
 pub mod block_registry;

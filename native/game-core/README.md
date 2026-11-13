@@ -7,9 +7,10 @@ runtime remains the Bedrock transport adapter:
   packet IDs, packet serialization and connection lifecycle.
 - Rust owns gameplay state and deterministic gameplay calculations. It receives
   semantic events only, never Bedrock packets or client sockets.
-- The current crate contains player lifecycle state and game-mode capability rules adapted from MC-RS, a transport-independent entity visibility tracker adapted from MC-RS, a Chorus-derived data-only
-  block component/permutation registry, MC-RS-derived mining calculations,
-  Efficiency/Unbreaking handling, and weighted/silk-touch/Fortune drop resolution.
+- The current crate contains MC-RS-derived mining, block-attachment,
+  game-mode, visibility, survival and world utility helpers; a Chorus-derived
+  data-only block component/permutation registry; inventory shadow-state
+  primitives; and the persistent IPC prototype.
 
 ## Build and test
 
@@ -17,12 +18,20 @@ runtime remains the Bedrock transport adapter:
     cargo test --manifest-path native/game-core/Cargo.toml
     cargo build --release --manifest-path native/game-core/Cargo.toml
 
-The IPC prototype uses a four-byte big-endian length followed by one versioned
-JSON request/response, with a 1 MiB frame ceiling. It is not yet a tick-safe
-live-session integration. Do not synchronously dial the socket from the Go
-game tick; runtime integration must use a persistent connection, bounded
-queues, backpressure and explicit failure handling before gameplay is switched
-to Rust authority.
+The IPC bridge currently mirrors semantic state and is not yet the authoritative
+live gameplay runtime. Do not synchronously dial the socket from the Go game
+tick; runtime integration must use a persistent connection, bounded queues,
+backpressure and explicit failure handling before gameplay is switched to Rust.
+
+## Upstream migration audit
+
+See [UPSTREAM_MIGRATION_AUDIT.md](UPSTREAM_MIGRATION_AUDIT.md) for the inspected
+MC-RS and Chorus directory map, transport exclusions, dependency constraints,
+version caveats and migration order.
+
+The newly copied `difficulty.rs` and `despawn_rules.rs` are standalone
+reference helpers from MC-RS. They are not yet connected to live world/entity
+ticks and are not claimed as verified Bedrock 1.26.60 behavior.
 
 ## Block components and permutations
 
@@ -37,78 +46,21 @@ hardness), loot, collision boxes, flammability, friction, light, map color,
 piston movement, replaceability, solidity and transparency. A permutation
 index is local to this crate; it is not a Bedrock runtime ID or palette index.
 
-BlockBreakProfile derives hardness and tool requirements from the active
-permutation. The mining model includes correct-tool/harvest-level checks,
-Efficiency, Haste, Mining Fatigue, airborne and underwater penalties, plus
-tool durability and Unbreaking. resolve_block_drops supports explicit weighted
-outcomes, optional silk-touch outcomes and configurable Fortune bonus ranges. The mining state machine handles start,
-continue, per-tick progress, crack stages, target/reach validation, abort and completion.
-Without a LootComponent, survival defaults to dropping the block itself; an
-explicit empty LootComponent means no drops.
-
 ## Upstream source and version cautions
 
 - Chorus, Apache-2.0: data-only block component and conditional permutation
-  concepts adapted from crates/block/src/component/, block_definition.rs and
-  block_permutation.rs at revision
-  c8115402a3bacf2014af2ce72fa5c35729040aa8.
-- MC-RS, MIT: mining speed, tool compatibility, potion modifiers and durability
-  algorithms adapted from crates/mc-rs-server/src/block_break.rs; game-mode
-  capabilities adapted from src/gamemode.rs; entity visibility transitions
-  adapted from src/entity_culling.rs. All are pinned to revision
-  da93a9501601fcdc284762fde88c24b44604991e. Entity visibility is a decision
-  engine only; Go must still translate transitions into gophertunnel packets.
-- MC-RS's sampled block_break.json and block_drops_bds.json were recorded for
-  Bedrock 1.26.52.3. They are deliberately not treated as authoritative 1.26.60
-  data. The generic loot resolver requires version-matched block definitions
-  before it can represent vanilla drops exhaustively.
+  concepts adapted from its block component, definition and permutation modules.
+- MC-RS, MIT: mining, game-mode, visibility, survival, world utility,
+  difficulty and despawn helpers are pinned to
+  `da93a9501601fcdc284762fde88c24b44604991e`.
+- MC-RS targets protocol 2169 / Bedrock 1.26.45. Its version-specific data
+  must not be treated as authoritative 1.26.60 data.
+- Chorus advertises protocol v2225 / Bedrock 26.60, but its modular gameplay
+  crates still require coordinated dependency and type integration.
 - MC-RS's RakNet, protocol, crypto, connection and packet runtime and Chorus's
-  Bevy/network plugins are intentionally excluded.
+  Bevy/network transport plugins are intentionally excluded.
 
-This is a tested gameplay-core vertical slice, not yet the authoritative runtime
-for live Dragonfly player sessions. Existing Go gameplay paths remain in place
-until semantic event parity tests and a real 1.26.60 client regression run pass.
-
-
-## MC-RS survival and world utility imports (2026-11-13)
-
-The following transport-independent modules were copied from MC-RS revision
-`da93a9501601fcdc284762fde88c24b44604991e` and added to the crate:
-
-- `hunger.rs`: hunger, saturation, exhaustion, sprint and natural-regeneration
-  capability state.
-- `food.rs`: food restoration values and selected food-effect metadata.
-- `entity_fall.rs`: base fall-damage calculation and material/enchantment
-  modifier constants.
-- `world_time.rs`: tick/day conversion helpers.
-- `world_border.rs`: the upstream conceptual square-border model, including
-  containment, outside-distance, damage threshold and clamping.
-
-These are reusable calculations, not yet connected to live Dragonfly movement,
-food-use, damage, world tick or persistence handlers. The upstream world-border
-module explicitly describes a conceptual server-side model, not a complete
-Bedrock client border implementation. Food values and simplified fall damage
-must be validated against Bedrock 1.26.60 before being treated as exact vanilla
-behavior.
-
-
-## Block attachment rule import (2026-11-13)
-
-Imported MC-RS `block_attachment.rs` at revision `da93a9501601fcdc284762fde88c24b44604991e`. It classifies
-support requirements for plants, crops, rails, torches, signs, doors and other
-attached blocks. It is intentionally only a rule classifier: actual support
-block queries, facing-specific checks, neighbor-change scheduling and block
-drops remain the responsibility of the Rust world implementation and are not
-yet connected to Dragonfly's live block placement/break handlers.
-
-
-The imported hunger, fall-damage and world-border helpers also reject non-finite
-or invalid inputs at their public calculation boundaries. Unit tests cover
-NaN/infinity handling, saturation bounds, and invalid border configuration.
-
-
-The first imported block-attachment revision referenced MC-RS's concrete
-`ChunkCache` and block registry. Those world-runtime calls were removed from
-the standalone gameplay crate; only transport/world-agnostic rule
-classification and block-name predicates remain. The Dragonfly/Rust world
-adapter must provide neighbor reads and apply the resulting break/drop events.
+This is a tested gameplay-core development slice, not yet the authoritative
+runtime for live Dragonfly player sessions. Existing Go gameplay paths remain
+in place until semantic event parity tests and a real 1.26.60 client regression
+run pass.
