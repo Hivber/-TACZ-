@@ -11,7 +11,8 @@ import (
 type ShortGrass struct {
 	replaceable
 	transparent
-	plantSelection
+	empty
+	plantSelectionShape
 
 	Double bool
 }

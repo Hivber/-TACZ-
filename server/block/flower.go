@@ -14,7 +14,8 @@ import (
 // Flower is a non-solid plant that occur in a variety of shapes and colours. They are primarily used for decoration
 // and crafted into dyes.
 type Flower struct {
-	plantSelection
+	empty
+	plantSelectionShape
 	transparent
 
 	// Type is the type of flower.
