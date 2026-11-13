@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"path/filepath"
@@ -178,5 +179,69 @@ func TestBridgeFlushesQueuedEventsOnClose(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("bridge did not flush its queue on close")
+	}
+}
+
+
+func TestBridgeCallReturnsSynchronousMiningResult(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sync-mining.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+
+		payload := readFrame(t, conn)
+		var request batchRequest
+		if err := json.Unmarshal(payload, &request); err != nil {
+			serverDone <- err
+			return
+		}
+		if len(request.Events) != 1 || request.Events[0].Type != "mining_advance" {
+			serverDone <- fmt.Errorf("unexpected synchronous request: %#v", request.Events)
+			return
+		}
+		writeFrame(t, conn, Response{
+			ProtocolVersion: ProtocolVersion,
+			OK:              true,
+			Message:         "batch_applied",
+			ProcessedEvents: 1,
+			MiningResults: []MiningResult{{
+				UUID:       request.Events[0].UUID,
+				Status:     "progress",
+				Progress:   0.25,
+				CrackStage: 2,
+			}},
+		})
+		serverDone <- nil
+	}()
+
+	bridge := NewBridge(path, func(error) {})
+	defer bridge.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	response, err := bridge.Call(ctx, Event{Type: "mining_advance", UUID: "player-uuid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.MiningResults) != 1 {
+		t.Fatalf("received %d mining results, want 1", len(response.MiningResults))
+	}
+	result := response.MiningResults[0]
+	if result.UUID != "player-uuid" || result.Status != "progress" || result.CrackStage != 2 {
+		t.Fatalf("unexpected synchronous mining result: %+v", result)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
 	}
 }
