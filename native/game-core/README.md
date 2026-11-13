@@ -80,6 +80,15 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chunk palette and biome primitives
+
+The Chorus level slice adds its 32-bit packed BitArray implementation with
+Bedrock palette bit widths (1, 2, 3, 4, 5, 6, 8 and 16), widening on value
+overflow, indexed access and conversion to/from packed words. This is a
+protocol-independent storage primitive suitable for chunk palettes; it is
+not yet wired into the live Go chunk sender/storage path. The legacy Bedrock
+biome numeric identifier table is also included as data only.
+
 ## Chorus common block-state catalog
 
 common_block_states.rs carries the 164 reusable common state definitions

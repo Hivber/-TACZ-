@@ -30,6 +30,8 @@ pub mod block_interaction;
 pub mod block_id;
 pub mod block_registry;
 pub mod block_state;
+pub mod bit_array;
+pub mod biome_id;
 pub mod common_block_states;
 pub mod components;
 pub mod inventory;

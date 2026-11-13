@@ -152,3 +152,18 @@ ECS component and glam vector dependencies are not included.
 All 164 shared state definitions are adapted to the owned Rust state model.
 State identifiers, value ordering and enum labels are retained; framework
 macros and atomicow/Bevy dependencies are excluded.
+
+
+## Chorus chunk-palette and biome primitives
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Sources: \`crates/level/src/bit_array.rs\`,
+  \`crates/level/src/biome/biome_id.rs\`
+- Destinations: \`native/game-core/src/bit_array.rs\`,
+  \`native/game-core/src/biome_id.rs\`
+
+The bit-array implementation is adapted with checked construction and index
+helpers. The biome constants are copied as data; the rest of Chorus Level's
+storage and packet codec integration are not included in this slice.
