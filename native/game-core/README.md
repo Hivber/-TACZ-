@@ -80,6 +80,15 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus common block-state catalog
+
+common_block_states.rs carries the 164 reusable common state definitions
+from Chorus crates/block/src/state/common.rs into owned local
+BlockStateDefinition values. It preserves upstream identifiers, value ordering
+and enum labels without pulling in atomicow, Bevy or Bedrock packet types.
+Callers can retrieve definitions by upstream constant name or collect all
+definitions sharing a state identifier (some identifiers have multiple ranges).
+
 ## Block components and permutations
 
 BlockDefinition supplies default components and ordered conditional

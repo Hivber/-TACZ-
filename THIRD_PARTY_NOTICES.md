@@ -139,3 +139,16 @@ Additional selectively ported/adapted gameplay modules from MC-RS revision
 The item entity's pickup delay, despawn age, compatible stack absorption and
 pickup reach rules are adapted to the local semantic ItemStack type. The Bevy
 ECS component and glam vector dependencies are not included.
+
+
+## Chorus shared block-state definitions
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/block/src/state/common.rs\`
+- Destination: \`native/game-core/src/common_block_states.rs\`
+
+All 164 shared state definitions are adapted to the owned Rust state model.
+State identifiers, value ordering and enum labels are retained; framework
+macros and atomicow/Bevy dependencies are excluded.
