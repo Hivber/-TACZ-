@@ -88,6 +88,15 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS attribute and potion-effect system
+
+The MC-RS slice adds the numeric attribute registry and per-entity AttributeMap
+(max/min/current/base values, clamping and modifiers), plus vanilla potion
+EffectKind IDs, active-effect durations/amplifiers, ambient/visibility flags,
+instant effects and effect ticking/attribute integration. The host server must
+still translate these semantic state changes into Bedrock UpdateAttributes and
+MobEffect packets; this import alone does not modify Dragonfly packet handling.
+
 ## MC-RS movement, weather and item cooldown helpers
 
 The MC-RS gameplay slice adds entity gravity/drag, ground friction and jump

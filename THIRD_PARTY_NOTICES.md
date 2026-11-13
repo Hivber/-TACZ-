@@ -292,3 +292,18 @@ local \`block_id\` constants.
 
 Weather transitions are adapted to the local deterministic RandomSource instead
 of thread_rng to make seeded world simulation reproducible.
+
+
+## MC-RS entity attributes and potion effects
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`crates/mc-rs-server/src/attribute.rs\`,
+  \`crates/mc-rs-server/src/effects.rs\`
+- Destinations: \`native/game-core/src/attribute.rs\`,
+  \`native/game-core/src/effects.rs\`
+
+The attribute map and effect manager are copied as a cohesive pair; MC-RS's
+selected PocketMine-MP behavior should be checked against BDS 26.60 before
+the semantic values are wired to live Bedrock attribute/effect packets.
