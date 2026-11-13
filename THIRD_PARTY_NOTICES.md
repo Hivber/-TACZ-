@@ -88,3 +88,26 @@ attribution in their file headers.
 - MC-RS MIT License: `third_party/licenses/MC-RS-MIT.txt`
 
 The complete license texts are retained with this repository for redistribution.
+
+
+## MC-RS combat and armor gameplay logic
+
+The following pure gameplay modules are copied or adapted from the MC-RS
+MIT-licensed source at revision \`da93a9501601fcdc284762fde88c24b44604991e\`:
+- \`native/game-core/src/armor_tier.rs\` from
+  \`crates/mc-rs-server/src/armor_tier.rs\` (selective copy)
+- \`native/game-core/src/damage_sources.rs\` from
+  \`crates/mc-rs-server/src/damage_sources.rs\` (selective copy)
+- \`native/game-core/src/armor.rs\` (adapted armor-slot aggregation; replaces
+  MC-RS protocol ItemStack/item-registry access with semantic material/slot inputs)
+- \`native/game-core/src/damage_modifiers.rs\` (adapted from
+  \`crates/mc-rs-server/src/damage_modifiers.rs\` and the armor reduction
+  portion of \`armor.rs\`)
+- \`native/game-core/src/combat.rs\` (adapted from
+  \`crates/mc-rs-server/src/combat.rs\`; excludes EventManager, packet effects
+  and entity registry wiring)
+
+The source implements a selective PocketMine-MP port and does not by itself
+establish parity with BDS 26.60. Validate armor, enchantment, effect, hurt-time
+and knockback behavior against the target server before treating these
+calculations as authoritative.

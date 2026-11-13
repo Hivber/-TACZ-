@@ -8,7 +8,7 @@ runtime remains the Bedrock transport adapter:
 - Rust owns gameplay state and deterministic gameplay calculations. It receives
   semantic events only, never Bedrock packets or client sockets.
 - The current crate contains MC-RS-derived mining, block-attachment,
-  game-mode, visibility, survival and world utility helpers; a Chorus-derived
+  game-mode, visibility, survival, combat, damage-source, armor and world utility helpers; a Chorus-derived
   data-only block component/permutation registry; inventory shadow-state
   primitives; and the persistent IPC prototype.
 
@@ -45,6 +45,19 @@ version `1.21.60.33`. It is suitable only as historical
 world-state migration input where applicable; it is not a complete or
 authoritative Bedrock 1.26.60 upgrade table. Newer schemas must be sourced and
 validated separately before applying them to live worlds.
+
+## Combat and armor baseline
+
+`armor_tier.rs`, `damage_sources.rs`, `armor.rs`, `damage_modifiers.rs` and
+`combat.rs` bring over the selective MC-RS/PocketMine-MP combat baseline using
+transport-independent inputs. The semantic layer covers armor defense and
+toughness, protection enchantment EPF, resistance, absorption hearts, spawn
+invulnerability, hurt-time delta handling, death detection and knockback
+velocity. It does not yet include Bedrock-specific attribute/effect packet
+synchronization, shield blocking, thorns durability, plugin damage events,
+weapon attack cooldown attributes, sweeping attacks or server-side entity
+physics integration. Treat the equations as a versioned reference until
+validated against BDS 26.60.
 
 ## Block components and permutations
 
