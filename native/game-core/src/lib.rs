@@ -6,10 +6,16 @@
 
 pub mod block_break;
 pub mod armor_tier;
+pub mod anvil_damage;
+pub mod beacon_effects;
 pub mod attribute;
 pub mod effects;
 pub mod item_durability;
 pub mod item_entity;
+pub mod experience_orb;
+pub mod projectiles;
+pub mod slime_block;
+pub mod honey_block;
 pub mod ore_xp;
 pub mod wall;
 pub mod armor;
