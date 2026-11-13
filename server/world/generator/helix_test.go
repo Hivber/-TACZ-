@@ -57,6 +57,24 @@ func TestHelixGeneratesAllVanillaDimensions(t *testing.T) {
 	}
 }
 
+func TestHelixRuntimeMappingFallbacksAreCounted(t *testing.T) {
+	h, err := NewHelix(2)
+	if err != nil {
+		t.Fatalf("create Helix generator: %v", err)
+	}
+
+	if got := h.blockRuntimeID(uint32(len(h.blockRuntimeIDs))); got != h.airRuntimeID {
+		t.Fatalf("unknown block palette ID mapped to %d, want air %d", got, h.airRuntimeID)
+	}
+	if got := h.biomeID(^uint32(0)); got != h.plainsBiomeID {
+		t.Fatalf("unknown biome ID mapped to %d, want plains %d", got, h.plainsBiomeID)
+	}
+	stats := h.RuntimeMappingStats()
+	if stats.MissingBlockPaletteIDs != 1 || stats.MissingBiomeIDs != 1 {
+		t.Fatalf("runtime fallback counters = %+v, want one missing block and biome", stats)
+	}
+}
+
 func TestHelixBlockEntitiesUseChunkLocalCoordinates(t *testing.T) {
 	h, err := NewHelix(1)
 	if err != nil {

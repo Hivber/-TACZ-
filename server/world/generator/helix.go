@@ -40,6 +40,8 @@ type Helix struct {
 	defaultedBlockStates int
 	missingBlockStates   int
 	droppedBlockEntities atomic.Uint64
+	missingBlockPaletteIDs atomic.Uint64
+	missingBiomeIDs        atomic.Uint64
 }
 
 // BlockMappingStats reports how many states from the Helix palette were
@@ -347,7 +349,8 @@ func (g *helixDimensionGenerator) copyEnd(dst *chunk.Chunk, src *helixend.Chunk)
 }
 
 func (h *Helix) blockRuntimeID(id uint32) uint32 {
-	if int(id) >= len(h.blockRuntimeIDs) {
+	if uint64(id) >= uint64(len(h.blockRuntimeIDs)) {
+		h.missingBlockPaletteIDs.Add(1)
 		return h.airRuntimeID
 	}
 	return h.blockRuntimeIDs[id]
@@ -357,7 +360,27 @@ func (h *Helix) biomeID(id uint32) uint32 {
 	if mapped, ok := h.biomeRuntimeIDs[id]; ok {
 		return mapped
 	}
+	h.missingBiomeIDs.Add(1)
 	return h.plainsBiomeID
+}
+
+// RuntimeMappingStats reports runtime translation fallbacks encountered while
+// generated chunks are copied into Dragonfly's chunk representation. These
+// counters are distinct from BlockMappingStats, which counts palette entries.
+type RuntimeMappingStats struct {
+	MissingBlockPaletteIDs uint64
+	MissingBiomeIDs        uint64
+	DroppedBlockEntities   uint64
+}
+
+// RuntimeMappingStats returns the number of unsupported generated identifiers
+// and structure block entities observed since this generator was constructed.
+func (h *Helix) RuntimeMappingStats() RuntimeMappingStats {
+	return RuntimeMappingStats{
+		MissingBlockPaletteIDs: h.missingBlockPaletteIDs.Load(),
+		MissingBiomeIDs:        h.missingBiomeIDs.Load(),
+		DroppedBlockEntities:   h.DroppedBlockEntityCount(),
+	}
 }
 
 func (h *Helix) blockEntities(pos world.ChunkPos, c *chunk.Chunk, source []helixstructure.BlockEntity) []chunk.BlockEntity {
