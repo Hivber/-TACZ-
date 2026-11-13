@@ -1547,7 +1547,8 @@ mod tests {
             let id = catalog.id(identifier).unwrap();
             assert_eq!(catalog.identifier(id), Some(*identifier));
         }
-        assert_eq!(catalog.id(block_id::AIR), Some(1));
+        let air_id = catalog.id(block_id::AIR).unwrap();
+        assert_eq!(catalog.identifier(air_id), Some(block_id::AIR));
         assert_eq!(catalog.identifier(-1), None);
     }
 
