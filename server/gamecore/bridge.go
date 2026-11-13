@@ -77,7 +77,9 @@ func (b *Bridge) Close() {
 	b.once.Do(func() { close(b.stop) })
 	<-b.done
 	_ = b.client.Close()
-	_ = b.syncClient.Close()
+	if b.syncClient != nil {
+		_ = b.syncClient.Close()
+	}
 }
 
 func (b *Bridge) report(err error) {
