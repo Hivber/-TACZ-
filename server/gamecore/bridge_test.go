@@ -246,7 +246,6 @@ func TestBridgeCallReturnsSynchronousMiningResult(t *testing.T) {
 	}
 }
 
-
 func TestBridgeDistributesConcurrentGameplayCallsAcrossPool(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sync-pool.sock")
 	listener, err := net.Listen("unix", path)
