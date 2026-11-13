@@ -256,7 +256,7 @@ mod tests {
         blocks[1] = 2;
         let mut palette = Palette::from_blocks(&blocks);
         palette.set(0, 3);
-        assert_eq!((palette.count(1), palette.count(2), palette.count(3)), (4093, 1, 1));
+        assert_eq!((palette.count(1), palette.count(2), palette.count(3)), (4094, 1, 1));
         assert_eq!(palette.get(1), 2);
         assert_eq!(palette.get(2), 1);
     }
