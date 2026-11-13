@@ -195,3 +195,16 @@ local BitArray. The Bedrock ProtoCodec implementation is intentionally omitted.
 Chunk/subchunk palette state, block layers, biome state, block entity coordinate
 management and dirty-state tracking are adapted. Bevy, nbtx and Bedrock packet
 codec integration are excluded; block-entity payloads remain opaque NBT bytes.
+
+
+## Chorus immutable section store
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/level/src/section_store.rs\`
+- Destination: \`native/game-core/src/section_store.rs\`
+
+Adapted the immutable, Arc-shared chunk section store using the local BitArray
+and Palette types. The local implementation includes bounds-checked APIs and
+omits the upstream thread-local scratch-buffer reuse optimization.

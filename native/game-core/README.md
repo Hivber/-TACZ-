@@ -80,6 +80,15 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Immutable chunk section store
+
+The Chorus SectionStore layer is adapted as a contiguous metadata/value/packed-
+word buffer with Arc-shared immutable snapshots, palette append/copy, direct
+block-array conversion, bounds-checked reads and uniform-section fast paths.
+The implementation currently builds from the existing Palette model rather
+than sharing mutable chunk memory; it can become the immutable snapshot format
+for chunk saving or asynchronous generation without pulling in Bevy/packet code.
+
 ## Chunk and subchunk gameplay storage
 
 The Chorus Level data model now provides 16x16x16 subchunks with two block

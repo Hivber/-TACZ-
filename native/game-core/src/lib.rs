@@ -34,6 +34,7 @@ pub mod bit_array;
 pub mod palette;
 pub mod sub_chunk;
 pub mod chunk;
+pub mod section_store;
 pub mod biome_id;
 pub mod common_block_states;
 pub mod components;
