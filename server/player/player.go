@@ -2064,6 +2064,7 @@ func (p *Player) StartBreaking(pos cube.Pos, face cube.Face) {
 	}
 
 	p.breaking, p.breakingFace = true, face
+	p.session().SetBreakingActive(true)
 	p.SwingArm()
 
 	if p.GameMode().CreativeInventory() {
@@ -2135,6 +2136,7 @@ func (p *Player) FinishBreaking() {
 // if the player isn't breaking anything.
 // Unlike FinishBreaking, AbortBreaking does not stop the animation.
 func (p *Player) AbortBreaking() {
+	p.session().SetBreakingActive(false)
 	p.abortRustMining()
 	if !p.breaking {
 		return

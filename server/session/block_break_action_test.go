@@ -25,9 +25,17 @@ func TestClassifyMiningActionDoesNotRestartRepeatedContinue(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := classifyMiningAction(test.action, test.pos, current); got != test.want {
+			if got := classifyMiningAction(test.action, test.pos, current, true); got != test.want {
 				t.Fatalf("classifyMiningAction() = %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+
+func TestClassifyFirstContinueAtWorldOriginStartsMining(t *testing.T) {
+	origin := cube.Pos{}
+	if got := classifyMiningAction(protocol.PlayerActionContinueDestroyBlock, origin, origin, false); got != miningActionStart {
+		t.Fatalf("first continue at origin = %v, want start", got)
 	}
 }

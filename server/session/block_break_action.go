@@ -18,12 +18,12 @@ const (
 // classifyMiningAction keeps repeated CONTINUE_DESTROY_BLOCK packets from
 // restarting the mining timer. A changed position is treated as a fresh start
 // because some clients can switch targets without an intervening START packet.
-func classifyMiningAction(action int32, pos, current cube.Pos) miningAction {
+func classifyMiningAction(action int32, pos, current cube.Pos, active bool) miningAction {
 	switch action {
 	case protocol.PlayerActionStartBreak:
 		return miningActionStart
 	case protocol.PlayerActionContinueDestroyBlock:
-		if pos != current {
+		if !active || pos != current {
 			return miningActionStart
 		}
 		return miningActionContinue

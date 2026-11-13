@@ -217,3 +217,13 @@ func (s *Session) GameCoreMiningAction(event gamecore.Event) (gamecore.MiningRes
 	}
 	return result, true
 }
+
+
+// SetBreakingActive mirrors the actual Player mining-session state into the
+// packet handler. This avoids treating the zero-value block coordinate as an
+// already-started target and keeps internal Player aborts synchronized.
+func (s *Session) SetBreakingActive(active bool) {
+	if s != nil {
+		s.breakingActive.Store(active)
+	}
+}

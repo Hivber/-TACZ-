@@ -131,7 +131,8 @@ type Session struct {
 	// player is viewed.
 	joinSkin skin.Skin
 
-	breakingPos cube.Pos
+	breakingPos    cube.Pos
+	breakingActive atomic.Bool
 
 	inTransaction, containerOpened atomic.Bool
 	openedWindowID                 atomic.Uint32

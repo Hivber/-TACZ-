@@ -24,7 +24,7 @@ func handlePlayerAction(action int32, face int32, pos protocol.BlockPos, entityR
 		return errSelfRuntimeID
 	}
 	blockPos := cube.Pos{int(pos[0]), int(pos[1]), int(pos[2])}
-	switch classifyMiningAction(action, blockPos, s.breakingPos) {
+	switch classifyMiningAction(action, blockPos, s.breakingPos, s.breakingActive.Load()) {
 	case miningActionStart:
 		s.swingingArm.Store(true)
 		defer s.swingingArm.Store(false)
@@ -34,8 +34,10 @@ func handlePlayerAction(action int32, face int32, pos protocol.BlockPos, entityR
 		// The player/world tick advances mining exactly once per tick. The
 		// repeated client packet must not restart or double-advance the timer.
 	case miningActionAbort:
+		s.breakingActive.Store(false)
 		c.AbortBreaking()
 	case miningActionFinish:
+		s.breakingActive.Store(false)
 		s.swingingArm.Store(true)
 		defer s.swingingArm.Store(false)
 		c.FinishBreaking()
