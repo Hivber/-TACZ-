@@ -2111,19 +2111,11 @@ func (p *Player) breakContext() block.BreakContext {
 // FinishBreaking will stop the animation and break the block.
 func (p *Player) FinishBreaking() {
 	if p.rustMiningActive {
-		if completed, handled := p.advanceRustMining(p.breakingFace); handled {
-			pos := p.breakingPos
-			if !completed {
-				// The client may predict the break a tick before the server-side
-				// Rust calculation completes. Keep the authoritative mining session
-				// alive; Player.Tick will advance it until completion.
-				p.session().SetBreakingActive(true)
-				return
-			}
-			p.AbortBreaking()
-			p.BreakBlock(pos)
-			return
-		}
+		// PREDICT_DESTROY_BLOCK is a client prediction, not an additional
+		// server tick. Rust progress is advanced exactly once from Player.Tick;
+		// accepting progress here would make the final packet double-mine.
+		p.session().SetBreakingActive(true)
+		return
 	}
 	if !p.breaking {
 		p.resendNearbyBlock(p.breakingPos)
