@@ -2156,10 +2156,23 @@ func (p *Player) ContinueBreaking(face cube.Face) {
 		return
 	}
 	pos := p.breakingPos
-	if completed, handled := p.advanceRustMining(face); handled && completed {
-		p.AbortBreaking()
-		p.BreakBlock(pos)
-		return
+	if p.rustMiningActive {
+		completed, handled := p.advanceRustMining(face)
+		if handled {
+			b := p.tx.Block(pos)
+			p.tx.AddParticle(pos.Vec3(), particle.PunchBlock{Block: b, Face: face})
+			if p.breakCounter++; p.breakCounter%5 == 0 {
+				p.SwingArm()
+				// Match vanilla's periodic block-breaking sound while Rust owns
+				// the authoritative progress counter.
+				p.tx.PlaySound(pos.Vec3(), sound.BlockBreaking{Block: b})
+			}
+			if completed {
+				p.AbortBreaking()
+				p.BreakBlock(pos)
+			}
+			return
+		}
 	}
 	b := p.tx.Block(pos)
 	p.tx.AddParticle(pos.Vec3(), particle.PunchBlock{Block: b, Face: face})
