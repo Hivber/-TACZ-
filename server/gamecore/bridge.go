@@ -34,7 +34,7 @@ func NewBridge(socket string, onError func(error)) *Bridge {
 		syncClients[i] = &Client{SocketPath: socket, Timeout: 50 * time.Millisecond}
 	}
 	b := &Bridge{
-		client:     &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
+		client:      &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
 		syncClients: syncClients,
 		queue:      make(chan Event, queueCapacity),
 		stop:       make(chan struct{}),
