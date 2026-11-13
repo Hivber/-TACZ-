@@ -36,10 +36,10 @@ type Helix struct {
 	waterRuntimeID  uint32
 	plainsBiomeID   uint32
 
-	exactBlockStates     int
-	defaultedBlockStates int
-	missingBlockStates   int
-	droppedBlockEntities atomic.Uint64
+	exactBlockStates       int
+	defaultedBlockStates   int
+	missingBlockStates     int
+	droppedBlockEntities   atomic.Uint64
 	missingBlockPaletteIDs atomic.Uint64
 	missingBiomeIDs        atomic.Uint64
 }
