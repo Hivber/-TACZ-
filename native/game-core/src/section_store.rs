@@ -3,7 +3,6 @@
 //! Keeps section palettes in contiguous metadata/value/word buffers shared by Arc.
 //! No Bevy, packet codec or NBT types are used.
 
-use crate::bit_array::BitArray;
 use crate::palette::{Palette, PALETTE_VOLUME};
 use std::sync::Arc;
 

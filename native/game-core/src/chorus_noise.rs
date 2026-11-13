@@ -570,7 +570,7 @@ mod migrated_noise_tests {
     fn seeded_perlin_and_simplex_return_finite_samples() {
         let mut rng = Xoroshiro::new(42);
         let perlin = PerlinNoise::new(&mut rng);
-        let simplex = SimplexNoise::new(&mut rng);
+        let simplex = SimplexNoise::without_offset(&mut rng);
         assert!(perlin.get(12.25, -7.5, 81.0).is_finite());
         assert!(simplex.get(12.25, -7.5).is_finite());
     }
