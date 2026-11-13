@@ -46,6 +46,7 @@ pub mod weather_state;
 pub mod despawn_rules;
 pub mod block_interaction;
 pub mod block_id;
+pub mod block_catalog;
 pub mod block_registry;
 pub mod block_state;
 pub mod bit_array;
