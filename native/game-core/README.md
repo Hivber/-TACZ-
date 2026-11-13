@@ -80,6 +80,16 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chunk and subchunk gameplay storage
+
+The Chorus Level data model now provides 16x16x16 subchunks with two block
+layers, per-cell biome palettes, local-coordinate indexing, and an in-memory
+chunk with configurable vertical range, block access, block entities and dirty
+tracking. Network chunk/subchunk encoders are not copied; chunk packet framing
+and the live Dragonfly world provider remain outside this Rust storage slice.
+Block-entity NBT bytes are held opaquely with coordinates split into fields so
+no NBT codec dependency is introduced.
+
 ## Chorus block/biome palette state
 
 The adapted Palette model adds uniform and indexed 4,096-entry palettes,

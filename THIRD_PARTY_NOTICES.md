@@ -180,3 +180,18 @@ storage and packet codec integration are not included in this slice.
 Uniform/indexed palette state, palette counts, packed indices and disk
 serialization helpers are adapted to standard-library collections and the
 local BitArray. The Bedrock ProtoCodec implementation is intentionally omitted.
+
+
+## Chorus chunk and subchunk storage model
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Sources: \`crates/level/src/sub_chunk.rs\`,
+  \`crates/level/src/chunk.rs\`
+- Destinations: \`native/game-core/src/sub_chunk.rs\`,
+  \`native/game-core/src/chunk.rs\`
+
+Chunk/subchunk palette state, block layers, biome state, block entity coordinate
+management and dirty-state tracking are adapted. Bevy, nbtx and Bedrock packet
+codec integration are excluded; block-entity payloads remain opaque NBT bytes.
