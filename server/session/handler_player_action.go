@@ -31,12 +31,8 @@ func handlePlayerAction(action int32, face int32, pos protocol.BlockPos, entityR
 		s.breakingPos = blockPos
 		c.StartBreaking(blockPos, cube.Face(face))
 	case miningActionContinue:
-		// StartBreaking aborts and resets the previous animation. CONTINUE
-		// packets arrive repeatedly while the button is held and must only
-		// advance the existing mining operation.
-		s.swingingArm.Store(true)
-		defer s.swingingArm.Store(false)
-		c.ContinueBreaking(cube.Face(face))
+		// The player/world tick advances mining exactly once per tick. The
+		// repeated client packet must not restart or double-advance the timer.
 	case miningActionAbort:
 		c.AbortBreaking()
 	case miningActionFinish:

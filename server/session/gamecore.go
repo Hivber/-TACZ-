@@ -1,7 +1,9 @@
 package session
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/gamecore"
@@ -194,4 +196,25 @@ func worldContainerInventoryID(dimension world.Dimension, pos cube.Pos) string {
 		return ""
 	}
 	return fmt.Sprintf("world-container:%d:%d:%d:%d", dimensionID, pos[0], pos[1], pos[2])
+}
+
+
+// GameCoreMiningAction synchronously asks the optional Rust gameplay core to
+// advance one player's mining state. It is deliberately narrow: packet
+// decoding and world/block mutation remain with the Go Bedrock adapter.
+func (s *Session) GameCoreMiningAction(event gamecore.Event) (gamecore.MiningResult, bool) {
+	if s == nil || s.gameCore == nil {
+		return gamecore.MiningResult{}, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	response, err := s.gameCore.Call(ctx, event)
+	if err != nil || response.ProcessedEvents != 1 || len(response.MiningResults) != 1 {
+		return gamecore.MiningResult{}, false
+	}
+	result := response.MiningResults[0]
+	if result.UUID != event.UUID {
+		return gamecore.MiningResult{}, false
+	}
+	return result, true
 }

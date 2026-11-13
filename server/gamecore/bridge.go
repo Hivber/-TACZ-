@@ -15,8 +15,9 @@ const (
 
 // Bridge mirrors semantic events asynchronously. It never blocks packet/session owners.
 type Bridge struct {
-	client  *Client
-	queue   chan Event
+	client     *Client
+	syncClient *Client
+	queue      chan Event
 	stop    chan struct{}
 	done    chan struct{}
 	once    sync.Once
@@ -25,7 +26,8 @@ type Bridge struct {
 
 func NewBridge(socket string, onError func(error)) *Bridge {
 	b := &Bridge{
-		client:  &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
+		client:     &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
+		syncClient: &Client{SocketPath: socket, Timeout: 25 * time.Millisecond},
 		queue:   make(chan Event, queueCapacity),
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
@@ -56,6 +58,16 @@ func (b *Bridge) Enqueue(event Event) bool {
 		b.report(fmt.Errorf("rust game-core event queue is full; dropping %s event", event.Type))
 		return false
 	}
+}
+
+// Call sends a request through an independent persistent IPC stream and waits for
+// its result. It is used only for low-volume gameplay decisions that need a
+// synchronous Rust answer; bulk state mirrors continue through the async queue.
+func (b *Bridge) Call(ctx context.Context, event Event) (Response, error) {
+	if b == nil || b.syncClient == nil {
+		return Response{}, fmt.Errorf("rust game-core synchronous client is unavailable")
+	}
+	return b.syncClient.Call(ctx, event)
 }
 
 func (b *Bridge) Close() {
