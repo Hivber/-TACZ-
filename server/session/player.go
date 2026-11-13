@@ -493,6 +493,37 @@ func (s *Session) SendForm(f form.Form) {
 	})
 }
 
+// SendServerSettingsForm sends a form in the client's dedicated server-settings tab.
+// ServerSettingsResponse uses the same form response packet as ModalFormRequest, so
+// the existing form-response handler can validate and dispatch the response.
+func (s *Session) SendServerSettingsForm(f form.Form) {
+	b, err := json.Marshal(f)
+	if err != nil {
+		s.conf.Log.Error("failed to encode server settings form", "error", err)
+		return
+	}
+
+	h := s.handlers[packet.IDModalFormResponse].(*ModalFormResponseHandler)
+	id := h.currentID.Add(1)
+
+	h.mu.Lock()
+	if len(h.forms) > 10 {
+		s.conf.Log.Debug("SendServerSettingsForm: more than 10 active forms: dropping an existing one")
+		for k := range h.forms {
+			delete(h.forms, k)
+			break
+		}
+	}
+	h.forms[id] = f
+	h.mu.Unlock()
+
+	s.writePacket(&packet.ServerSettingsResponse{
+		FormID:   id,
+		FormData: b,
+	})
+}
+
+
 // CloseForm closes any forms that the player currently has open. If the player has no forms open, nothing
 // happens.
 func (s *Session) CloseForm() {

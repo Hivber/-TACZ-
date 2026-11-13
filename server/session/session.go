@@ -716,7 +716,7 @@ func (s *Session) registerHandlers() {
 		packet.IDCommandRequest:            &CommandRequestHandler{},
 		packet.IDCommandBlockUpdate:        &CommandBlockUpdateHandler{},
 		packet.IDSettingsCommand:           &SettingsCommandHandler{},
-		packet.IDServerSettingsRequest:     nil,
+		packet.IDServerSettingsRequest:     &ServerSettingsRequestHandler{},
 		packet.IDContainerClose:            &ContainerCloseHandler{},
 		packet.IDEmote:                     &EmoteHandler{},
 		packet.IDEmoteList:                 nil,
