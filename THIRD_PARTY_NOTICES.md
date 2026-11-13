@@ -111,3 +111,18 @@ The source implements a selective PocketMine-MP port and does not by itself
 establish parity with BDS 26.60. Validate armor, enchantment, effect, hurt-time
 and knockback behavior against the target server before treating these
 calculations as authoritative.
+
+
+## MC-RS item durability, ore XP and wall state
+
+Additional selectively ported/adapted gameplay modules from MC-RS revision
+\`da93a9501601fcdc284762fde88c24b44604991e\` (MIT):
+- \`native/game-core/src/item_durability.rs\` adapts
+  \`crates/mc-rs-server/src/durability.rs\` to stable item identifiers and the
+  local semantic ItemStack representation; no protocol ItemStack or network
+  item IDs were copied.
+- \`native/game-core/src/ore_xp.rs\` adapts
+  \`crates/mc-rs-server/src/drop_xp.rs\` and resolves values by namespaced block
+  and item identifiers instead of copied numeric runtime IDs.
+- \`native/game-core/src/wall.rs\` adapts
+  \`crates/mc-rs-server/src/block_wall.rs\` for data-only wall connection state.

@@ -46,6 +46,18 @@ world-state migration input where applicable; it is not a complete or
 authoritative Bedrock 1.26.60 upgrade table. Newer schemas must be sourced and
 validated separately before applying them to live worlds.
 
+## Tool durability, ore XP and wall state
+
+The item-survival slice adds identifier-based vanilla tool durability tiers,
+per-point Unbreaking rolls, tool break detection, ore XP ranges and furnace
+smelting XP, plus a wall connection/post state model. Durability uses the
+Rust item model's metadata field as the durable damage value in this semantic
+adapter; the live Go item conversion must preserve this convention before
+these rules can be authoritative. MC-RS's ore XP was originally sampled by
+legacy numeric block IDs; the Rust port keys by namespaced identifiers to
+avoid treating runtime IDs as stable data. The result remains a source-derived
+1.26.45 reference and requires 1.26.60 parity checks.
+
 ## Combat and armor baseline
 
 `armor_tier.rs`, `damage_sources.rs`, `armor.rs`, `damage_modifiers.rs` and
