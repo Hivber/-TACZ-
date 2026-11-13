@@ -27,9 +27,9 @@ func classifyMiningAction(action int32, pos, current cube.Pos, active bool) mini
 			return miningActionStart
 		}
 		return miningActionContinue
-	case protocol.PlayerActionAbortBreak:
+	case protocol.PlayerActionAbortBreak, protocol.PlayerActionStopBreak:
 		return miningActionAbort
-	case protocol.PlayerActionPredictDestroyBlock, protocol.PlayerActionStopBreak:
+	case protocol.PlayerActionPredictDestroyBlock:
 		return miningActionFinish
 	default:
 		return miningActionNone

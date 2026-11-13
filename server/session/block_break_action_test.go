@@ -20,7 +20,7 @@ func TestClassifyMiningActionDoesNotRestartRepeatedContinue(t *testing.T) {
 		{"continue changed target starts new mining", protocol.PlayerActionContinueDestroyBlock, cube.Pos{13, 64, -8}, miningActionStart},
 		{"abort", protocol.PlayerActionAbortBreak, current, miningActionAbort},
 		{"predicted finish", protocol.PlayerActionPredictDestroyBlock, current, miningActionFinish},
-		{"stop finish", protocol.PlayerActionStopBreak, current, miningActionFinish},
+		{"stop abort", protocol.PlayerActionStopBreak, current, miningActionAbort},
 		{"unrelated action", protocol.PlayerActionMissedSwing, current, miningActionNone},
 	}
 	for _, test := range tests {
