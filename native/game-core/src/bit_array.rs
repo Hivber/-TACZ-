@@ -51,7 +51,7 @@ impl<const N: usize> BitArray<N> {
     pub fn indices(&self) -> impl Iterator<Item = u16> + '_ {
         let (bits, mask) = (self.bits as u32, self.mask);
         self.blocks.iter()
-            .flat_map(move |&word| (0..self.per_word).map(move |slot| ((word >> (slot * bits)) & mask) as u16))
+            .flat_map(move |&word| (0..self.per_word).map(move |slot| ((word >> ((slot as u32) * bits)) & mask) as u16))
             .take(N)
     }
 
