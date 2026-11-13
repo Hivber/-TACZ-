@@ -80,6 +80,16 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus Bedrock biome and terrain primitives
+
+The shared worldgen layer includes the 56-biome model and Bedrock numeric ID
+mapping, vanilla climate parameter tables and biome source selection, cubic
+overworld splines, packed integer arrays, reusable scratch buffers, and the
+3D terrain density/noise-column sampler. These are the terrain-shape and
+biome-sampling foundations used by Chorus's Bedrock edition wrapper. Feature
+placement, surface decorators, cave carvers, block-registry mapping and final
+chunk conversion still require a coordinated adapter and are not yet live.
+
 ## Chorus Bedrock worldgen noise core
 
 The shared Chorus worldgen random and noise engine is now vendored as two

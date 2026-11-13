@@ -223,3 +223,21 @@ omits the upstream thread-local scratch-buffer reuse optimization.
 The modules preserve the source's vanilla seed derivation, Legacy/Xoroshiro
 random implementations, positional factories, Perlin/Simplex and octave
 noise models. The noise import was redirected to the vendored random module.
+
+
+## Chorus Bedrock biome, terrain and shared worldgen algorithms
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Sources: \`crates/worldgen/src/overworld/shared/biome.rs\`,
+  \`biome_builder.rs\`, \`spline.rs\`, \`packed.rs\`, \`scratch.rs\`,
+  \`terrain.rs\`
+- Destinations: \`native/game-core/src/chorus_biome.rs\`,
+  \`chorus_biome_builder.rs\`, \`chorus_spline.rs\`, \`chorus_packed.rs\`,
+  \`chorus_scratch.rs\`, \`chorus_terrain.rs\`
+
+The shared random/noise and Bedrock biome IDs are rewired to their local
+vendored modules. The upstream Bedrock block registry, feature placement,
+surface decorators, cave carvers, and chunk serializer are excluded from this
+slice and remain adapter/integration work.
