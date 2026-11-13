@@ -1547,8 +1547,7 @@ mod tests {
             let id = catalog.id(identifier).unwrap();
             assert_eq!(catalog.identifier(id), Some(*identifier));
         }
-        let air_id = catalog.id(block_id::AIR).expect("air must be in the local catalog");
-        assert_eq!(catalog.identifier(air_id), Some(block_id::AIR));
+        assert_eq!(catalog.id(block_id::AIR), Some(1));
         assert_eq!(catalog.identifier(-1), None);
     }
 

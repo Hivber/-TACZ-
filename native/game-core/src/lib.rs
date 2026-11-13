@@ -10,6 +10,7 @@ pub mod anvil_damage;
 pub mod beacon_effects;
 pub mod attribute;
 pub mod effects;
+pub mod elytra;
 pub mod item_durability;
 pub mod item_entity;
 pub mod item_attributes;
