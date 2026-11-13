@@ -88,6 +88,16 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS projectiles, XP orbs and block physics
+
+The additional gameplay slice includes projectile type/trajectory and block
+collision handling, thrown projectile despawn behavior, experience-orb value
+splitting/pickup delay/gravity/attraction, beacon tier/effect tables, anvil
+work cost/degradation/fall damage, and slime/honey movement constants. Anvil
+states are keyed by namespaced identifiers rather than unstable legacy numeric
+block IDs. These remain host-neutral simulation models; the Go adapter still
+owns authoritative entity collision/world application and client packet sync.
+
 ## MC-RS attribute and potion-effect system
 
 The MC-RS slice adds the numeric attribute registry and per-entity AttributeMap

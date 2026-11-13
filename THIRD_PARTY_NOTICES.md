@@ -307,3 +307,17 @@ of thread_rng to make seeded world simulation reproducible.
 The attribute map and effect manager are copied as a cohesive pair; MC-RS's
 selected PocketMine-MP behavior should be checked against BDS 26.60 before
 the semantic values are wired to live Bedrock attribute/effect packets.
+
+
+## MC-RS projectiles, experience orbs and block physics
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`experience_orb.rs\`, \`projectiles.rs\`, \`beacon_effects.rs\`,
+  \`slime_block.rs\`, \`honey_block.rs\`; adapted \`anvil_damage.rs\`
+- Destinations: matching files under \`native/game-core/src/\`.
+
+The anvil state mapping was modernized to identifiers and its degradation
+probability uses the local RandomSource. The other modules are selectively
+ported without MC-RS session/entity registries or transport dependencies.
