@@ -38,6 +38,21 @@ native/game-core/src/components.rs and native/game-core/src/block_registry.rs
 are adapted from the source above. No Chorus Bevy ECS, network plugin, packet
 handler or transport runtime is included.
 
+## Chorus block-state schema crate
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: `5808efd55dc51f38e7900ad2c72f14d73434b093`
+- License: Apache License 2.0
+- Original source: `crates/block_schema/src/lib.rs`
+- Bundled resource: `crates/block/resources/block_upgrade_schemas.json`
+- Vendored destination: `native/chorus/block_schema/`
+
+The schema model and historical bundled upgrade data are copied into the
+repository. The bundled dataset's latest entry is `1.21.60.33`;
+it is not represented as a complete Bedrock 1.26.60 schema set. The upstream
+Apache-2.0 license text is retained at
+`third_party/licenses/Chorus-Apache-2.0.txt`.
+
 ## MC-RS gameplay modules
 
 - Project: https://github.com/pedrokarim/mc-rs

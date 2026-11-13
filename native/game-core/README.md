@@ -33,6 +33,19 @@ The newly copied `difficulty.rs` and `despawn_rules.rs` are standalone
 reference helpers from MC-RS. They are not yet connected to live world/entity
 ticks and are not claimed as verified Bedrock 1.26.60 behavior.
 
+## Imported Chorus block-schema crate
+
+The Chorus `chorus_block_schema` crate is vendored at
+`native/chorus/block_schema` with its bundled block-state upgrade schema
+resource. The game core re-exports the crate as `block_schema` and can parse
+the bundled schema bundle.
+
+Important version boundary: the upstream bundle currently ends at block
+version `1.21.60.33`. It is suitable only as historical
+world-state migration input where applicable; it is not a complete or
+authoritative Bedrock 1.26.60 upgrade table. Newer schemas must be sourced and
+validated separately before applying them to live worlds.
+
 ## Block components and permutations
 
 BlockDefinition supplies default components and ordered conditional

@@ -14,6 +14,7 @@ pub mod food;
 pub mod hunger;
 pub mod world_border;
 pub mod world_time;
+pub use chorus_block_schema as block_schema;
 pub mod difficulty;
 pub mod despawn_rules;
 pub mod block_interaction;
