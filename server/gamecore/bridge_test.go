@@ -182,7 +182,6 @@ func TestBridgeFlushesQueuedEventsOnClose(t *testing.T) {
 	}
 }
 
-
 func TestBridgeCallReturnsSynchronousMiningResult(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sync-mining.sock")
 	listener, err := net.Listen("unix", path)
