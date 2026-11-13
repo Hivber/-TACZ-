@@ -1,0 +1,40 @@
+name: Validate imported MC-RS upstream
+
+on:
+  push:
+    branches:
+      - mc-rs-dragonfly-net
+    paths:
+      - upstream/mc-rs/**
+      - .github/workflows/mc-rs-upstream.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-workspace:
+    if: github.ref == 'refs/heads/mc-rs-dragonfly-net'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: upstream/mc-rs
+    steps:
+      - name: Check out integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: mc-rs-dragonfly-net
+
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upstream/mc-rs -> target
+
+      - name: Check full MC-RS workspace
+        run: cargo check --workspace --locked
+
+      - name: Run MC-RS workspace tests
+        run: cargo test --workspace --locked
