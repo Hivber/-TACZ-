@@ -80,6 +80,14 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus cave carving algorithm
+
+The cave carver now includes its seeded legacy random stream, worm/tunnel
+carving, protected bedrock/top layers, and reusable carving mask. It emits
+vertical carve intervals independent of any block registry; an eventual
+terrain adapter applies those intervals through the Rust chunk storage while
+keeping Go packet encoding unchanged.
+
 ## Chorus aquifer and fluid-level model
 
 The Chorus aquifer implementation is ported against the local deterministic

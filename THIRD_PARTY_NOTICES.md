@@ -254,3 +254,15 @@ slice and remain adapter/integration work.
 The aquifer fluid model is adapted to the locally ported Terrain and
 PositionalFactory implementations. It uses std HashMap in place of the
 upstream FxHashMap dependency.
+
+
+## Chorus overworld cave carver
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/worldgen/src/overworld/java/carver.rs\`
+- Destination: \`native/game-core/src/chorus_carver.rs\`
+
+The carver uses the local Legacy random source, terrain vertical bounds and
+scratch buffer. Its carving mask and interval visiting are transport-independent.
