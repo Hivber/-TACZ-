@@ -2,7 +2,7 @@
 //! Upstream: bedrock-crustaceans/Chorus @ 5808efd55dc51f38e7900ad2c72f14d73434b093
 //! Apache-2.0. Uses Bedrock's 32-bit word packing for fixed-size palettes.
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BitArray<const N: usize> {
     bits: u8,
     per_word: usize,
