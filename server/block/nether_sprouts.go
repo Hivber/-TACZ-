@@ -11,7 +11,7 @@ import (
 type NetherSprouts struct {
 	transparent
 	replaceable
-	empty
+	plantSelection
 }
 
 // NeighbourUpdateTick ...

@@ -236,6 +236,16 @@ func boolByte(b bool) uint8 {
 	return 0
 }
 
+// plantSelection is embedded by non-solid vegetation blocks that must remain selectable
+// by player block ray tracing without introducing entity collision.
+type plantSelection struct{}
+
+// SelectionBox returns the full block as the player's selection shape. The block's
+// physical model remains empty, so entities can still move through the plant.
+func (plantSelection) SelectionBox() []cube.BBox {
+	return []cube.BBox{cube.Box(0, 0, 0, 1, 1, 1)}
+}
+
 // replaceable is a struct that may be embedded to make a block replaceable by any other block.
 type replaceable struct{}
 

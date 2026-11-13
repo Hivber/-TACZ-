@@ -37,12 +37,21 @@ func (r BlockResult) BlockPosition() cube.Pos {
 	return r.blockPos
 }
 
+// selectableBlock is implemented by non-solid blocks that expose a player selection
+// shape separate from their entity collision model.
+type selectableBlock interface {
+	SelectionBox() []cube.BBox
+}
+
 // BlockIntercept performs a ray trace and calculates the point on the block model's edge nearest to the start position
 // that the ray collided with.
 // BlockIntercept returns a BlockResult with the block collided with and with the colliding vector closest to the start position,
 // if no colliding point was found, a zero BlockResult is returned and ok is false.
 func BlockIntercept(pos cube.Pos, src world.BlockSource, b world.Block, start, end mgl64.Vec3) (result BlockResult, ok bool) {
-	bbs := b.Model().BBox(pos, src)
+	bbs, selectable := selectionBoxes(b, pos, src)
+	if !selectable {
+		bbs = b.Model().BBox(pos, src)
+	}
 	if len(bbs) == 0 {
 		return
 	}
@@ -70,6 +79,14 @@ func BlockIntercept(pos cube.Pos, src world.BlockSource, b world.Block, start, e
 	}
 
 	return BlockResult{bb: hit.BBox(), pos: hit.Position(), face: hit.Face(), blockPos: pos}, true
+}
+
+// selectionBoxes returns the player selection boxes when the block defines them.
+func selectionBoxes(b world.Block, pos cube.Pos, src world.BlockSource) ([]cube.BBox, bool) {
+	if selectable, ok := b.(selectableBlock); ok {
+		return selectable.SelectionBox(), true
+	}
+	return nil, false
 }
 
 // BlockIntersects checks if the line segment from start to end intersects the block model of b at pos. Unlike

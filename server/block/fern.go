@@ -11,7 +11,7 @@ import (
 type Fern struct {
 	replaceable
 	transparent
-	empty
+	plantSelection
 }
 
 // FlammabilityInfo ...

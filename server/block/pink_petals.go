@@ -9,7 +9,7 @@ import (
 
 // PinkPetals is a decorative block that generates in cherry grove biomes.
 type PinkPetals struct {
-	empty
+	plantSelection
 	transparent
 
 	// AdditionalCount is the amount of additional pink petals. This can range

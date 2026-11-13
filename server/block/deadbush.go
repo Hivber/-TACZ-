@@ -10,7 +10,7 @@ import (
 
 // DeadBush is a transparent block in the form of an aesthetic plant.
 type DeadBush struct {
-	empty
+	plantSelection
 	replaceable
 	transparent
 	sourceWaterDisplacer
