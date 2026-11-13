@@ -88,6 +88,14 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS furnace, campfire and crafting recipe data
+
+This port includes item burn-duration tables, smelting output/XP mappings,
+campfire food conversions, and the current MC-RS basic shaped/shapeless recipe
+subset. These are pure namespaced item identifiers and values; the larger
+BDS-derived CraftingData serializer and protocol RecipeInfo encoding were
+excluded, so this is not yet a complete crafting registry.
+
 ## MC-RS liquid state and item stack operations
 
 The liquid helper includes water-depth geometry and water/lava tick rates,

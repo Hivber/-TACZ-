@@ -349,3 +349,16 @@ The liquid property decoder is adapted to stable identifiers and semantic
 state values; the network/runtime-ID-dependent chunk palette decoder was
 intentionally not included. Stack merging preserves the local ItemStack's
 metadata and opaque user data.
+
+
+## MC-RS furnace, campfire and basic crafting recipes
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`furnace_fuel.rs\`, \`furnace_recipes.rs\`,
+  \`campfire_recipes.rs\`, \`crafting_recipes.rs\`
+- Destinations: matching files under \`native/game-core/src/\`.
+
+These source data tables are ported as pure gameplay recipes. MC-RS packet
+CraftingData payload generation and wire recipe identity are excluded.
