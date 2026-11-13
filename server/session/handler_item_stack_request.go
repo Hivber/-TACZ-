@@ -57,6 +57,11 @@ func (h *ItemStackRequestHandler) Handle(p packet.Packet, s *Session, tx *world.
 			s.conf.Log.Debug("process packet: ItemStackRequest: resolve item stack request: " + err.Error())
 		}
 	}
+	// Publish the final authoritative player inventory after all requests have
+	// either committed or reverted. Individual slot-transfer events cover
+	// common moves; this snapshot also covers crafting, drops, consumption,
+	// durability changes and other less common action handlers.
+	s.emitGameCoreInventorySnapshot(c)
 	return nil
 }
 

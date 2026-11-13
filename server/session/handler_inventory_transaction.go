@@ -18,6 +18,11 @@ type InventoryTransactionHandler struct{}
 func (h *InventoryTransactionHandler) Handle(p packet.Packet, s *Session, tx *world.Tx, c Controllable) (err error) {
 	pk := p.(*packet.InventoryTransaction)
 
+	// Legacy transactions include item drops and item-use operations that do
+	// not all pass through the ItemStackRequest handler. Mirror the final Go
+	// inventory after the transaction handler returns, including early exits.
+	defer s.emitGameCoreInventorySnapshot(c)
+
 	if len(pk.LegacySetItemSlots) > 2 {
 		return fmt.Errorf("too many slot sync requests in inventory transaction")
 	}
