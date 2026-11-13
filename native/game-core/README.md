@@ -80,6 +80,16 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus aquifer and fluid-level model
+
+The Chorus aquifer implementation is ported against the local deterministic
+positional RNG and Terrain sampler. It now provides aquifer grid caching,
+surface-level hints, fluid status selection (air/water/lava), barrier and
+pressure calculations, and lava pocket handling for terrain carving. It is a
+gameplay/worldgen algorithm layer; no block palette lookup or network packets
+are embedded in it. Its output has not yet been validated against BDS 26.60
+seeded chunk captures.
+
 ## Chorus Bedrock biome and terrain primitives
 
 The shared worldgen layer includes the 56-biome model and Bedrock numeric ID

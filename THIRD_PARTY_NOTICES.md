@@ -241,3 +241,16 @@ The shared random/noise and Bedrock biome IDs are rewired to their local
 vendored modules. The upstream Bedrock block registry, feature placement,
 surface decorators, cave carvers, and chunk serializer are excluded from this
 slice and remain adapter/integration work.
+
+
+## Chorus aquifer fluid simulation
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/worldgen/src/overworld/java/aquifer.rs\`
+- Destination: \`native/game-core/src/chorus_aquifer.rs\`
+
+The aquifer fluid model is adapted to the locally ported Terrain and
+PositionalFactory implementations. It uses std HashMap in place of the
+upstream FxHashMap dependency.
