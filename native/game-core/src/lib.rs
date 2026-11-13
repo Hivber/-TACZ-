@@ -54,5 +54,6 @@ pub mod chorus_scratch;
 pub mod chorus_terrain;
 pub mod chorus_aquifer;
 pub mod chorus_carver;
+pub mod chorus_tags;
 
 pub const CORE_PROTOCOL_VERSION: u16 = 2;
