@@ -15,26 +15,22 @@ use crate::random::RandomSource;
 pub const MAX_DURABILITY: u16 = 432;
 /// Firework boost duration per flight level, in game ticks.
 pub const FIREWORK_TICKS_PER_FLIGHT_LEVEL: u32 = 20;
-/// Elytra durability damage interval while gliding, in game ticks.
-pub const DAMAGE_INTERVAL_TICKS: u32 = 20;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ElytraState {
     pub gliding: bool,
     pub durability: u16,
     pub firework_boost_ticks: u32,
-    glide_ticks: u32,
 }
 
 impl ElytraState {
     pub fn new() -> Self {
-        Self { gliding: false, durability: MAX_DURABILITY, firework_boost_ticks: 0, glide_ticks: 0 }
+        Self { gliding: false, durability: MAX_DURABILITY, firework_boost_ticks: 0 }
     }
 
     pub fn start_gliding(&mut self) -> bool {
         if self.durability == 0 { return false; }
         self.gliding = true;
-        self.glide_ticks = 0;
         true
     }
 
@@ -52,15 +48,11 @@ impl ElytraState {
     pub fn tick<R: RandomSource>(&mut self, rng: &mut R) -> bool {
         let mut broke = false;
         if self.gliding {
-            self.glide_ticks = self.glide_ticks.saturating_add(1);
-            if self.glide_ticks >= DAMAGE_INTERVAL_TICKS {
-                self.glide_ticks = 0;
-                if self.durability > 0 && rng.range_u32(20) == 0 {
-                    self.durability -= 1;
-                    if self.durability == 0 {
-                        self.gliding = false;
-                        broke = true;
-                    }
+            if self.durability > 0 && rng.range_u32(20) == 0 {
+                self.durability -= 1;
+                if self.durability == 0 {
+                    self.gliding = false;
+                    broke = true;
                 }
             }
         }
@@ -100,14 +92,18 @@ mod tests {
     }
 
     #[test]
-    fn durability_is_checked_on_twenty_tick_boundaries() {
-        let mut state = ElytraState::new();
-        assert!(state.start_gliding());
-        let mut rng = SplitMix64::new(123);
-        for _ in 0..19 { state.tick(&mut rng); }
-        assert_eq!(state.durability, MAX_DURABILITY);
-        state.tick(&mut rng);
-        assert!(state.durability <= MAX_DURABILITY);
+    fn seeded_durability_rolls_are_reproducible() {
+        let mut a = ElytraState::new();
+        let mut b = ElytraState::new();
+        a.start_gliding();
+        b.start_gliding();
+        let mut rng_a = SplitMix64::new(123);
+        let mut rng_b = SplitMix64::new(123);
+        for _ in 0..2_000 {
+            assert_eq!(a.tick(&mut rng_a), b.tick(&mut rng_b));
+            assert_eq!(a.durability, b.durability);
+        }
+        assert!(a.durability <= MAX_DURABILITY);
     }
 
     #[test]
@@ -118,7 +114,7 @@ mod tests {
         // Find a deterministic seed whose first bounded roll is zero.
         let seed = (0..10_000).find(|seed| { let mut r = SplitMix64::new(*seed); r.range_u32(20) == 0 }).unwrap();
         let mut rng = SplitMix64::new(seed);
-        for _ in 0..20 { state.tick(&mut rng); }
+        state.tick(&mut rng);
         assert!(state.is_broken());
         assert!(!state.gliding);
     }
