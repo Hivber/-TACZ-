@@ -18,20 +18,20 @@ type Bridge struct {
 	client     *Client
 	syncClient *Client
 	queue      chan Event
-	stop    chan struct{}
-	done    chan struct{}
-	once    sync.Once
-	onError func(error)
+	stop       chan struct{}
+	done       chan struct{}
+	once       sync.Once
+	onError    func(error)
 }
 
 func NewBridge(socket string, onError func(error)) *Bridge {
 	b := &Bridge{
 		client:     &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
 		syncClient: &Client{SocketPath: socket, Timeout: 25 * time.Millisecond},
-		queue:   make(chan Event, queueCapacity),
-		stop:    make(chan struct{}),
-		done:    make(chan struct{}),
-		onError: onError,
+		queue:      make(chan Event, queueCapacity),
+		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
+		onError:    onError,
 	}
 	go b.run()
 	return b
@@ -77,6 +77,7 @@ func (b *Bridge) Close() {
 	b.once.Do(func() { close(b.stop) })
 	<-b.done
 	_ = b.client.Close()
+	_ = b.syncClient.Close()
 }
 
 func (b *Bridge) report(err error) {

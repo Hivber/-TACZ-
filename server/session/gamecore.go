@@ -198,7 +198,6 @@ func worldContainerInventoryID(dimension world.Dimension, pos cube.Pos) string {
 	return fmt.Sprintf("world-container:%d:%d:%d:%d", dimensionID, pos[0], pos[1], pos[2])
 }
 
-
 // GameCoreMiningAction synchronously asks the optional Rust gameplay core to
 // advance one player's mining state. It is deliberately narrow: packet
 // decoding and world/block mutation remain with the Go Bedrock adapter.
