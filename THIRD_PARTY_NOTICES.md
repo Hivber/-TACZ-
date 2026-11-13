@@ -376,3 +376,21 @@ The elytra equipment state, durability, gliding lifecycle and firework boost
 countdown are adapted into a deterministic host-neutral model using the
 shared injected RNG. Bedrock glide velocity, pitch lift, drag, collision and
 firework impulse physics are not included in this slice.
+
+## MC-RS Adventure, climbing and composter rules
+
+The following standalone gameplay rules are adapted from the MC-RS MIT-licensed
+source at revision `da93a9501601fcdc284762fde88c24b44604991e`:
+- `native/game-core/src/adventure_mode.rs` from
+  `crates/mc-rs-server/src/adventure_mode.rs`; whitelist decisions only,
+  leaving Bedrock NBT parsing in the host adapter.
+- `native/game-core/src/climb.rs` from
+  `crates/mc-rs-server/src/climb.rs`; semantic climbable-block rules and
+  movement constants, with collision and velocity application left to the host.
+- `native/game-core/src/composter.rs` from
+  `crates/mc-rs-server/src/composter.rs`; item composting probabilities and
+  persistent level state, adapted to the repository's injected deterministic
+  `RandomSource` rather than thread-local randomness.
+
+These are reusable gameplay calculations/state models; they are not yet wired
+as authoritative handlers into the live Go session/world runtime.
