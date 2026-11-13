@@ -13,6 +13,7 @@ func TestFeatureFlagsTOMLRoundTrip(t *testing.T) {
 	config.Features.PerformanceDiagnostics = true
 	config.Features.Pprof = true
 	config.Features.PprofAddress = "localhost:6061"
+	config.Features.GameCoreSocket = "/tmp/dragonfly-game-core-test.sock"
 
 	data, err := toml.Marshal(config)
 	if err != nil {
@@ -32,7 +33,7 @@ func TestLegacyConfigKeepsOptionalFeaturesDisabled(t *testing.T) {
 	if err := toml.Unmarshal([]byte("[Server]\nName = \"Legacy config\"\n"), &config); err != nil {
 		t.Fatalf("unmarshal legacy config: %v", err)
 	}
-	if config.Features.JavaCompatibilityCommands || config.Features.PerformanceDiagnostics || config.Features.Pprof {
+	if config.Features.JavaCompatibilityCommands || config.Features.PerformanceDiagnostics || config.Features.Pprof || config.Features.GameCoreSocket != "" {
 		t.Fatalf("legacy config unexpectedly enables optional features: %+v", config.Features)
 	}
 }

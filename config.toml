@@ -80,6 +80,11 @@
 
 
 [Features]
+  # Optional local Rust gameplay core. Build with:
+  # cargo build --release --manifest-path native/game-core/Cargo.toml
+  # Start the binary with the socket path, then set this value to the same path.
+  # Empty keeps the complete Dragonfly Go gameplay fallback enabled.
+  GameCoreSocket = ""
   # Non-vanilla Java compatibility commands. Vanilla Bedrock commands remain enabled.
   JavaCompatibilityCommands = false
   # Adds the non-vanilla /perf diagnostics command.

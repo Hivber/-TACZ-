@@ -38,7 +38,10 @@ type FeatureFlags struct {
 	Pprof bool
 	// PprofAddress is the loopback address used by pprof when enabled.
 	PprofAddress string
-	// GameCoreSocket enables optional asynchronous Rust shadow-state mirroring.
+	// GameCoreSocket connects the local Rust gameplay core over a Unix-domain socket.
+	// When configured, survival mining progress is evaluated by Rust; Dragonfly
+	// still applies world changes, drops, and Bedrock packet updates.
+	// An empty value keeps the normal Go gameplay path active.
 	GameCoreSocket string
 }
 
@@ -217,9 +220,9 @@ func (conf Config) New() *Server {
 	}
 	if socket := strings.TrimSpace(conf.Features.GameCoreSocket); socket != "" {
 		srv.gameCore = gamecore.NewBridge(socket, func(err error) {
-			conf.Log.Warn("Rust game-core shadow bridge", "error", err)
+			conf.Log.Warn("Rust gameplay-core bridge", "error", err)
 		})
-		conf.Log.Info("Rust game-core shadow bridge enabled", "socket", socket)
+		conf.Log.Info("Rust gameplay-core bridge enabled", "socket", socket)
 	}
 	for _, lf := range conf.Listeners {
 		l, err := lf(conf)

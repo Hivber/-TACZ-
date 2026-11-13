@@ -18,10 +18,35 @@ runtime remains the Bedrock transport adapter:
     cargo test --manifest-path native/game-core/Cargo.toml
     cargo build --release --manifest-path native/game-core/Cargo.toml
 
-The IPC bridge currently mirrors semantic state and is not yet the authoritative
-live gameplay runtime. Do not synchronously dial the socket from the Go game
-tick; runtime integration must use a persistent connection, bounded queues,
-backpressure and explicit failure handling before gameplay is switched to Rust.
+## Current live integration: survival mining
+
+When `Features.GameCoreSocket` is configured, Dragonfly sends semantic
+mining inputs to the Rust core over a persistent local Unix-domain socket.
+Rust validates the target/reach and owns per-player break progress and
+completion. Dragonfly remains responsible for block state mutation, event
+hooks, drops, XP, tool durability, crack particles/sounds and Bedrock packets.
+This is deliberately a narrow first authoritative slice, not a claim that all
+gameplay has moved to Rust.
+
+If the socket is empty, or the core cannot answer within the bounded request
+deadline, the player continues through Dragonfly's normal Go mining path.
+The bridge is optional and must not make login, movement, inventory or world
+ticks wait for Rust. The server uses a separate persistent connection for
+synchronous mining decisions and a bounded asynchronous queue for state
+mirroring.
+
+Build and start the sidecar:
+
+    cargo build --release --manifest-path native/game-core/Cargo.toml
+    ./native/game-core/target/release/dragonfly-game-core /tmp/dragonfly-game-core.sock
+
+Then configure `config.toml`:
+
+    [Features]
+    GameCoreSocket = "/tmp/dragonfly-game-core.sock"
+
+The socket is local-only and created with owner-only permissions. Leave the
+setting empty to disable the Rust integration without affecting the Go server.
 
 ## Upstream migration audit
 
