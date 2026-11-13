@@ -5,6 +5,7 @@
 //! RakNet, NetherNet, JWT, encryption, compression, or Bedrock packet decoding.
 
 pub mod block_break;
+pub mod block_raytrace;
 pub mod adventure_mode;
 pub mod climb;
 pub mod composter;
