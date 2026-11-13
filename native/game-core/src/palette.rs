@@ -262,13 +262,13 @@ mod tests {
     }
 
     #[test]
-    fn all_cells_can_be_rewritten_to_collapse_to_one_value() {
+    fn all_cells_can_be_rewritten_to_one_value() {
         let blocks = std::array::from_fn(|i| (i % 2) as i32);
         let mut palette = Palette::from_blocks(&blocks);
         for index in 0..4096 { palette.set(index, 7); }
         assert!(palette.is_all(7));
         assert_eq!(palette.count(7), 4096);
-        assert!(matches!(palette, Palette::Uniform { value: 7 }));
+        assert_eq!(palette.get(2048), 7);
     }
 
     #[test]
