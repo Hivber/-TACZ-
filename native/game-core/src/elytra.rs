@@ -36,7 +36,6 @@ impl ElytraState {
 
     pub fn stop_gliding(&mut self) {
         self.gliding = false;
-        self.glide_ticks = 0;
     }
 
     pub fn boost_with_firework(&mut self, flight_level: u8) {

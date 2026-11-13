@@ -5,7 +5,7 @@
 //! are imported. Permutation indices here are local state-combination indices,
 //! not Bedrock runtime IDs or network palette IDs.
 
-use crate::block_break::{BlockBreakProfile, MiningTool};
+use crate::block_break::BlockBreakProfile;
 use crate::block_drops::{resolve_block_drops, BlockDropContext, DropStack};
 use crate::block_state::{BlockState, BlockStateDefinition};
 use crate::components::{BlockComponent, BlockComponents};
