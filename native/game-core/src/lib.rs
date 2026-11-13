@@ -55,6 +55,8 @@ pub mod components;
 pub mod inventory;
 pub mod ipc;
 pub mod item_stack;
+pub mod stack_ops;
+pub mod liquids;
 pub mod player;
 pub mod stack_size;
 pub mod random;
