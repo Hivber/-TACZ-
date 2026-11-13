@@ -88,6 +88,15 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## Chorus worldgen block-tag catalog
+
+The 67-tag classification table used by Chorus worldgen is now copied and
+rewired to this repository's vanilla block identifier constants. It covers
+replaceable blocks, base stone/ores, vegetation support, leaves/logs, coral,
+snow/ice, fungi and generation replacement rules. It is an identifier/tag
+catalog only; behavior requiring the worldgen block-property registry remains
+in the separate Blocks/Region adapter layer.
+
 ## Chorus aquifer and fluid-level model
 
 The Chorus aquifer implementation is ported against the local deterministic

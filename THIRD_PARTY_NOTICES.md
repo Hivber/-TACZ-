@@ -266,3 +266,15 @@ upstream FxHashMap dependency.
 
 The carver uses the local Legacy random source, terrain vertical bounds and
 scratch buffer. Its carving mask and interval visiting are transport-independent.
+
+
+## Chorus world-generation block tags
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Source: \`crates/worldgen/src/overworld/shared/tags.rs\`
+- Destination: \`native/game-core/src/chorus_tags.rs\`
+
+The 67 tag variants and their block identifier memberships are adapted to the
+local \`block_id\` constants.
