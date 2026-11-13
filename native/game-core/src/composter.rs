@@ -58,10 +58,9 @@ pub fn composting_chance(item_identifier: &str) -> Option<f32> {
         | "minecraft:hay_block"
         | "minecraft:brown_mushroom_block"
         | "minecraft:nether_wart_block"
-        | "minecraft:warped_wart_block"
-        | "minecraft:pumpkin_pie" => 0.85,
+        | "minecraft:warped_wart_block" => 0.85,
 
-        "minecraft:cake" | "minecraft:cocoa_beans_plant" => 1.0,
+        "minecraft:cake" | "minecraft:cocoa_beans_plant" | "minecraft:pumpkin_pie" => 1.0,
         _ => return None,
     };
     Some(chance)
@@ -141,6 +140,8 @@ mod tests {
         assert_eq!(composting_chance("minecraft:carrot"), Some(0.65));
         assert_eq!(composting_chance("minecraft:bread"), Some(0.85));
         assert_eq!(composting_chance("minecraft:cake"), Some(1.0));
+        // The upstream table inserts pumpkin pie twice; the later 100% entry wins.
+        assert_eq!(composting_chance("minecraft:pumpkin_pie"), Some(1.0));
         assert_eq!(composting_chance("minecraft:stone"), None);
     }
 
