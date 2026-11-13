@@ -80,6 +80,18 @@ weapon attack cooldown attributes, sweeping attacks or server-side entity
 physics integration. Treat the equations as a versioned reference until
 validated against BDS 26.60.
 
+## Chorus Bedrock worldgen noise core
+
+The shared Chorus worldgen random and noise engine is now vendored as two
+standalone modules: Java-compatible Legacy/Xoroshiro random sources,
+128-bit seed upgrading, MD5 name hashing, positional random factories, block
+seed functions, Improved Perlin, Simplex, octave NoiseStack, NormalNoise and
+BlendedNoise. It carries no packet/session or Bedrock DB dependency. These
+are the low-level primitives used by Chorus's Bedrock Edition terrain wrapper;
+they are not yet a complete generator and do not replace the live Go/Helix
+world generator. Seeded parity must be verified against BDS 26.60 chunk samples
+before activation.
+
 ## Immutable chunk section store
 
 The Chorus SectionStore layer is adapted as a contiguous metadata/value/packed-

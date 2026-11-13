@@ -208,3 +208,18 @@ codec integration are excluded; block-entity payloads remain opaque NBT bytes.
 Adapted the immutable, Arc-shared chunk section store using the local BitArray
 and Palette types. The local implementation includes bounds-checked APIs and
 omits the upstream thread-local scratch-buffer reuse optimization.
+
+
+## Chorus shared Bedrock world-generation RNG and noise primitives
+
+- Project: https://github.com/bedrock-crustaceans/Chorus
+- Source revision: \`5808efd55dc51f38e7900ad2c72f14d73434b093\`
+- License: Apache License 2.0
+- Sources: \`crates/worldgen/src/overworld/shared/random.rs\`,
+  \`crates/worldgen/src/overworld/shared/noise.rs\`
+- Destinations: \`native/game-core/src/chorus_random.rs\`,
+  \`native/game-core/src/chorus_noise.rs\`
+
+The modules preserve the source's vanilla seed derivation, Legacy/Xoroshiro
+random implementations, positional factories, Perlin/Simplex and octave
+noise models. The noise import was redirected to the vendored random module.

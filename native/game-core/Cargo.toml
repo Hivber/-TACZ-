@@ -6,6 +6,7 @@ publish = false
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+md-5 = "0.10"
 chorus_block_schema = { path = "../chorus/block_schema" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

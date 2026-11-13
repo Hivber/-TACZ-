@@ -44,5 +44,7 @@ pub mod item_stack;
 pub mod player;
 pub mod stack_size;
 pub mod random;
+pub mod chorus_random;
+pub mod chorus_noise;
 
 pub const CORE_PROTOCOL_VERSION: u16 = 2;
