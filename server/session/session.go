@@ -231,7 +231,8 @@ type Config struct {
 	// PerformanceDiagnostics enables optional packet and client diagnostics.
 	PerformanceDiagnostics bool
 
-	// GameCore asynchronously mirrors player state to the optional Rust core.
+	// GameCore connects to the optional Rust gameplay core. State mirroring is asynchronous;
+	// survival mining decisions use a separate bounded synchronous request path.
 	GameCore *gamecore.Bridge
 
 	JoinMessage, QuitMessage chat.Translation

@@ -332,7 +332,7 @@ func (srv *Server) close() {
 	}
 	srv.pwg.Wait()
 	if srv.gameCore != nil {
-		srv.conf.Log.Debug("Draining Rust game-core shadow bridge...")
+		srv.conf.Log.Debug("Draining Rust gameplay-core bridge...")
 		srv.gameCore.Close()
 	}
 
