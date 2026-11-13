@@ -126,6 +126,12 @@ type Player struct {
 	handle *world.EntityHandle
 	data   *world.EntityData
 	*playerData
+
+	// Rust mining state is active only when the optional native gameplay core
+	// successfully accepts a start request. Otherwise Dragonfly's Go path remains
+	// the compatibility fallback.
+	rustMiningActive bool
+	rustMiningTick   uint64
 }
 
 func (p *Player) H() *world.EntityHandle {
@@ -2064,6 +2070,7 @@ func (p *Player) StartBreaking(pos cube.Pos, face cube.Face) {
 		return
 	}
 	p.lastBreakDuration = p.breakTime(pos)
+	p.startRustMining(pos, face)
 	for _, viewer := range p.viewers() {
 		viewer.ViewBlockAction(pos, block.StartCrackAction{BreakTime: p.lastBreakDuration})
 	}
@@ -2102,6 +2109,19 @@ func (p *Player) breakContext() block.BreakContext {
 // if the player isn't breaking anything.
 // FinishBreaking will stop the animation and break the block.
 func (p *Player) FinishBreaking() {
+	if p.rustMiningActive {
+		if completed, handled := p.advanceRustMining(p.breakingFace); handled {
+			pos := p.breakingPos
+			if !completed {
+				p.AbortBreaking()
+				p.resendNearbyBlock(pos)
+				return
+			}
+			p.AbortBreaking()
+			p.BreakBlock(pos)
+			return
+		}
+	}
 	if !p.breaking {
 		p.resendNearbyBlock(p.breakingPos)
 		return
@@ -2114,6 +2134,7 @@ func (p *Player) FinishBreaking() {
 // if the player isn't breaking anything.
 // Unlike FinishBreaking, AbortBreaking does not stop the animation.
 func (p *Player) AbortBreaking() {
+	p.abortRustMining()
 	if !p.breaking {
 		return
 	}
@@ -2131,6 +2152,11 @@ func (p *Player) ContinueBreaking(face cube.Face) {
 		return
 	}
 	pos := p.breakingPos
+	if completed, handled := p.advanceRustMining(face); handled && completed {
+		p.AbortBreaking()
+		p.BreakBlock(pos)
+		return
+	}
 	b := p.tx.Block(pos)
 	p.tx.AddParticle(pos.Vec3(), particle.PunchBlock{Block: b, Face: face})
 
