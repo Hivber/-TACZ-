@@ -2117,6 +2117,7 @@ func (p *Player) FinishBreaking() {
 				// The client may predict the break a tick before the server-side
 				// Rust calculation completes. Keep the authoritative mining session
 				// alive; Player.Tick will advance it until completion.
+				p.session().SetBreakingActive(true)
 				return
 			}
 			p.AbortBreaking()

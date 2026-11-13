@@ -32,7 +32,6 @@ func TestClassifyMiningActionDoesNotRestartRepeatedContinue(t *testing.T) {
 	}
 }
 
-
 func TestClassifyFirstContinueAtWorldOriginStartsMining(t *testing.T) {
 	origin := cube.Pos{}
 	if got := classifyMiningAction(protocol.PlayerActionContinueDestroyBlock, origin, origin, false); got != miningActionStart {
