@@ -26,7 +26,7 @@ func (ServerSettingsRequestHandler) Handle(_ packet.Packet, s *Session, tx *worl
 		difficultyIndex = id
 	}
 	s.SendServerSettingsForm(form.New(serverGameplaySettings{
-		GameMode:    form.NewDropdown("游戏模式", []string{"生存", "创造", "冒险", "旁观者"}, modeIndex),
+		GameMode:  form.NewDropdown("游戏模式", []string{"生存", "创造", "冒险", "旁观者"}, modeIndex),
 		Difficulty: form.NewDropdown("世界难度", []string{"和平", "简单", "普通", "困难"}, difficultyIndex),
 	}, "服务器游戏设置"))
 	return nil
