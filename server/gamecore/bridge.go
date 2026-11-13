@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -11,23 +12,30 @@ const (
 	queueCapacity = 8192
 	batchSize     = 256
 	flushInterval = 10 * time.Millisecond
+	syncPoolSize  = 8
 )
 
-// Bridge mirrors semantic events asynchronously. It never blocks packet/session owners.
+// Bridge mirrors semantic events asynchronously and serves latency-sensitive
+// gameplay decisions over a bounded pool of persistent IPC connections.
 type Bridge struct {
-	client     *Client
-	syncClient *Client
-	queue      chan Event
-	stop       chan struct{}
-	done       chan struct{}
-	once       sync.Once
-	onError    func(error)
+	client         *Client
+	syncClients    []*Client
+	nextSyncClient atomic.Uint64
+	queue          chan Event
+	stop           chan struct{}
+	done           chan struct{}
+	once           sync.Once
+	onError        func(error)
 }
 
 func NewBridge(socket string, onError func(error)) *Bridge {
+	syncClients := make([]*Client, syncPoolSize)
+	for i := range syncClients {
+		syncClients[i] = &Client{SocketPath: socket, Timeout: 50 * time.Millisecond}
+	}
 	b := &Bridge{
 		client:     &Client{SocketPath: socket, Timeout: 500 * time.Millisecond},
-		syncClient: &Client{SocketPath: socket, Timeout: 25 * time.Millisecond},
+		syncClients: syncClients,
 		queue:      make(chan Event, queueCapacity),
 		stop:       make(chan struct{}),
 		done:       make(chan struct{}),
@@ -60,14 +68,17 @@ func (b *Bridge) Enqueue(event Event) bool {
 	}
 }
 
-// Call sends a request through an independent persistent IPC stream and waits for
-// its result. It is used only for low-volume gameplay decisions that need a
-// synchronous Rust answer; bulk state mirrors continue through the async queue.
+// Call sends a request through a persistent IPC connection and waits for its
+// result. A small connection pool prevents one player's mining request from
+// serializing every other player's tick behind the same Go mutex. Rust still
+// serializes state mutations under its authoritative CoreState lock.
 func (b *Bridge) Call(ctx context.Context, event Event) (Response, error) {
-	if b == nil || b.syncClient == nil {
+	if b == nil || len(b.syncClients) == 0 {
 		return Response{}, fmt.Errorf("rust game-core synchronous client is unavailable")
 	}
-	return b.syncClient.Call(ctx, event)
+	index := b.nextSyncClient.Add(1) - 1
+	client := b.syncClients[index%uint64(len(b.syncClients))]
+	return client.Call(ctx, event)
 }
 
 func (b *Bridge) Close() {
@@ -77,8 +88,10 @@ func (b *Bridge) Close() {
 	b.once.Do(func() { close(b.stop) })
 	<-b.done
 	_ = b.client.Close()
-	if b.syncClient != nil {
-		_ = b.syncClient.Close()
+	for _, client := range b.syncClients {
+		if client != nil {
+			_ = client.Close()
+		}
 	}
 }
 
