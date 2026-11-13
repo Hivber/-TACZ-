@@ -52,5 +52,6 @@ pub mod chorus_spline;
 pub mod chorus_packed;
 pub mod chorus_scratch;
 pub mod chorus_terrain;
+pub mod chorus_aquifer;
 
 pub const CORE_PROTOCOL_VERSION: u16 = 2;
