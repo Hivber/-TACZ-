@@ -244,3 +244,105 @@ func TestBridgeCallReturnsSynchronousMiningResult(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+
+func TestBridgeDistributesConcurrentGameplayCallsAcrossPool(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sync-pool.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverErrors := make(chan error, syncPoolSize)
+	accepted := make(chan struct{}, syncPoolSize)
+	for i := 0; i < syncPoolSize; i++ {
+		go func() {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				serverErrors <- acceptErr
+				return
+			}
+			defer conn.Close()
+
+			var header [4]byte
+			if _, readErr := io.ReadFull(conn, header[:]); readErr != nil {
+				serverErrors <- readErr
+				return
+			}
+			payload := make([]byte, binary.BigEndian.Uint32(header[:]))
+			if _, readErr := io.ReadFull(conn, payload); readErr != nil {
+				serverErrors <- readErr
+				return
+			}
+			var request batchRequest
+			if decodeErr := json.Unmarshal(payload, &request); decodeErr != nil {
+				serverErrors <- decodeErr
+				return
+			}
+			responseBytes, encodeErr := json.Marshal(Response{
+				ProtocolVersion: ProtocolVersion,
+				OK:              true,
+				Message:         "batch_applied",
+				ProcessedEvents: len(request.Events),
+				MiningResults: []MiningResult{{
+					UUID: request.Events[0].UUID, Status: "progress",
+				}},
+			})
+			if encodeErr != nil {
+				serverErrors <- encodeErr
+				return
+			}
+			binary.BigEndian.PutUint32(header[:], uint32(len(responseBytes)))
+			if _, writeErr := conn.Write(header[:]); writeErr != nil {
+				serverErrors <- writeErr
+				return
+			}
+			if _, writeErr := conn.Write(responseBytes); writeErr != nil {
+				serverErrors <- writeErr
+				return
+			}
+			accepted <- struct{}{}
+		}()
+	}
+
+	bridge := NewBridge(path, func(error) {})
+	defer bridge.Close()
+
+	var calls sync.WaitGroup
+	callErrors := make(chan error, syncPoolSize)
+	for i := 0; i < syncPoolSize; i++ {
+		calls.Add(1)
+		go func(index int) {
+			defer calls.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			uuid := fmt.Sprintf("player-%d", index)
+			response, callErr := bridge.Call(ctx, Event{Type: "mining_advance", UUID: uuid})
+			if callErr != nil {
+				callErrors <- callErr
+				return
+			}
+			if len(response.MiningResults) != 1 || response.MiningResults[0].UUID != uuid {
+				callErrors <- fmt.Errorf("unexpected mining result for %s: %+v", uuid, response.MiningResults)
+			}
+		}(i)
+	}
+	calls.Wait()
+	close(callErrors)
+	for callErr := range callErrors {
+		t.Error(callErr)
+	}
+	for i := 0; i < syncPoolSize; i++ {
+		select {
+		case <-accepted:
+		case serverErr := <-serverErrors:
+			t.Fatal(serverErr)
+		case <-time.After(time.Second):
+			t.Fatal("synchronous gameplay requests did not use every pooled connection")
+		}
+	}
+	if len(bridge.syncClients) != syncPoolSize {
+		t.Fatalf("synchronous pool size = %d, want %d", len(bridge.syncClients), syncPoolSize)
+	}
+}
