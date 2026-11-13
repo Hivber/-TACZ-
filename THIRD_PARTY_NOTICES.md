@@ -321,3 +321,16 @@ the semantic values are wired to live Bedrock attribute/effect packets.
 The anvil state mapping was modernized to identifiers and its degradation
 probability uses the local RandomSource. The other modules are selectively
 ported without MC-RS session/entity registries or transport dependencies.
+
+
+## MC-RS item attributes and horse attributes
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`item_attributes.rs\`, \`horse_attributes.rs\`
+- Destinations: \`native/game-core/src/item_attributes.rs\`,
+  \`native/game-core/src/horse_attributes.rs\`
+
+Horse random generation is adapted to the local RandomSource and no OS/thread
+randomness or network code is included.

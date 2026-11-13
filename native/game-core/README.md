@@ -88,6 +88,14 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS item attribute modifiers and horse spawn attributes
+
+The item-attribute modifier definitions include supported attribute kinds,
+operations and equipment-slot restrictions; horse spawn values (health, jump
+strength, movement speed, coat and markings) use the deterministic shared RNG.
+The source's thread-local randomness has been replaced by caller-supplied RNG
+so generated mob attributes are reproducible from world seeds.
+
 ## MC-RS projectiles, XP orbs and block physics
 
 The additional gameplay slice includes projectile type/trajectory and block
