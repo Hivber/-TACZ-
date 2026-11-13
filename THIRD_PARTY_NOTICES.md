@@ -278,3 +278,17 @@ scratch buffer. Its carving mask and interval visiting are transport-independent
 
 The 67 tag variants and their block identifier memberships are adapted to the
 local \`block_id\` constants.
+
+
+## MC-RS movement, weather and item cooldown gameplay
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`movement_calc.rs\`, \`weather_state.rs\`,
+  \`item_cooldown.rs\`, \`drop_reasons.rs\`
+- Destinations: \`native/game-core/src/movement_calc.rs\`,
+  \`weather_state.rs\`, \`item_cooldown.rs\`, \`drop_reasons.rs\`
+
+Weather transitions are adapted to the local deterministic RandomSource instead
+of thread_rng to make seeded world simulation reproducible.

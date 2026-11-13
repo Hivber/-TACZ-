@@ -88,6 +88,14 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS movement, weather and item cooldown helpers
+
+The MC-RS gameplay slice adds entity gravity/drag, ground friction and jump
+strength calculations; named item cooldown timers; item drop-reason policy;
+and deterministic seeded weather transitions. Weather randomness is injected
+through the game-core RandomSource (rather than OS-thread RNG), allowing the
+server's world seed/tick stream to reproduce state in tests.
+
 ## Chorus worldgen block-tag catalog
 
 The 67-tag classification table used by Chorus worldgen is now copied and
