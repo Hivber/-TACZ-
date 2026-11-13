@@ -150,11 +150,13 @@ mod tests {
 
     #[test]
     fn applying_damage_breaks_tool_only_at_maximum() {
-        let mut stack = item("minecraft:wooden_pickaxe", 58);
+        let mut stack = item("minecraft:wooden_pickaxe", 57);
         assert!(!apply_damage(&mut stack, 1, 0, &mut FixedRng(0.0)).unwrap());
+        assert_eq!(stack.metadata, 58);
+        assert!(!is_broken(&stack));
+        assert!(apply_damage(&mut stack, 1, 0, &mut FixedRng(0.0)).unwrap());
         assert_eq!(stack.metadata, 59);
         assert!(is_broken(&stack));
-        assert!(apply_damage(&mut stack, 1, 0, &mut FixedRng(0.0)).unwrap());
     }
 
     #[test]
