@@ -12,6 +12,8 @@ pub mod attribute;
 pub mod effects;
 pub mod item_durability;
 pub mod item_entity;
+pub mod item_attributes;
+pub mod horse_attributes;
 pub mod experience_orb;
 pub mod projectiles;
 pub mod slime_block;
