@@ -101,3 +101,40 @@ mod tests {
         assert!(DamageCause::Entity.is_armor_blockable());
     }
 }
+
+
+/// Damage category used to select Protection enchantment modifiers.
+/// This semantic classification is an adapter addition around MC-RS's cause model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DamageKind {
+    All,
+    Fire,
+    Blast,
+    Projectile,
+}
+
+impl DamageCause {
+    pub fn damage_kind(self) -> DamageKind {
+        match self {
+            Self::Fire | Self::Lava => DamageKind::Fire,
+            Self::BlockExplosion | Self::EntityExplosion => DamageKind::Blast,
+            Self::Projectile => DamageKind::Projectile,
+            _ => DamageKind::All,
+        }
+    }
+}
+
+#[cfg(test)]
+mod damage_kind_tests {
+    use super::*;
+
+    #[test]
+    fn damage_causes_map_to_protection_categories() {
+        assert_eq!(DamageCause::Fire.damage_kind(), DamageKind::Fire);
+        assert_eq!(DamageCause::Lava.damage_kind(), DamageKind::Fire);
+        assert_eq!(DamageCause::BlockExplosion.damage_kind(), DamageKind::Blast);
+        assert_eq!(DamageCause::EntityExplosion.damage_kind(), DamageKind::Blast);
+        assert_eq!(DamageCause::Projectile.damage_kind(), DamageKind::Projectile);
+        assert_eq!(DamageCause::Fall.damage_kind(), DamageKind::All);
+    }
+}
