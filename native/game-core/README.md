@@ -88,6 +88,14 @@ vertical carve intervals independent of any block registry; an eventual
 terrain adapter applies those intervals through the Rust chunk storage while
 keeping Go packet encoding unchanged.
 
+## MC-RS liquid state and item stack operations
+
+The liquid helper includes water-depth geometry and water/lava tick rates,
+flow distance, contact damage, fire duration and source-level semantics. It
+uses namespaced identifiers plus the liquid_depth state value, not unstable
+numeric runtime IDs. The stack operations are adapted to the local ItemStack
+and preserve metadata and opaque user data when merging or splitting.
+
 ## MC-RS item attribute modifiers and horse spawn attributes
 
 The item-attribute modifier definitions include supported attribute kinds,

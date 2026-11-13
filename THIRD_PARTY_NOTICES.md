@@ -334,3 +334,18 @@ ported without MC-RS session/entity registries or transport dependencies.
 
 Horse random generation is adapted to the local RandomSource and no OS/thread
 randomness or network code is included.
+
+
+## MC-RS liquid and item-stack operations
+
+- Project: https://github.com/pedrokarim/mc-rs
+- Source revision: \`da93a9501601fcdc284762fde88c24b44604991e\`
+- License: MIT
+- Sources: \`liquids.rs\`, \`item_stack_merge.rs\`
+- Destinations: \`native/game-core/src/liquids.rs\`,
+  \`native/game-core/src/stack_ops.rs\`
+
+The liquid property decoder is adapted to stable identifiers and semantic
+state values; the network/runtime-ID-dependent chunk palette decoder was
+intentionally not included. Stack merging preserves the local ItemStack's
+metadata and opaque user data.
