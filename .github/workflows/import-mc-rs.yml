@@ -1,0 +1,57 @@
+name: Import MC-RS upstream source
+
+on:
+  push:
+    branches:
+      - mc-rs-dragonfly-net
+    paths:
+      - .github/workflows/import-mc-rs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-mc-rs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: ${{ github.ref == 'refs/heads/mc-rs-dragonfly-net' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the isolated integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: mc-rs-dragonfly-net
+          fetch-depth: 0
+
+      - name: Fetch the audited MC-RS revision
+        env:
+          MC_RS_SHA: da93a9501601fcdc284762fde88c24b44604991e
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/pedrokarim/mc-rs.git "$RUNNER_TEMP/mc-rs"
+          git -C "$RUNNER_TEMP/mc-rs" fetch --depth 1 origin "$MC_RS_SHA"
+          git -C "$RUNNER_TEMP/mc-rs" checkout --detach "$MC_RS_SHA"
+
+      - name: Copy the complete upstream working tree
+        run: |
+          set -euo pipefail
+          mkdir -p upstream/mc-rs
+          rsync -a --delete --exclude='.git' "$RUNNER_TEMP/mc-rs/" upstream/mc-rs/
+          printf '%s\n' 'Repository: https://github.com/pedrokarim/mc-rs' 'Commit: da93a9501601fcdc284762fde88c24b44604991e' 'License: MIT' > upstream/MC-RS-UPSTREAM.txt
+
+      - name: Commit imported source on this branch only
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "mc-rs-dragonfly-net"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add upstream/mc-rs upstream/MC-RS-UPSTREAM.txt
+          if git diff --cached --quiet; then
+            echo "Pinned MC-RS source is already imported."
+            exit 0
+          fi
+          git commit -m "vendor(mc-rs): import complete upstream source snapshot"
+          git push origin HEAD:mc-rs-dragonfly-net
