@@ -523,7 +523,6 @@ func (s *Session) SendServerSettingsForm(f form.Form) {
 	})
 }
 
-
 // CloseForm closes any forms that the player currently has open. If the player has no forms open, nothing
 // happens.
 func (s *Session) CloseForm() {

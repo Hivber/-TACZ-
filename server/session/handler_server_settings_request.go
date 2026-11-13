@@ -33,7 +33,7 @@ func (ServerSettingsRequestHandler) Handle(_ packet.Packet, s *Session, tx *worl
 }
 
 type serverGameplaySettings struct {
-	GameMode    form.Dropdown
+	GameMode   form.Dropdown
 	Difficulty form.Dropdown
 }
 
