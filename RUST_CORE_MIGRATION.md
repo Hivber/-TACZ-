@@ -43,7 +43,7 @@ Rust owns the canonical state and rules for:
 - Inventory, item stacks, equipment, durability, use actions and crafting.
 - Entities, mobs, AI, combat, health, effects and damage.
 - World, chunks, dimensions, lighting, ticking and world generation.
-- Containers, redstone, commands, gamerules, permissions and persistence.
+- Basic containers, common crafting and furnace interactions, and world/player persistence.
 
 There must be one authoritative copy of each player/world/inventory state. Go must not independently simulate gameplay after a subsystem has moved to Rust.
 
@@ -56,6 +56,15 @@ Inbound direction: Go decodes the existing gophertunnel packet into a versioned 
 Outbound direction: Rust returns semantic game events (state corrections, block changes, entity updates, inventory updates, sounds, level events, forms, disconnect/kick requests, etc.). Go maps these to the existing gophertunnel packet structs and sends them through the existing Dragonfly connection.
 
 The IPC schema must have an explicit protocol version, message length limits, connection/player identifiers, tick sequence, error response and graceful shutdown. Batch high-frequency movement and chunk/block updates. Never send raw Bedrock packet bytes from Rust and never let Rust own the client socket.
+
+## Explicitly out of scope for the playable survival milestone
+
+The first playable milestone does not require command blocks or command-block
+execution chains, advanced redstone automation, complex scripting/datapack
+runtimes, scoreboard/advancement systems, or boss/raid-scale mechanics. These
+must not block delivery of ordinary survival gameplay. Basic server commands
+needed to operate a test server (such as game mode and difficulty changes)
+remain available through the existing Dragonfly command path.
 
 ## Source selection and adaptation rules
 
@@ -74,7 +83,7 @@ The IPC schema must have an explicit protocol version, message length limits, co
 3. **Block interaction vertical slice:** block state lookup, start/continue/abort/predict-break actions, crack animation events, drops, XP, tool durability and block update packets.
 4. **Inventory vertical slice:** stack requests, legacy transactions, hotbar/equipment, offhand, containers, consumption, durability and persistence.
 5. **World and entities:** chunk lifecycle, world generation, dimensions, entity replication, AI, combat and death/respawn.
-6. **Vanilla parity:** redstone, fluids, block entities, crafting/furnaces, enchantments, effects, commands, gamerules and remaining mechanics.
+6. **Survival completeness:** common fluids and block entities, crafting/furnaces, food, equipment, durability, basic effects and the remaining ordinary survival interactions. Advanced redstone and command-block execution are explicitly excluded.
 7. **Performance:** batch IPC, chunk send scheduling, blob cache/delta sync and parallel simulation only after correctness is stable.
 8. **Retire Go gameplay:** remove old Go game-state ownership only after feature parity tests pass; keep Dragonfly's network/protocol adapter.
 

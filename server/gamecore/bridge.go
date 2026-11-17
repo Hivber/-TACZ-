@@ -85,9 +85,10 @@ func (b *Bridge) run() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
 		defer cancel()
+		clientID, batchID := b.client.nextBatchIdentity()
 		var err error
 		for attempt := 0; attempt < 3; attempt++ {
-			_, err = b.client.CallBatch(ctx, batch)
+			_, err = b.client.callBatch(ctx, batch, clientID, batchID)
 			if err == nil {
 				batch = batch[:0]
 				return

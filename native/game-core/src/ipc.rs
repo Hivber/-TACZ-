@@ -9,7 +9,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     io::{Read, Write},
     os::unix::{fs::FileTypeExt, net::{UnixListener, UnixStream}},
     path::Path,
@@ -19,12 +19,20 @@ use std::{
 
 const MAX_FRAME: usize = 1024 *  1024;
 const MAX_BATCH_EVENTS: usize = 4096;
+const MAX_CACHED_BATCHES: usize = 1024;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum Request {
     Ping { protocol_version: u16 },
-    Batch { protocol_version: u16, events: Vec<SemanticEvent> },
+    Batch {
+        protocol_version: u16,
+        #[serde(default)]
+        client_id: String,
+        #[serde(default)]
+        batch_id: u64,
+        events: Vec<SemanticEvent>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -59,7 +67,7 @@ enum SemanticEvent {
     },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum MiningOutcome {
     Started { progress: f32, crack_stage: u8 },
@@ -69,10 +77,10 @@ enum MiningOutcome {
     Error { error: MiningError },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct MiningResult { uuid: String, #[serde(flatten)] outcome: MiningOutcome }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum InventoryOutcome {
     Snapshot { slots: Vec<Option<ItemStack>> },
@@ -92,10 +100,10 @@ enum InventoryOutcome {
     Error { error: String },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct InventoryResult { inventory_id: String, #[serde(flatten)] outcome: InventoryOutcome }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct Response {
     protocol_version: u16,
     ok: bool,
@@ -111,6 +119,8 @@ struct CoreState {
     players: HashMap<String, PlayerState>,
     mining: HashMap<String, BlockMiningMachine>,
     inventories: HashMap<String, Inventory>,
+    processed_batches: HashMap<(String, u64), Response>,
+    batch_order: VecDeque<(String, u64)>,
 }
 
 impl SemanticEvent {
@@ -159,13 +169,25 @@ impl CoreState {
         match request {
             Request::Ping { protocol_version } =>
                 self.response(protocol_version == CORE_PROTOCOL_VERSION, "pong", 0, Vec::new(), Vec::new()),
-            Request::Batch { protocol_version, events } => {
+            Request::Batch { protocol_version, client_id, batch_id, events } => {
                 if protocol_version != CORE_PROTOCOL_VERSION {
                     return self.response(false, "protocol_mismatch", 0, Vec::new(), Vec::new());
                 }
                 if events.len() > MAX_BATCH_EVENTS {
                     return self.response(false, "batch_too_large", 0, Vec::new(), Vec::new());
                 }
+                let cache_key = if batch_id == 0 {
+                    None
+                } else {
+                    if client_id.is_empty() || client_id.len() > 128 {
+                        return self.response(false, "invalid_batch_identity", 0, Vec::new(), Vec::new());
+                    }
+                    let key = (client_id, batch_id);
+                    if let Some(response) = self.processed_batches.get(&key) {
+                        return response.clone();
+                    }
+                    Some(key)
+                };
                 if !events.iter().all(SemanticEvent::is_valid) {
                     return self.response(false, "invalid_event", 0, Vec::new(), Vec::new());
                 }
@@ -177,7 +199,17 @@ impl CoreState {
                     if let Some(result) = mining { mining_results.push(result); }
                     if let Some(result) = inventory { inventory_results.push(result); }
                 }
-                self.response(true, "batch_applied", processed, mining_results, inventory_results)
+                let response = self.response(true, "batch_applied", processed, mining_results, inventory_results);
+                if let Some(key) = cache_key {
+                    self.processed_batches.insert(key.clone(), response.clone());
+                    self.batch_order.push_back(key);
+                    while self.batch_order.len() > MAX_CACHED_BATCHES {
+                        if let Some(expired) = self.batch_order.pop_front() {
+                            self.processed_batches.remove(&expired);
+                        }
+                    }
+                }
+                response
             }
         }
     }
@@ -448,6 +480,8 @@ mod tests {
     fn ipc_mining_start_returns_semantic_crack_state() {
         let mut state = CoreState::default();
         let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::MiningStart {
                 uuid: "player-1".into(), target: target(), profile: profile(),
@@ -486,6 +520,8 @@ mod tests {
     fn inventory_ipc_initializes_inserts_removes_and_cleans_up() {
         let mut state = CoreState::default();
         let init = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryInit { inventory_id: "player:player-1:carried".into(), slot_count: 2 }],
         });
@@ -493,12 +529,16 @@ mod tests {
         assert_eq!(init.inventory_results.len(), 1);
         let stack = ItemStack::new("minecraft:cobblestone", 10, 0, vec![]).unwrap();
         let inserted = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryInsert { inventory_id: "player:player-1:carried".into(), stack }],
         });
         assert!(matches!(inserted.inventory_results[0].outcome,
             InventoryOutcome::Inserted { remainder: None, .. }));
         let removed = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventoryRemove {
                 inventory_id: "player:player-1:carried".into(), slot: 0, count: 4,
@@ -519,6 +559,8 @@ mod tests {
             None,
             ];
         let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventorySync { inventory_id: "player:p:carried".into(), slots: snapshot }],
         });
@@ -571,6 +613,8 @@ mod tests {
     fn invalid_inventory_item_is_rejected_before_batch_mutation() {
         let mut state = CoreState::default();
         let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![
                 SemanticEvent::InventoryInit { inventory_id: "player:p:carried".into(), slot_count: 9 },
@@ -595,7 +639,10 @@ mod tests {
                 eye_position: eye(), max_reach: f32::NAN, tick: 1 },
         ];
         assert!(!events.iter().all(SemanticEvent::is_valid));
-        let response = state.handle(Request::Batch { protocol_version: CORE_PROTOCOL_VERSION, events });
+        let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
+            protocol_version: CORE_PROTOCOL_VERSION, events });
         assert!(!response.ok);
         assert!(state.players.is_empty());
         assert!(state.mining.is_empty());
@@ -672,6 +719,77 @@ mod inventory_transfer_ipc_tests {
 
 
 #[cfg(test)]
+mod batch_idempotency_tests {
+    use super::*;
+
+    fn request(events: Vec<SemanticEvent>) -> Request {
+        Request::Batch {
+            protocol_version: CORE_PROTOCOL_VERSION,
+            client_id: "dragonfly-test-client".into(),
+            batch_id: 77,
+            events,
+        }
+    }
+
+    #[test]
+    fn retrying_mutating_inventory_batch_returns_cached_result_without_applying_twice() {
+        let mut state = CoreState::default();
+        let events = vec![
+            SemanticEvent::InventoryInit {
+                inventory_id: "player:alice:carried".into(),
+                slot_count: 9,
+            },
+            SemanticEvent::InventoryInsert {
+                inventory_id: "player:alice:carried".into(),
+                stack: ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap(),
+            },
+        ];
+
+        let first = state.handle(request(events.clone()));
+        let retry = state.handle(request(events));
+
+        assert!(first.ok);
+        assert_eq!(
+            serde_json::to_value(&first).unwrap(),
+            serde_json::to_value(&retry).unwrap(),
+            "a retry must receive the original response"
+        );
+        let inventory = state.inventories.get("player:alice:carried").unwrap();
+        assert_eq!(inventory.get(0).unwrap().count, 5);
+    }
+
+    #[test]
+    fn batch_identities_are_isolated_between_clients() {
+        let mut state = CoreState::default();
+        let events = vec![
+            SemanticEvent::InventoryInit {
+                inventory_id: "player:alice:carried".into(),
+                slot_count: 9,
+            },
+            SemanticEvent::InventoryInsert {
+                inventory_id: "player:alice:carried".into(),
+                stack: ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap(),
+            },
+        ];
+
+        state.handle(request(events.clone()));
+        let other_client = Request::Batch {
+            protocol_version: CORE_PROTOCOL_VERSION,
+            client_id: "another-client".into(),
+            batch_id: 77,
+            events,
+        };
+        let response = state.handle(other_client);
+        assert!(response.ok);
+        assert_eq!(
+            state.inventories.get("player:alice:carried").unwrap().get(0).unwrap().count,
+            5,
+            "the second client's independent snapshot replaces the first"
+        );
+    }
+}
+
+#[cfg(test)]
 mod inventory_sync_pair_tests {
     use super::*;
 
@@ -689,6 +807,8 @@ mod inventory_sync_pair_tests {
             slots: vec![None, Some(ItemStack::new("minecraft:emerald", 1, 0, vec![]).unwrap())],
         });
         let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION,
             events: vec![SemanticEvent::InventorySyncPair {
                 inventory_id: player_id.clone(),
@@ -726,6 +846,8 @@ mod inventory_sync_pair_tests {
         };
         assert!(!invalid.is_valid());
         let response = state.handle(Request::Batch {
+            client_id: String::new(),
+            batch_id: 0,
             protocol_version: CORE_PROTOCOL_VERSION, events: vec![invalid],
         });
         assert!(!response.ok);

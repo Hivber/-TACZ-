@@ -58,13 +58,21 @@ server-side interactions and persistence are also implemented and tested.
 - Real Bedrock 1.26.60 client verification and long-duration server testing are still required
   for protocol, AI, redstone timing, persistence and performance claims.
 
+## First playable survival scope
+
+The first playable release prioritises ordinary survival: world/chunk persistence,
+block mining and placement, item stacks and equipment, common crafting and
+smelting, hunger/health/death/respawn, and basic hostile/passive mob behaviour.
+Command blocks, command execution chains, advanced redstone automation,
+complex scripting, raids and boss mechanics are not release blockers.
+
 ## Delivery order
 
 1. Stabilise mob profiles, spawn categories, groups, despawn and basic combat.
-2. Implement the missing redstone timing/automation blocks and their block entities.
+2. Finish the ordinary survival block interactions and common block entities; defer advanced redstone automation.
 3. Complete high-impact item actions and projectile/enchantment interactions.
 4. Expand living entity roster and implement species-specific AI and interactions.
-5. Add Nether/End, aquatic, cave, structure, raid and village systems.
+5. Add essential dimension and common mob coverage; defer raids, bosses and complex village systems.
 6. Run cross-system regression tests and in-client compatibility tests.
 
 Progress must be marked complete only after the gameplay behaviour, persistence and tests are present.

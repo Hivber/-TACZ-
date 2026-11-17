@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -125,6 +127,8 @@ type InventoryResult struct {
 type batchRequest struct {
 	Type            string  `json:"type"`
 	ProtocolVersion uint16  `json:"protocol_version"`
+	ClientID        string  `json:"client_id"`
+	BatchID         uint64  `json:"batch_id"`
 	Events          []Event `json:"events"`
 }
 
@@ -145,12 +149,19 @@ type Response struct {
 
 // Client serializes access to one persistent local IPC connection. A failed
 // exchange invalidates the stream; the next call reconnects automatically.
+// Batch identities remain stable across retries so the Rust side can safely
+// replay a response without applying inventory mutations twice.
+var clientSequence atomic.Uint64
+
 type Client struct {
 	SocketPath string
 	Timeout    time.Duration
 
-	mu   sync.Mutex
-	conn net.Conn
+	mu      sync.Mutex
+	conn    net.Conn
+	batchMu sync.Mutex
+	clientID string
+	nextBatch uint64
 }
 
 func (c *Client) Call(ctx context.Context, event Event) (Response, error) {
@@ -170,11 +181,30 @@ func (c *Client) CallBatch(ctx context.Context, events []Event) (Response, error
 	if len(events) > maxBatchEvents {
 		return Response{}, fmt.Errorf("game core batch has %d events; maximum is %d", len(events), maxBatchEvents)
 	}
+	clientID, batchID := c.nextBatchIdentity()
+	return c.callBatch(ctx, events, clientID, batchID)
+}
+
+// callBatch is also used by Bridge so all retries of one queued batch share
+// exactly the same idempotency identity.
+func (c *Client) callBatch(ctx context.Context, events []Event, clientID string, batchID uint64) (Response, error) {
+	if c == nil {
+		return Response{}, errors.New("game core client is nil")
+	}
+	if len(events) == 0 {
+		return Response{ProtocolVersion: ProtocolVersion, OK: true, Message: "empty_batch"}, nil
+	}
+	if len(events) > maxBatchEvents {
+		return Response{}, fmt.Errorf("game core batch has %d events; maximum is %d", len(events), maxBatchEvents)
+	}
 	normalized := append([]Event(nil), events...)
 	for i := range normalized {
 		normalized[i].ProtocolVersion = ProtocolVersion
 	}
-	response, err := c.call(ctx, batchRequest{Type: "batch", ProtocolVersion: ProtocolVersion, Events: normalized})
+	response, err := c.call(ctx, batchRequest{
+		Type: "batch", ProtocolVersion: ProtocolVersion,
+		ClientID: clientID, BatchID: batchID, Events: normalized,
+	})
 	if err != nil {
 		return response, err
 	}
@@ -182,6 +212,16 @@ func (c *Client) CallBatch(ctx context.Context, events []Event) (Response, error
 		return response, fmt.Errorf("game core processed %d of %d events", response.ProcessedEvents, len(normalized))
 	}
 	return response, nil
+}
+
+func (c *Client) nextBatchIdentity() (string, uint64) {
+	c.batchMu.Lock()
+	defer c.batchMu.Unlock()
+	if c.clientID == "" {
+		c.clientID = fmt.Sprintf("%d-%d-%d", os.Getpid(), time.Now().UnixNano(), clientSequence.Add(1))
+	}
+	c.nextBatch++
+	return c.clientID, c.nextBatch
 }
 
 func (c *Client) call(ctx context.Context, request any) (Response, error) {
