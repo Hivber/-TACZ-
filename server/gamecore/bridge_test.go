@@ -41,6 +41,26 @@ func writeFrame(t *testing.T, conn net.Conn, response Response) {
 	}
 }
 
+func readBatchRequest(conn net.Conn) (batchRequest, error) {
+	var header [4]byte
+	if _, err := io.ReadFull(conn, header[:]); err != nil {
+		return batchRequest{}, err
+	}
+	size := binary.BigEndian.Uint32(header[:])
+	if size == 0 || size > maxFrameSize {
+		return batchRequest{}, io.ErrUnexpectedEOF
+	}
+	payload := make([]byte, size)
+	if _, err := io.ReadFull(conn, payload); err != nil {
+		return batchRequest{}, err
+	}
+	var request batchRequest
+	if err := json.Unmarshal(payload, &request); err != nil {
+		return batchRequest{}, err
+	}
+	return request, nil
+}
+
 func TestClientReusesPersistentConnection(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "core.sock")
 	listener, err := net.Listen("unix", path)
@@ -117,6 +137,85 @@ func TestClientReusesPersistentConnection(t *testing.T) {
 		t.Fatalf("accepted %d connections, want one persistent connection", got)
 	}
 	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeRetryReusesBatchIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "retry.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	requests := make(chan batchRequest, 2)
+	serverDone := make(chan error, 1)
+	go func() {
+		firstConn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		firstRequest, readErr := readBatchRequest(firstConn)
+		_ = firstConn.Close() // Simulate Rust applying the batch but losing its response.
+		if readErr != nil {
+			serverDone <- readErr
+			return
+		}
+		requests <- firstRequest
+
+		secondConn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer secondConn.Close()
+		secondRequest, readErr := readBatchRequest(secondConn)
+		if readErr != nil {
+			serverDone <- readErr
+			return
+		}
+		requests <- secondRequest
+
+		responseBytes, marshalErr := json.Marshal(Response{
+			ProtocolVersion: ProtocolVersion,
+			OK: true,
+			Message: "batch_applied",
+			ProcessedEvents: len(secondRequest.Events),
+		})
+		if marshalErr != nil {
+			serverDone <- marshalErr
+			return
+		}
+		var header [4]byte
+		binary.BigEndian.PutUint32(header[:], uint32(len(responseBytes)))
+		if _, writeErr := secondConn.Write(header[:]); writeErr != nil {
+			serverDone <- writeErr
+			return
+		}
+		if _, writeErr := secondConn.Write(responseBytes); writeErr != nil {
+			serverDone <- writeErr
+			return
+		}
+		serverDone <- nil
+	}()
+
+	bridge := NewBridge(path, func(error) {})
+	if !bridge.Enqueue(Event{Type: "inventory_insert", InventoryID: "player:alice:carried",
+		Stack: &ItemStack{Identifier: "minecraft:diamond", Count: 1}}) {
+		t.Fatal("failed to enqueue inventory mutation")
+	}
+	bridge.Close()
+
+	firstRequest, secondRequest := <-requests, <-requests
+	if firstRequest.ClientID == "" || firstRequest.BatchID == 0 {
+		t.Fatalf("first batch has no idempotency identity: %+v", firstRequest)
+	}
+	if firstRequest.ClientID != secondRequest.ClientID || firstRequest.BatchID != secondRequest.BatchID {
+		t.Fatalf("retry changed batch identity: first=%+v retry=%+v", firstRequest, secondRequest)
+	}
+	if err := <-serverDone; err != nil {
 		t.Fatal(err)
 	}
 }

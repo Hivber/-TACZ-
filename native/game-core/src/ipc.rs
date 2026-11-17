@@ -19,7 +19,7 @@ use std::{
 
 const MAX_FRAME: usize = 1024 *  1024;
 const MAX_BATCH_EVENTS: usize = 4096;
-const MAX_CACHED_BATCHES: usize = 1024;
+const MAX_CACHED_BATCHES: usize = 64;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -761,7 +761,7 @@ mod batch_idempotency_tests {
     #[test]
     fn batch_identities_are_isolated_between_clients() {
         let mut state = CoreState::default();
-        let events = vec![
+        let first_events = vec![
             SemanticEvent::InventoryInit {
                 inventory_id: "player:alice:carried".into(),
                 slot_count: 9,
@@ -771,20 +771,33 @@ mod batch_idempotency_tests {
                 stack: ItemStack::new("minecraft:diamond", 5, 0, vec![]).unwrap(),
             },
         ];
+        state.handle(request(first_events));
 
-        state.handle(request(events.clone()));
         let other_client = Request::Batch {
             protocol_version: CORE_PROTOCOL_VERSION,
             client_id: "another-client".into(),
             batch_id: 77,
-            events,
+            events: vec![
+                SemanticEvent::InventoryInit {
+                    inventory_id: "player:bob:carried".into(),
+                    slot_count: 9,
+                },
+                SemanticEvent::InventoryInsert {
+                    inventory_id: "player:bob:carried".into(),
+                    stack: ItemStack::new("minecraft:emerald", 2, 0, vec![]).unwrap(),
+                },
+            ],
         };
         let response = state.handle(other_client);
         assert!(response.ok);
         assert_eq!(
-            state.inventories.get("player:alice:carried").unwrap().get(0).unwrap().count,
-            5,
-            "the second client's independent snapshot replaces the first"
+            state.inventories.get("player:alice:carried").unwrap().get(0).unwrap().identifier,
+            "minecraft:diamond"
+        );
+        assert_eq!(
+            state.inventories.get("player:bob:carried").unwrap().get(0).unwrap().count,
+            2,
+            "the second client's independent batch must be processed"
         );
     }
 }

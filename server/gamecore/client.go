@@ -157,10 +157,10 @@ type Client struct {
 	SocketPath string
 	Timeout    time.Duration
 
-	mu      sync.Mutex
-	conn    net.Conn
-	batchMu sync.Mutex
-	clientID string
+	mu        sync.Mutex
+	conn      net.Conn
+	batchMu   sync.Mutex
+	clientID  string
 	nextBatch uint64
 }
 
