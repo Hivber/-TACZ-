@@ -179,10 +179,10 @@ func TestBridgeRetryReusesBatchIdentity(t *testing.T) {
 		requests <- secondRequest
 
 		responseBytes, marshalErr := json.Marshal(Response{
-			ProtocolVersion:  ProtocolVersion,
-			OK:               true,
-			Message:          "batch_applied",
-			ProcessedEvents:  len(secondRequest.Events),
+			ProtocolVersion: ProtocolVersion,
+			OK:              true,
+			Message:         "batch_applied",
+			ProcessedEvents: len(secondRequest.Events),
 		})
 		if marshalErr != nil {
 			serverDone <- marshalErr
